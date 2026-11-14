@@ -1,3 +1,5 @@
+import { localCatalog } from "../environment/localCatalog";
+import { seedEnvironmentCatalog } from "./environmentRepository";
 import { randomUUID } from "node:crypto";
 import { AppError, indicatorConfig, type Account } from "../../domain/model";
 import { password } from "../../domain/validation";
@@ -17,6 +19,11 @@ export function seed(repo: SqliteRepository, adminUsername: string, adminPasswor
       repo.saveAccount(account);
       repo.audit(account.id, account.id, "initial_admin_provisioned");
     }
+  });
+  seedEnvironmentCatalog(repo.db,localCatalog);
+  repo.atomic(() => {
+    repo.run("INSERT INTO local_settings VALUES('environment_revision',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",localCatalog.revision);
+    for(const user of repo.users()) if(user.astronautId) repo.saveAccount(repo.account(user.id)!);
   });
 }
 

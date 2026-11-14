@@ -53,6 +53,7 @@ export interface Device {
   astronautId: string;
   enabled: boolean;
   lastCommunicationAt: string | null;
+  signal?: { status:string; observedAt:string } | null;
 }
 export interface QueueRecord {
   id: string;

@@ -1,4 +1,6 @@
 import type { DatabaseSync } from "node:sqlite";
+import { migrateEnvironment } from "./environmentRepository";
+import { migrateAlerts } from "./alertRepository";
 
 // Persona 2 añade migraciones con otro ID; las ya aplicadas son inmutables.
 export const migrations = [{ id: "001_person1_local", sql: `
@@ -25,6 +27,19 @@ CREATE TABLE sync_queue(id TEXT PRIMARY KEY REFERENCES measurements(id), payload
 CREATE TABLE login_attempts(username TEXT PRIMARY KEY, failures INTEGER NOT NULL, blocked_until TEXT NOT NULL);
 ` }];
 
+const modules = [
+  { id: "002_environment_shared", apply: migrateEnvironment },
+  { id: "003_alerts_shared", apply: migrateAlerts },
+  { id: "004_person1_integration", apply(db: DatabaseSync) { db.exec(`
+    CREATE TABLE local_settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+    CREATE TABLE assessment_jobs(id TEXT PRIMARY KEY REFERENCES measurements(id), attempts INTEGER NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','done')), error TEXT, rule_version TEXT, result TEXT);
+    INSERT INTO assessment_jobs(id) SELECT id FROM measurements;
+    CREATE TABLE device_status(device_id TEXT PRIMARY KEY REFERENCES devices(id), status TEXT NOT NULL,
+      observed_at TEXT NOT NULL, received_at TEXT NOT NULL);
+  `); } },
+];
+
 export function migrate(db: DatabaseSync) {
   db.exec("CREATE TABLE IF NOT EXISTS schema_migrations(id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
   for (const migration of migrations) {
@@ -37,4 +52,15 @@ export function migrate(db: DatabaseSync) {
       db.exec("COMMIT");
     } catch (error) { db.exec("ROLLBACK"); throw error; }
   }
+  for (const component of modules) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (!db.prepare("SELECT id FROM schema_migrations WHERE id=?").get(component.id)) {
+        component.apply(db);
+        db.prepare("INSERT INTO schema_migrations VALUES(?,?)").run(component.id, new Date().toISOString());
+      }
+      db.exec("COMMIT");
+    } catch (error) { db.exec("ROLLBACK"); throw error; }
+  }
+
 }

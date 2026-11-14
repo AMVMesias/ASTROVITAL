@@ -1,10 +1,11 @@
+import { LocalAssessmentService } from "../application/assessment/LocalAssessmentService";
 import { resolve } from "node:path";
 import { AppError, type EnvironmentProvider } from "../domain/model";
 import { SqliteRepository } from "../infrastructure/sqlite/SqliteRepository";
 import { AuthService } from "../application/auth/AuthService";
 import { UserService } from "../application/users/UserService";
 import { MeasurementService } from "../application/measurements/MeasurementService";
-import { PreparationEnvironmentProvider } from "../application/environment/PreparationEnvironmentProvider";
+import { HistoricalEnvironmentProvider } from "../infrastructure/environment/HistoricalEnvironmentProvider";
 import { LocalQueue } from "../application/sync-queue/LocalQueue";
 
 export function localPath() {
@@ -12,9 +13,10 @@ export function localPath() {
   // Archivo de ejecución local, nunca un recurso que deba copiarse al despliegue.
   return resolve(/* turbopackIgnore: true */ process.env.SQLITE_PATH || "data/local/nasa-health.sqlite");
 }
-export function createServices(repo: SqliteRepository, environment: EnvironmentProvider = new PreparationEnvironmentProvider()) {
+export function createServices(repo: SqliteRepository, environment: EnvironmentProvider = new HistoricalEnvironmentProvider(repo)) {
   const auth = new AuthService(repo);
-  return { repo, auth, users: new UserService(repo, auth), measurements: new MeasurementService(repo, auth, environment), queue: new LocalQueue(repo) };
+  const assessments = new LocalAssessmentService(repo);
+  return { repo, auth, assessments, users: new UserService(repo, auth), measurements: new MeasurementService(repo, auth, environment,value=>assessments.preview(value)), queue: new LocalQueue(repo) };
 }
 let services: ReturnType<typeof createServices> | undefined;
 export function localServices() { return services ??= createServices(new SqliteRepository(localPath())); }

@@ -5,5 +5,6 @@ import nextTypescript from "eslint-config-next/typescript";
 export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
-  globalIgnores(["**/.next/**", "**/next-env.d.ts"]),
+  { settings: { next: { rootDir: ["src/frontend/", "src/backend/"] } } },
+  globalIgnores(["**/.next/**", "**/next-env.d.ts", "**/.venv/**"]),
 ]);

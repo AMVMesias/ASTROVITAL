@@ -45,7 +45,13 @@ export class SqliteRepository implements Repository {
     this.run(`INSERT INTO users VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET username=excluded.username,
       name=excluded.name,password_hash=excluded.password_hash,role=excluded.role,enabled=excluded.enabled`,
     user.id, user.username, user.name, user.passwordHash, user.role, Number(user.enabled), user.createdAt);
-    if (user.astronautId) this.run("INSERT INTO astronauts VALUES(?,?,?,?) ON CONFLICT(user_id) DO NOTHING", user.astronautId, user.id, user.missionId, user.moduleId);
+    if (user.astronautId) {
+      this.run("INSERT INTO astronauts VALUES(?,?,?,?) ON CONFLICT(user_id) DO NOTHING", user.astronautId, user.id, user.missionId, user.moduleId);
+      this.run(`INSERT INTO astronaut_environment_assignments(mission_id,astronaut_id,effective_from,revision,scenario_id)
+        SELECT ?,?,?,value,'iss_leo' FROM local_settings WHERE key='environment_revision'
+        AND NOT EXISTS(SELECT 1 FROM astronaut_environment_assignments WHERE mission_id=? AND astronaut_id=?)`,
+        user.missionId,user.astronautId,user.createdAt,user.missionId,user.astronautId);
+    }
   }
   audit(author: string, target: string, action: string) { this.run("INSERT INTO audit VALUES(?,?,?,?,?)", randomUUID(), author, target, action, new Date().toISOString()); }
   session(id: string) {
@@ -68,9 +74,14 @@ export class SqliteRepository implements Repository {
     return row ? { id: String(row.id), astronautId: String(row.astronaut_id), credentialHash: String(row.credential_hash), enabled: row.enabled === 1, lastCommunicationAt: row.last_communication_at ? String(row.last_communication_at) : null } : null;
   }
   devices(id: string): Device[] {
-    return this.all("SELECT * FROM devices WHERE astronaut_id=? ORDER BY id", id).map(row => ({ id: String(row.id), astronautId: id, enabled: row.enabled === 1, lastCommunicationAt: row.last_communication_at ? String(row.last_communication_at) : null }));
+    return this.all("SELECT d.*,s.status,s.observed_at FROM devices d LEFT JOIN device_status s ON s.device_id=d.id WHERE astronaut_id=? ORDER BY d.id", id).map(row => ({ id: String(row.id), astronautId: id, signal: row.status ? {status:String(row.status),observedAt:String(row.observed_at)} : null, enabled: row.enabled === 1, lastCommunicationAt: row.last_communication_at ? String(row.last_communication_at) : null }));
   }
   touchDevice(id: string, at: string) { this.run("UPDATE devices SET last_communication_at=? WHERE id=?", at, id); }
+  signalStatus(id: string, status: string, observedAt: string, receivedAt: string) {
+    this.run(`INSERT INTO device_status VALUES(?,?,?,?) ON CONFLICT(device_id) DO UPDATE SET
+      status=excluded.status,observed_at=excluded.observed_at,received_at=excluded.received_at
+      WHERE excluded.observed_at>device_status.observed_at`,id,status,observedAt,receivedAt);
+  }
   deviceReading(device: string, reading: string) {
     const row = this.get("SELECT payload,fingerprint FROM measurements WHERE device_id=? AND reading_id=?", device, reading);
     return row ? { measurement: JSON.parse(String(row.payload)) as Measurement, fingerprint: String(row.fingerprint) } : null;
@@ -79,6 +90,7 @@ export class SqliteRepository implements Repository {
     const payload = JSON.stringify(value);
     this.run("INSERT INTO measurements VALUES(?,?,?,?,?,?,?,?)", value.id, value.astronautId, value.indicator, value.capturedAt, value.deviceId, value.readingId, fingerprint, payload);
     this.run("INSERT INTO sync_queue(id,payload) VALUES(?,?)", value.id, payload);
+    this.run("INSERT INTO assessment_jobs(id) VALUES(?)",value.id);
   }
   measurements(id: string, query: MeasurementQuery) {
     return this.all(`SELECT payload FROM measurements WHERE astronaut_id=? AND (? IS NULL OR indicator=?)

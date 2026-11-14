@@ -9,5 +9,5 @@ export function POST(request: NextRequest) { return handle(async () => {
  const authorization=request.headers.get("authorization") ?? "";
  if (!authorization.startsWith("Bearer ") || authorization.length>300) throw new AppError(401,"DEVICE_UNAUTHORIZED","Usa Bearer con la credencial del dispositivo.");
  const result=localServices().measurements.fromDevice(id,authorization.slice(7),await json(request));
- return respond(result,result.duplicate?200:201);
+ return respond({...result,evaluation:await localServices().assessments.process(result.measurement.id)},result.duplicate?200:201);
 }); }

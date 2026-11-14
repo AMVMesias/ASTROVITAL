@@ -19,7 +19,14 @@
     "dev:frontend": "npm run dev --workspace src/frontend",
     "dev:backend": "next dev src/backend -p 3001",
     "start:frontend": "npm run start --workspace src/frontend",
-    "start:backend": "next start src/backend -p 3001"
+    "start:backend": "next start src/backend -p 3001",
+    "bridge:serial": "node --import tsx scripts/bridge.ts serial",
+    "bridge:ble": "node --import tsx scripts/bridge.ts ble",
+    "bridge:flush": "node --import tsx scripts/bridge.ts flush",
+    "bridge:retry": "node --import tsx scripts/bridge.ts retry",
+    "test:bridge": "python3 -m unittest discover -s tools/bridge -p \"test_*.py\"",
+    "assessment:retry": "node --import tsx scripts/local.ts assess",
+    "bridge:status": "node --import tsx scripts/bridge.ts status"
   },
   "engines": {
     "node": ">=22.13.0 <23"

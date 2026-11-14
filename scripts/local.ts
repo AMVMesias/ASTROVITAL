@@ -1,11 +1,11 @@
 import { sendLocalQueue } from "../src/backend/src/backend/application/sync/sendLocalQueue";
 import { createMeasurementSender } from "../src/backend/src/backend/infrastructure/http/sendMeasurements";
-import { loadEnvConfig } from "@next/env";
+import { loadLocalEnvironment } from "./loadLocalEnvironment";
 import { localPath, createServices } from "../src/backend/src/backend/composition/local";
 import { SqliteRepository } from "../src/backend/src/backend/infrastructure/sqlite/SqliteRepository";
 import { provisionDevice, seed } from "../src/backend/src/backend/infrastructure/sqlite/seed";
 
-loadEnvConfig(process.cwd());
+loadLocalEnvironment();
 const repo = new SqliteRepository(localPath());
 try {
   const command = process.argv[2];
@@ -29,15 +29,22 @@ try {
     // Identificador de ejecución explícito evita repetir una serie accidentalmente.
     const run = process.env.DEMO_RUN_ID ?? "stable-variation-v1";
     if (repo.get("SELECT id FROM measurements WHERE json_extract(payload,'$.scenario')=? LIMIT 1", run)) throw new Error("DEMO_RUN_ID ya ejecutado. Usa otro ID; no se borran datos.");
-    const base = Date.now() - 12 * 86400_000;
+    const now=Date.now();
+    const span=Number(process.env.DEMO_SPAN_SECONDS??60)*1000;
+    if(!Number.isFinite(span)||span<1||span>12*86400_000) throw new Error("DEMO_SPAN_SECONDS debe estar entre 0.001 y 1036800.");
+    const base = Math.max(Date.parse(user.createdAt),now-span);
+    const step=(now-base)/12;
     for (let day = 0; day < 12; day++) {
       if (day === 9) continue; // hueco explícito: no se inventa una lectura
-      const capturedAt = new Date(base + day * 86400_000).toISOString();
+      const capturedAt = new Date(base + day * step).toISOString();
       for (const [indicator, value, unit] of [["heart_rate", day < 7 ? 64 + day % 3 : 85 + day % 3, "bpm"], ["sleep", day < 7 ? 7.5 : 5.5, "h"], ["wellbeing", day < 7 ? 4 : 2, "score_1_5"]] as const) {
         measurements.simulated(user.astronautId, { indicator, value, unit, capturedAt, activity: "rest", note: "Serie sintética determinista; sin inferencia clínica." }, run);
       }
     }
-    console.log("33 lecturas sintéticas creadas mediante el flujo de captura. Un día sin muestras.");
+    console.log("33 lecturas sintéticas creadas. Un intervalo sin muestras.");
+    console.log(JSON.stringify(await createServices(repo).assessments.retry()));
+  } else if (command === "assess") {
+    console.log(JSON.stringify(await createServices(repo).assessments.retry()));
   } else if (command === "sync") {
     const { NASA_SYNC_ENDPOINT: endpoint, NASA_SYNC_TOKEN: token } = process.env;
     if (!endpoint || !token) throw new Error("Configura NASA_SYNC_ENDPOINT y NASA_SYNC_TOKEN.");
@@ -45,5 +52,5 @@ try {
     const receipts = await sendLocalQueue(queue, createMeasurementSender(new URL(endpoint), token));
     console.log(JSON.stringify({ receipts }));
   } else if (command === "migrate") console.log("Migraciones aplicadas.");
-  else throw new Error("Comandos: migrate, seed, device, revoke-device, simulate, sync.");
+  else throw new Error("Comandos: migrate, seed, device, revoke-device, simulate, assess, sync.");
 } finally { repo.close(); }
