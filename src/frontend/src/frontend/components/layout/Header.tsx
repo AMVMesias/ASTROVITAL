@@ -7,7 +7,10 @@ export function Header() {
   const { t } = useLanguage();
   return (
     <header className="site-header">
-      <Brand />
+      <div className="header-brand-group">
+        <LanguageSelect />
+        <Brand />
+      </div>
       <nav aria-label={t("Navegación principal")}>
         <Link className="active" href="/" aria-current="page">
           {t("Inicio")}
@@ -17,7 +20,6 @@ export function Header() {
         <Link className="button header-login" href="/login">
           {t("Iniciar sesión")}
         </Link>
-        <LanguageSelect />
       </nav>
     </header>
   );
