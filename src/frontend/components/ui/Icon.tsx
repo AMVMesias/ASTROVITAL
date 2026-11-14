@@ -1,5 +1,29 @@
 import type { CSSProperties } from "react";
 const paths: Record<string, React.ReactNode> = {
+  user: (
+    <>
+      <circle cx="22" cy="14" r="7" />
+      <path d="M8 37v-2c0-7 6-11 14-11s14 4 14 11v2H8Z" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="9" y="19" width="26" height="20" rx="2" />
+      <path d="M15 19v-7a7 7 0 0 1 14 0v7m-7 8v5" />
+      <circle cx="22" cy="26" r="1" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M3 22s7-11 19-11 19 11 19 11-7 11-19 11S3 22 3 22Z" />
+      <circle cx="22" cy="22" r="5" />
+    </>
+  ),
+  eyeOff: (
+    <>
+      <path d="M4 4l36 36M16 12a23 23 0 0 1 6-1c12 0 19 11 19 11a30 30 0 0 1-7 7M28 32a23 23 0 0 1-6 1C10 33 3 22 3 22a30 30 0 0 1 8-8" />
+    </>
+  ),
   heart: (
     <>
       <path d="M22 38S4 27 4 15C4 4 17 2 22 11 28 2 41 4 41 15c0 12-19 23-19 23Z" />
