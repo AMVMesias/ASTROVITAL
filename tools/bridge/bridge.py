@@ -20,6 +20,53 @@ import uuid
 from pathlib import Path
 
 
+async def connected_bluez_device(address):
+    """BlueZ puede conservar una conexión aunque la placa ya no anuncie."""
+    from bleak.backends.device import BLEDevice
+    from dbus_fast import BusType, Message, MessageType
+    from dbus_fast.aio import MessageBus
+
+    bus = await MessageBus(bus_type=BusType.SYSTEM).connect()
+    try:
+        reply = await bus.call(Message(destination="org.bluez", path="/",
+            interface="org.freedesktop.DBus.ObjectManager", member="GetManagedObjects"))
+        if reply.message_type == MessageType.ERROR:
+            raise OSError("No se pudo consultar BlueZ")
+        for path, interfaces in reply.body[0].items():
+            variants = interfaces.get("org.bluez.Device1", {})
+            props = {key: value.value for key, value in variants.items()}
+            if str(props.get("Address", "")).lower() == address.lower() and props.get("Connected"):
+                return BLEDevice(address, props.get("Name"), {"path": path, "props": props})
+        return None
+    finally:
+        bus.disconnect()
+        await bus.wait_for_disconnect()
+
+
+async def find_ble_device(address, scanner):
+    if sys.platform == "linux":
+        connected = await connected_bluez_device(address)
+        if connected is not None:
+            return connected
+    peripheral = await scanner.find_device_by_address(address, timeout=10)
+    if peripheral is None:
+        raise LookupError("BLE no descubierto")
+    return peripheral
+
+
+def ble_error_message(error):
+    # Solo diagnósticos de transporte: no registrar tramas, credenciales ni errores HTTP.
+    if isinstance(error, LookupError):
+        return "BLE no descubierto: comprueba alimentación, dirección y publicidad de la placa."
+    if isinstance(error, PermissionError):
+        return "BLE sin permiso para acceder a Bluetooth/D-Bus."
+    if isinstance(error, OSError):
+        number = getattr(error, "errno", None)
+        suffix = f" (errno={number})" if number is not None else ""
+        return "BLE: fallo del sistema Bluetooth/D-Bus" + suffix + "; comprueba bluetoothctl show."
+    return "BLE no disponible: " + type(error).__name__ + "; comprueba servicio y característica de notificación."
+
+
 def utc_now():
     return dt.datetime.now(dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
@@ -78,10 +125,10 @@ def decode_ble(line, device_id, received_at):
     return f"{boot}:{seq}", route, body
 
 
-def decode_serial(line, received_at, reading_id):
+def decode_serial(line, received_at, reading_id, columns_expected=10):
     columns = line.split(",")
-    if len(columns) != 10:
-        raise ValueError("Se requieren las diez columnas de MODO_DEBUG=0")
+    if len(columns) != columns_expected:
+        raise ValueError("Cantidad de columnas CSV incompatible")
     values = [float(value) for value in columns]
     if not all(math.isfinite(value) for value in values):
         raise ValueError("CSV no finito")
@@ -179,6 +226,9 @@ async def run(mode):
         raise ValueError("El puente HTTP debe apuntar al mismo portátil; usa HTTPS para un equipo remoto")
     if os.environ.get("BRIDGE_ACTIVITY", "rest") not in {"rest", "exercise", "eva"}:
         raise ValueError("BRIDGE_ACTIVITY inválida")
+    ble_format = os.environ.get("BLE_FORMAT", "json-v1")
+    if ble_format not in {"json-v1", "csv-11"}:
+        raise ValueError("BLE_FORMAT debe ser json-v1 o csv-11")
     spool = Spool(os.environ.get("BRIDGE_SPOOL_PATH", "data/local/bridge.sqlite"))
     period = float(os.environ.get("BRIDGE_SAMPLE_SECONDS", "1"))
     if not math.isfinite(period) or period < 1:
@@ -219,12 +269,12 @@ async def run(mode):
                 continue
             try:
                 received = utc_now()
-                if transport == "serial":
+                if transport == "serial" or ble_format == "csv-11":
                     if time.monotonic() - last_sample < period:
                         continue
                     sequence += 1
                     event_id = f"host-{host_boot}:{sequence}"
-                    route, body = decode_serial(line, received, event_id)
+                    route, body = decode_serial(line, received, event_id, 10 if transport == "serial" else 11)
                     last_sample = time.monotonic()
                 else:
                     event_id, route, body = decode_ble(line, device, received)
@@ -233,7 +283,7 @@ async def run(mode):
                         event_id, route, body = decode_ble(line, device, original_time)
                 spool.put(device, event_id, route, body)
             except (ValueError, UnicodeError, TypeError):
-                print("Trama descartada: contrato inválido o conflicto de ID", file=sys.stderr)
+                print("Trama descartada: revisa BLE_FORMAT, columnas, estados y DEVICE_ID; o ID repetido con otro contenido", file=sys.stderr)
     try:
         if mode == "serial":
             import serial  # dependencia opcional, solo en el portátil que captura
@@ -262,18 +312,16 @@ async def run(mode):
             uuid.UUID(characteristic)
             while True:
                 try:
-                    peripheral = await BleakScanner.find_device_by_address(address, timeout=10)
-                    if peripheral is None:
-                        raise OSError("Dispositivo no encontrado")
+                    peripheral = await find_ble_device(address, BleakScanner)
                     async with BleakClient(peripheral, services=[service]) as client:
                         frames.buffer.clear()
                         await client.start_notify(characteristic, lambda _sender, chunk: accept(chunk, "ble"))
-                        print("BLE conectado; contrato JSON v1")
+                        print("BLE conectado; formato " + ble_format)
                         while client.is_connected:
                             await asyncio.sleep(1)
                 except Exception as error:
                     # Nunca registrar excepciones de HTTP que pudieran incluir credenciales.
-                    print("BLE no disponible: " + type(error).__name__, file=sys.stderr)
+                    print(ble_error_message(error), file=sys.stderr)
                 spool.put(device, uuid.uuid4().hex, "/api/v1/devices/status", {"status": "disconnected", "observedAt": utc_now()})
                 await asyncio.sleep(3)
         else:

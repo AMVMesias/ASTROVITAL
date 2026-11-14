@@ -103,3 +103,17 @@ BRIDGE_TEST_PYTHON=tools/bridge/.venv/bin/python npm run test:production
 Las pruebas del puente no requieren hardware. La prueba adicional usa un pseudoterminal que reproduce CSV y pasa por pySerial, el proceso real del puente, HTTP y SQLite. La conexión física USB, Bluetooth y los UUID del ESP32 requieren la placa; una prueba emulada no acredita compatibilidad eléctrica, calidad del sensor ni validación clínica.
 
 Fuentes de los adaptadores: [pySerial API](https://pyserial.readthedocs.io/en/latest/pyserial_api.html) y [BleakClient y notificaciones](https://bleak.readthedocs.io/en/latest/api/client.html). El paquete y la interpretación del CSV se basan en el sketch suministrado por el usuario.
+
+## BLE conectado pero no descubierto
+
+En Linux, el puente reutiliza el dispositivo que BlueZ ya tiene conectado antes de escanear: una placa conectada puede dejar de anunciarse. Para ASTROVITAL_BLE se verificaron dirección `68:09:47:48:6A:CA`, servicio `6e400001-b5a3-f393-e0a9-e50e24dcca9e` y característica TX con notificación `6e400003-b5a3-f393-e0a9-e50e24dcca9e`. Esto verifica GATT, no el formato del paquete ni recepción biométrica.
+
+Si no está conectado, se busca por dirección durante diez segundos. El diagnóstico distingue dispositivo no descubierto, permisos D-Bus y errores de sistema. Revisar `bluetoothctl show` y `bluetoothctl info 68:09:47:48:6A:CA`; salir de bluetoothctl con `exit` antes de ejecutar `npm run bridge:ble` en la terminal normal. El firmware debe seguir cumpliendo el contrato JSON v1 terminado en LF descrito arriba.
+
+## Firmware ASTROVITAL BLE actualizado (CSV de once columnas)
+
+El sketch BLE confirmado usa servicio Nordic UART y notificaciones TX fragmentadas en bloques de hasta 20 bytes, con LF al final de cada línea. Su orden es `ecg,bpm_ecg,estado_ecg*50,resp_mg,rpm,estado_resp*50,spo2,bpm_oxi,estado_oxi*50,ir,rojo`. Configurar `BLE_FORMAT=csv-11`; el valor por defecto `json-v1` mantiene el contrato anterior. El puente concatena fragmentos y toma como máximo una instantánea por segundo del BPM ECG (segunda columna). Los estados ECG 0/50 y BPM cero producen estados, nunca pulso cero. Oximetría, respiración y señales crudas no se guardan como indicadores nuevos.
+
+Este firmware no aporta UTC, bootId ni secuencia: se conservan fecha de recepción del portátil e identificador de sesión del puente, igual que en la captura CSV anterior. USB de este nuevo sketch usa 115200 y once columnas; el modo serial anterior sigue destinado al sketch original de diez columnas a 230400.
+
+Para evitar `401`, definir `DEVICE_USERNAME` con el astronauta autorizado y ejecutar `npm run device:provision` usando el mismo `DEVICE_ID`, `DEVICE_TOKEN` y base local que el backend. Reiniciar el puente después de modificar `.env.local`. Los rechazos antiguos se conservan; `npm run bridge:retry` los reintenta explícitamente tras corregir la credencial.
