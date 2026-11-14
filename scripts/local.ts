@@ -5,6 +5,7 @@ import { localPath, createServices } from "../src/backend/src/backend/compositio
 import { SqliteRepository } from "../src/backend/src/backend/infrastructure/sqlite/SqliteRepository";
 import { provisionDevice, seed } from "../src/backend/src/backend/infrastructure/sqlite/seed";
 
+async function main() {
 loadLocalEnvironment();
 const repo = new SqliteRepository(localPath());
 try {
@@ -54,3 +55,6 @@ try {
   } else if (command === "migrate") console.log("Migraciones aplicadas.");
   else throw new Error("Comandos: migrate, seed, device, revoke-device, simulate, assess, sync.");
 } finally { repo.close(); }
+
+}
+main().catch(error=>{console.error(error instanceof Error ? error.message : "Comando local fallido");process.exitCode=1;});
