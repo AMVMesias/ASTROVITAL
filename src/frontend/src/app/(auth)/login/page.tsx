@@ -41,25 +41,27 @@ export default function Login() {
         </p>
       </section>
       <section className="auth-card-area" aria-labelledby="auth-title">
-        <div className="auth-card">
-          <Link
-            href="/"
-            className="auth-brand"
-            aria-label="NASA Health, volver al inicio"
-          >
-            <Image
-              src="/images/nasa-logo.svg"
-              alt="NASA"
-              width={100}
-              height={84}
-              priority
-            />
-            <span>NASA Health</span>
-          </Link>
-          <LoginForm />
+        <div className="auth-card-stack">
           <Link href="/" className="auth-home-link">
             <span aria-hidden="true">←</span> Volver a la página de inicio
           </Link>
+          <div className="auth-card">
+            <Link
+              href="/"
+              className="auth-brand"
+              aria-label="NASA Health, volver al inicio"
+            >
+              <Image
+                src="/images/nasa-logo.svg"
+                alt="NASA"
+                width={100}
+                height={84}
+                priority
+              />
+              <span>NASA Health</span>
+            </Link>
+            <LoginForm />
+          </div>
         </div>
       </section>
     </main>
