@@ -45,20 +45,6 @@ export function Footer() {
             ))}
           </div>
         ))}
-        <div className="mobile-footer-groups">
-          {groups.map((group) => (
-            <details key={group.title}>
-              <summary>{t(group.title)}</summary>
-              <div>
-                {group.links.map(([text, url]) => (
-                  <Link key={text} href={url}>
-                    {t(text)}
-                  </Link>
-                ))}
-              </div>
-            </details>
-          ))}
-        </div>
         <div className="social">
           <h2>{t("Síguenos")}</h2>
           <div>

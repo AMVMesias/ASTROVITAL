@@ -1176,22 +1176,36 @@ h1 {
  .home .benefits li { flex-direction: column; align-items: center; justify-content: center; text-align: center; flex: 1; gap: 6px; }
  .home .benefits svg { width: 30px; height: 30px; color: #9fc5ff; }
 }
-.mobile-footer-groups { display: none; }
+/* Mobile content flows naturally: short screens scroll instead of shrinking. */
 @media (max-width: 700px) {
- .home .site-footer { padding: 8px 6%; }
- .home .footer-main { gap: 5px 12px; align-items: center; }
- .home .brand-footer { min-height: 0; font-size: 15px; gap: 7px; }
- .home .brand-footer img { width: 30px; height: 30px; }
- .home .brand-footer > span { padding-top: 0; }
- .home .brand-footer small, .home .footer-group, .home .social h2 { display: none; }
- .home .social > div { margin: 0; }
- .home .social a { width: 22px; height: 22px; }
- .home .mobile-footer-groups { display: flex; grid-column: 1 / -1; grid-row: 2; gap: 12px; }
- .mobile-footer-groups details { position: relative; flex: 1; }
- .mobile-footer-groups summary { font-size: 12px; cursor: pointer; padding: 7px 0; }
- .mobile-footer-groups details > div { position: absolute; bottom: calc(100% + 6px); left: 0; width: 180px; padding: 6px; border: 1px solid #ffffff40; border-radius: 12px; background: #08223e; box-shadow: 0 8px 28px #0005; z-index: 5; }
- .mobile-footer-groups details:last-child > div { left: auto; right: 0; }
- .mobile-footer-groups a { display: block; padding: 12px 8px; font-size: 13px; }
- .mobile-footer-groups a:hover { background: #ffffff15; border-radius: 7px; }
- .home .footer-bottom { margin-top: 4px; padding-top: 6px; font-size: 8px; gap: 4px; }
+ .home { height: auto; min-height: 100svh; display: flex; flex-direction: column; }
+ .home .site-header { height: auto; flex-shrink: 0; }
+ .home .hero { flex: none; min-height: 70svh; container-type: normal; overflow: visible; display: flex; align-items: center; }
+ .home .hero-copy { height: auto; width: 100%; padding: 40px 6%; gap: 22px; }
+ .home .hero h1 { font-size: clamp(32px, 9vw, 39px); line-height: 1.08; }
+ .home .eyebrow { font-size: 10px; line-height: 1.5; }
+ .home .hero-description { font-size: 16px; line-height: 1.5; }
+ .home .hero-login { height: 50px; min-height: 50px; font-size: 16px; }
+ .home .benefits { padding: 16px 8px; }
+ .home .benefits li { font-size: 11px; gap: 8px; min-width: 0; }
+ .home .benefits span { white-space: normal; }
+ .home .benefits svg { width: 30px; height: 30px; }
+ .home .site-footer { padding: 22px 6%; flex-shrink: 0; }
+ .home .footer-main { gap: 20px 14px; align-items: start; }
+ .home .brand-footer { font-size: 17px; gap: 8px; }
+ .home .brand-footer img { width: 40px; height: 40px; }
+ .home .brand small { font-size: 11px; display: block; line-height: 1.4; }
+ .home .footer-group { font-size: 12px; gap: 8px; line-height: 1.4; }
+ .home .site-footer h2 { font-size: 12px; }
+ .home .social > div { gap: 6px; }
+ .home .social a { width: 26px; height: 26px; }
+ .home .footer-bottom { margin-top: 18px; padding-top: 12px; font-size: 10px; line-height: 1.5; gap: 8px; }
+}
+@media (max-width: 360px) {
+ .home .header-brand-group { gap: 8px; }
+ .home .site-header .brand { font-size: 17px; gap: 6px; }
+ .home .site-header .brand img { width: 32px; height: 32px; }
+ .home .language-select select { min-width: 110px; font-size: 11px; padding-left: 30px; }
+ .home .site-header .header-login { font-size: 9px; }
+ .auth-card-stack > .auth-home-link { font-size: 12px; }
 }

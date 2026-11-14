@@ -768,3 +768,13 @@
  .auth-field { background: #ffffff94; }
  .auth-description { color: #304b78; }
 }
+@media (max-width: 700px) {
+ .auth-page { height: auto; min-height: 100svh; overflow: visible; }
+ .auth-card-area { flex-shrink: 0; }
+ .auth-card { min-width: 0; }
+ .auth-card-stack > .auth-home-link { font-size: 14px; }
+ .auth-card-stack > .language-select select { font-size: 12px; }
+ .auth-intro { flex-shrink: 0; }
+ .auth-page:not(:has(.recovery-demo)) .auth-card h2 { font-size: 32px; }
+ .auth-page:not(:has(.recovery-demo)) .auth-field { height: 50px; }
+}
