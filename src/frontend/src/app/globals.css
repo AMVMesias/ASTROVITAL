@@ -100,6 +100,43 @@ input:focus-visible {
   background: #003bb4;
   transform: translateY(-1px);
 }
+
+/* Entrada suave y respuestas visuales para los controles de la portada. */
+@keyframes home-appear {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.home .site-header,
+.home .hero-copy > *,
+.home .site-footer {
+  animation: home-appear 480ms ease-out backwards;
+}
+.home .hero-copy > :nth-child(1) { animation-delay: 40ms; }
+.home .hero-copy > :nth-child(2) { animation-delay: 100ms; }
+.home .hero-copy > :nth-child(3) { animation-delay: 160ms; }
+.home .hero-copy > :nth-child(4) { animation-delay: 220ms; }
+.home .hero-copy > :nth-child(5) { animation-delay: 280ms; }
+.home .site-footer { animation-delay: 180ms; }
+.home .site-header nav > a:not(.button),
+.home .footer-group a {
+  transition: color 180ms ease;
+}
+.home .site-header nav > a:not(.button):hover,
+.home .site-header nav > a:not(.button):focus-visible { color: var(--blue); }
+.home .footer-group a:hover,
+.home .footer-group a:focus-visible { color: #a9cdff; }
+.home .social a { transition: color 180ms ease, background-color 180ms ease, transform 180ms ease; }
+.home .social a:hover,
+.home .social a:focus-visible { color: #031c38; background-color: white; transform: translateY(-2px); }
+.hero-login svg { transition: transform 180ms ease; }
+.hero-login:hover svg,
+.hero-login:focus-visible svg { transform: translateX(4px); }
+@media (prefers-reduced-motion: reduce) {
+  .home .site-header, .home .hero-copy > *, .home .site-footer { animation: none; }
+  .home .button, .home .social a, .hero-login svg { transition: none; }
+  .home .button:hover, .home .social a:hover, .home .social a:focus-visible,
+  .hero-login:hover svg, .hero-login:focus-visible svg { transform: none; }
+}
 .header-login {
   padding: 12px 23px;
   border-radius: 14px;
@@ -666,3 +703,4 @@ h1 {
     padding: 0 5px;
   }
 }
+

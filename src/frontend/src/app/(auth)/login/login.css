@@ -117,9 +117,22 @@
   font-size: 16px;
   line-height: 1.4;
   text-decoration: none;
+  transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
 }
-.auth-home-link:hover {
+.auth-home-link span { transition: transform 180ms ease; }
+.auth-home-link:hover, .auth-home-link:focus-visible {
   color: #0053ed;
+  background-color: #e8f0ff;
+}
+.auth-home-link:hover span, .auth-home-link:focus-visible span { transform: translateX(-4px); }
+.auth-submit, .auth-recovery, .auth-reveal, .recovery-back {
+  transition: color 180ms ease, background-color 180ms ease, transform 180ms ease;
+}
+.auth-submit:not(:disabled):hover { transform: translateY(-2px); }
+.auth-recovery:hover, .recovery-back:hover, .auth-reveal:hover { color: #003bb4; }
+@media (prefers-reduced-motion: reduce) {
+  .auth-home-link, .auth-home-link span, .auth-submit, .auth-recovery, .auth-reveal, .recovery-back { transition: none; }
+  .auth-home-link:hover span, .auth-home-link:focus-visible span, .auth-submit:not(:disabled):hover { transform: none; }
 }
 .auth-description {
   margin: 0 0 32px;
