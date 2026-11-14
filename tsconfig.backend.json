@@ -6,7 +6,7 @@
   "include": [
     "scripts/**/*.ts",
     "tests/**/*.ts",
-    "backend/src/**/*.ts"
+    "src/backend/src/**/*.ts"
   ],
   "exclude": [
     "node_modules"
