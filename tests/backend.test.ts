@@ -1,3 +1,4 @@
+import { PreparationEnvironmentProvider } from "../src/backend/src/backend/application/environment/PreparationEnvironmentProvider";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -17,7 +18,7 @@ const pulse = { indicator: "heart_rate", value: 68, unit: "bpm", capturedAt, rea
 const errorCode = (code: string) => (error: unknown) => error instanceof AppError && error.code === code;
 function fixture(path = ":memory:") {
   const repo = new SqliteRepository(path); seed(repo,"admin",credential);
-  const services = createServices(repo);
+  const services = createServices(repo,new PreparationEnvironmentProvider());
   const adminLogin = services.auth.login({ username: "admin", password: credential });
   const admin = services.auth.session(adminLogin.token);
   const a = services.users.save(admin,{ username: "astro-a", name: "Astronauta A", role: "astronauta", password: credential });
@@ -32,10 +33,14 @@ test("semillas y migraciones repetibles; contraseñas/tokens no se guardan en cl
   try {
     seed(f.repo,"admin",credential);
     assert.equal(f.repo.users().length,3);
+<<<<<<< HEAD
     assert.deepEqual(f.repo.all("SELECT id FROM schema_migrations ORDER BY id").map(({ id }) => id), [
       "001_person1_local", "002_person2_environment", "003_person2_alerts",
     ]);
     assert.equal(f.repo.all("SELECT * FROM environment_profiles").length,4);
+=======
+    assert.equal(f.repo.all("SELECT * FROM schema_migrations").length,4);
+>>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
     assert.notEqual(f.repo.account(f.admin.id)!.passwordHash,credential);
     assert.equal(f.repo.session(f.loginA.token),null);
     assert.equal(JSON.stringify(f.users.list(f.admin)).includes("passwordHash"),false);
@@ -177,7 +182,7 @@ test("persistencia tras reapertura, intentos fallidos, rechazo visible y confirm
   f.queue.recordAttempt([measurement.id]); f.repo.close();
   const repo=new SqliteRepository(path);
   try {
-    const services=createServices(repo);
+    const services=createServices(repo,new PreparationEnvironmentProvider());
     const session=services.auth.session(f.loginA.token);
     assert.equal(services.measurements.history(session,new URLSearchParams()).length,1);
     assert.equal(services.queue.pending()[0].attempts,1);

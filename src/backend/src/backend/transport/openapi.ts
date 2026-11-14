@@ -21,6 +21,14 @@ export const openapi = {
   servers: [{ url: "/", description: "Mismo equipo local" }],
   tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización","Entorno","Avisos"].map(name => ({ name })),
   paths: {
+    "/api/v1/me/environment": {
+      get: operation("Catálogo documental y asignación propia (astronauta)", "Mediciones", {type:"object",properties:{revision:string,profiles:{type:"array",items:{type:"object"}},sources:{type:"object"},active:{type:"object",nullable:true},telemetryAvailable:{type:"boolean"}}}),
+      post: operation("Seleccionar escenario desde ahora (astronauta)", "Mediciones", {type:"object",properties:{assignment:{type:"object"}}}, {requestBody:body({type:"object",additionalProperties:false,required:["scenarioId","revision"],properties:{scenarioId:{type:"string",enum:["deep_space_transit","iss_leo","moon_surface","mars_surface"]},revision:string}})}),
+    },
+    "/api/v1/devices/status": {post:operation("Registrar pérdida de señal/contacto sin crear medición", "Dispositivos", {type:"object",properties:{status:{type:"string",enum:["recorded"]}}}, {
+      security:[{deviceBearer:[]}],parameters:[{name:"X-Device-Id",in:"header",required:true,schema:string}],
+      requestBody:body({type:"object",additionalProperties:false,required:["status","observedAt"],properties:{status:{type:"string",enum:["no_contact","no_signal","insufficient","disconnected"]},observedAt:timestamp}}),
+    })},
     "/api/health": { get: operation("Disponibilidad del servicio (sin comprobar SQLite)","Disponibilidad", { type: "object", properties: { status: { type: "string", enum: ["ok"] } } }, { security: [] }) },
     "/api/v1/sync/measurements": { post: operation(
       "Recibir mediciones del equipo local", "Sincronización", ref("SyncReceipts"), {
@@ -90,6 +98,7 @@ export const openapi = {
   components: {
     securitySchemes: { syncBearer: { type: "http", scheme: "bearer", description: "Credencial del equipo local autorizada para una misión." }, sessionCookie: { type: "apiKey", in: "cookie", name: "nasa_session", description: "Se establece al ejecutar login en este navegador. No se copia manualmente en Swagger." }, deviceBearer: { type: "http", scheme: "bearer", description: "Credencial del dispositivo aprovisionada por comando local." } },
     schemas: {
+      Assessment: {type:"object",properties:{status:{type:"string",enum:["insufficient","invalid","stale","stable","deviation"]},ruleVersion:string,evidence:{type:"array",items:string},reference:{type:"object",properties:{mean:{type:"number"},count:{type:"integer"},from:timestamp,to:timestamp}}}},
       SyncMeasurement: {
         allOf: [
           ref("Measurement"),
@@ -123,9 +132,15 @@ export const openapi = {
       User: { type: "object", properties: { id: string, username: string, name: string, role: { type: "string", enum: ["astronauta","admin"] }, enabled: { type: "boolean" }, astronautId: nullableString, missionId: nullableString, moduleId: nullableString, createdAt: timestamp } },
       Environment: { type: "object", properties: { scenarioId: string, profileId: string, profileVersion: string, assignmentId: string, scope: { type: "string", enum: ["cabin","exterior"] }, telemetryAvailable: { type: "boolean" } } },
       Measurement: { type: "object", properties: { id: string, astronautId: string, missionId: string, moduleId: string, indicator: { type: "string", enum: ["sleep","wellbeing","heart_rate"] }, value: { type: "number" }, unit: string, origin: { type: "string", enum: ["manual","device","simulated"] }, quality: { type: "string", enum: ["valid"] }, capturedAt: timestamp, receivedAt: timestamp, authorId: nullableString, deviceId: nullableString, readingId: nullableString, activity: { type: "string", enum: ["rest","exercise","eva"] }, note: string, scenario: nullableString, environment: ref("Environment") } },
+<<<<<<< HEAD
       Device: { type: "object", properties: { id: string, astronautId: string, enabled: { type: "boolean" }, lastCommunicationAt: { ...timestamp, nullable: true } } },
       CaptureResult: { type: "object", required: ["measurement","duplicate"], properties: { measurement: ref("Measurement"), duplicate: { type: "boolean" } } },
       Summary: { type: "object", properties: { latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, queue: { type: "object", properties: { pending: { type: "integer" }, confirmed: { type: "integer" }, rejected: { type: "integer" }, rejections: { type: "array", items: { type: "object", properties: { id: string, reason: nullableString } } } } }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: { type: "array", items: ref("Assessment") } } },
+=======
+      Device: { type: "object", properties: { id: string, astronautId: string, enabled: { type: "boolean" }, lastCommunicationAt: { ...timestamp, nullable: true },signal:{type:"object",nullable:true,properties:{status:{type:"string",enum:["valid","no_contact","no_signal","insufficient","disconnected"]},observedAt:timestamp}} } },
+      CaptureResult: { type: "object", required: ["measurement","duplicate"], properties: { measurement: ref("Measurement"), duplicate: { type: "boolean" },evaluation:{type:"object",properties:{status:{type:"string",enum:["done","pending"]},assessment:ref("Assessment"),code:string}} } },
+      Summary: { type: "object", properties: { latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, queue: { type: "object", properties: { pending: { type: "integer" }, confirmed: { type: "integer" }, rejected: { type: "integer" }, rejections: { type: "array", items: { type: "object", properties: { id: string, reason: nullableString } } } } }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: {type:"array",items:{type:"object",properties:{measurementId:string,assessment:ref("Assessment")}}} } },
+>>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
     },
   },
 };

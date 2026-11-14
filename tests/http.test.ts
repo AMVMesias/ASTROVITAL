@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 import { GET as getEnvironment, PUT as setEnvironment } from "../src/backend/src/app/api/v1/me/environment/route";
 import { GET as listAlerts } from "../src/backend/src/app/api/v1/me/alerts/route";
 import { POST as actAlert } from "../src/backend/src/app/api/v1/me/alerts/[id]/route";
+=======
+import { GET as environment, POST as select } from "../src/backend/src/app/api/v1/me/environment/route";
+import { POST as signal } from "../src/backend/src/app/api/v1/devices/status/route";
+import { sameOrigin } from "../src/backend/src/backend/transport/http";
+>>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -66,22 +72,31 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     const astroCookie=astroLogin.headers.get("set-cookie")!.split(";")[0];
     assert.equal((await users(request("/api/v1/users","GET",undefined,astroCookie))).status,403);
     assert.equal((await history(request("/api/v1/me/measurements","GET",undefined,adminCookie))).status,403);
-    const input={indicator:"sleep",value:7,unit:"h",capturedAt:"2026-01-01T08:00:00Z"};
+    const catalog=await environment(request("/api/v1/me/environment","GET",undefined,astroCookie));
+    assert.equal(catalog.status,200);
+    const environmentBody=await catalog.json();assert.equal(environmentBody.profiles.length,4);
+    assert.equal((await environment(request("/api/v1/me/environment","GET",undefined,adminCookie))).status,403);
+    const selected=await select(request("/api/v1/me/environment","POST",{scenarioId:"moon_surface",revision:environmentBody.revision},astroCookie));
+    assert.equal(selected.status,200);
+    const input={indicator:"sleep",value:7,unit:"h",capturedAt:new Date().toISOString()};
     const created=await manual(request("/api/v1/me/measurements","POST",input,astroCookie));
     assert.equal(created.status,201);
     const payload=await created.json();
     assert.equal(payload.measurement.astronautId,user.astronautId);
+    assert.equal(payload.measurement.environment.scenarioId,"moon_surface");
+    assert.equal(payload.evaluation.status,"done");
     assert.equal(created.headers.get("cache-control"),"no-store");
     assert.equal((await (await latest(request("/api/v1/me/measurements/latest","GET",undefined,astroCookie))).json()).queue.pending,1);
     assert.equal((await history(request("/api/v1/me/measurements?astronautId=other","GET",undefined,astroCookie))).status,400);
     const deviceToken="http-device-token-long-00000000000001";
     provisionDevice(app.repo,user.username,"esp32-http",deviceToken);
-    const pulse={indicator:"heart_rate",value:68,unit:"bpm",capturedAt:"2026-01-01T08:00:00Z",readingId:"boot-1"};
+    const pulse={indicator:"heart_rate",value:68,unit:"bpm",capturedAt:new Date().toISOString(),readingId:"boot-1"};
     const headers={"x-device-id":"esp32-http",authorization:`Bearer ${deviceToken}`};
     assert.equal((await device(request("/api/v1/measurements","POST",pulse,undefined,headers))).status,201);
     assert.equal((await device(request("/api/v1/measurements","POST",pulse,undefined,headers))).status,200);
     assert.equal((await device(request("/api/v1/measurements","POST",{...pulse,value:69},undefined,headers))).status,409);
     assert.equal((await device(request("/api/v1/measurements","POST",pulse,astroCookie))).status,401);
+<<<<<<< HEAD
     const environmentUrl="/api/v1/me/environment";
     assert.equal((await getEnvironment(request(environmentUrl))).status,401);
     assert.equal((await getEnvironment(request(environmentUrl,"GET",undefined,adminCookie))).status,403);
@@ -109,6 +124,10 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     const next={...input,capturedAt:new Date().toISOString()};
     const nextResult=await manual(request("/api/v1/me/measurements","POST",next,astroCookie));
     assert.equal((await nextResult.json()).measurement.environment.scenarioId,"moon_surface");
+=======
+    assert.equal((await signal(request("/api/v1/devices/status","POST",{status:"no_contact",observedAt:new Date().toISOString()},undefined,headers))).status,200);
+    assert.equal((await signal(request("/api/v1/devices/status","POST",{status:"no_contact",observedAt:new Date().toISOString()},astroCookie))).status,401);
+>>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
     const invalidJson=new NextRequest("http://localhost:3000/api/v1/me/measurements",{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1",cookie:astroCookie},body:"{"});
     assert.equal((await manual(invalidJson)).status,400);
     assert.equal((await manual(request("/api/v1/me/measurements","POST",{note:"x".repeat(17000)},astroCookie))).status,413);
@@ -119,4 +138,13 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     assert.equal((await logout(request("/api/v1/auth/logout","POST",undefined,adminCookie))).status,200);
     assert.equal((await users(request("/api/v1/users","GET",undefined,adminCookie))).status,401);
   } finally { app.repo.close(); rmSync(dir,{recursive:true}); delete process.env.SQLITE_PATH; }
+});
+
+test("Swagger directo y frontend configurado son orígenes permitidos; terceros se rechazan",()=>{
+ const original=process.env.APP_ORIGIN;
+ process.env.APP_ORIGIN="http://localhost:3000";
+ try {
+  for(const origin of ["http://localhost:3001","http://localhost:3000"]) assert.doesNotThrow(()=>sameOrigin(new Request("http://localhost:3001/api/v1/auth/login",{headers:{Origin:origin}})));
+  assert.throws(()=>sameOrigin(new Request("http://localhost:3001/api/v1/auth/login",{headers:{Origin:"https://attacker.invalid"}})));
+ } finally {if(original===undefined)delete process.env.APP_ORIGIN;else process.env.APP_ORIGIN=original;}
 });

@@ -36,6 +36,7 @@ node --import tsx scripts/provision-sync.mjs
 
 Para provisionar la base, exporta `NASA_SYNC_DATABASE_URL` en la terminal que ejecuta el script. Para arrancar el receptor, configura esa variable en el entorno del backend. El servidor también requiere `NASA_SYNC_TOKEN` y `NASA_SYNC_MISSION_ID` para autorizar al equipo local dentro de su misión. La prueba HTTP usa una base PostgreSQL de pruebas y requiere `NASA_SYNC_TEST_DATABASE_URL`, `NASA_SYNC_TEST_ENDPOINT` y el mismo token del servidor. Ejecutar `node --import tsx --test tests/postgres-sync.test.mjs`.
 
+<<<<<<< HEAD
 Las migraciones de entorno y avisos se aplican al abrir SQLite. La captura usa la asignación de entorno vigente en la fecha de la lectura. Los astronautas sin una asignación previa parten del perfil documental ISS. Las mediciones ya guardadas conservan su versión. Cada captura nueva registra la evaluación y, si corresponde, el aviso en la misma transacción que la medición y su pendiente. El tablero consulta vigencia en el momento de la consulta.
 
 El astronauta usa el selector y sus avisos en `/dashboard` con una sesión vigente. Swagger documenta las rutas bajo `/api/v1/me/environment`, `/api/v1/me/alerts` y `/api/v1/me/measurements/latest`. El acceso del frontend debe establecer la cookie de sesión mediante la API local para usar el tablero. Para probar con el login de demostración del frontend, primero inicia una sesión real desde Swagger en el mismo origen.
@@ -43,5 +44,12 @@ El astronauta usa el selector y sus avisos en `/dashboard` con una sesión vigen
 El emisor consume la cola SQLite con `npm run sync:send`. Configura `NASA_SYNC_ENDPOINT` con la URL completa del receptor y `NASA_SYNC_TOKEN` con la credencial del equipo. Provisiona en PostgreSQL la revisión del catálogo que usa el backend. Los registros previos con perfil provisional `preparation-1` conservan su referencia y el receptor reportará un rechazo individual si ese perfil no está provisionado.
 
 Los parámetros del árbol son de demostración. Para pulso, sueño y bienestar, el motor busca hasta 14 días de lecturas comparables, exige tres muestras de referencia y dos muestras de desviación en la misma dirección. La vigencia y la magnitud de la variación se configuran por indicador. Las referencias ambientales documentales se muestran como contexto.
+=======
+Las migraciones de entorno y avisos ya se registran en la conexión SQLite común. Al guardar una medición, captura proporciona el historial a `evaluatePersistedMeasurement`. El módulo de acceso verifica la sesión antes de seleccionar un escenario o habilitar operaciones de avisos. El emisor consume la cola SQLite con `npm run sync:send`. Configura `NASA_SYNC_ENDPOINT` con la URL completa del receptor y `NASA_SYNC_TOKEN` con la credencial del equipo. El receptor acepta perfiles provisionados en PostgreSQL y conserva un rechazo individual si una medición usa el perfil provisional `preparation-1`. La captura ya usa asignaciones ambientales históricas y ejecuta evaluación post-commit con trabajos recuperables mediante `npm run assessment:retry`.
+>>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
 
 Consulta la [especificación del MVP](docs/ESPECIFICACION_MVP_NASA_HEALTH.md), el [plan del backend](docs/PLAN_BACKEND_MVP.md) y el [primer acceso](docs/PRIMER_ACCESO_Y_RECUPERACION.md) en [docs/](docs/).
+
+## Puente de Persona 1
+
+Captura USB Serial del sketch AD8232 y transporte BLE configurable, con cola durable hacia la API local y estados de pérdida de señal. Ver [instalación, contrato y pruebas](docs/PUENTE_ESP32.md). El firmware aportado todavía no implementa BLE; la prueba física requiere placa y UUID confirmados. No se modificó el frontend en esta entrega.

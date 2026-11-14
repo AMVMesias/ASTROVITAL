@@ -6,7 +6,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SqliteRepository } from "../src/backend/src/backend/infrastructure/sqlite/SqliteRepository";
-import { seed } from "../src/backend/src/backend/infrastructure/sqlite/seed";
+import { provisionDevice,seed } from "../src/backend/src/backend/infrastructure/sqlite/seed";
 
 async function main() {
   const directory=mkdtempSync(join(tmpdir(),"nasa-production-"));
@@ -42,6 +42,43 @@ async function main() {
     assert.equal((await fetch(`${root}/api/v1/users`,{headers:{cookie}})).status,200);
     assert.equal((await fetch(`${root}/api/v1/me/measurements`,{headers:{cookie}})).status,403);
     assert.equal((await fetch(`${root}/api/v1/users`)).status,401);
+    if(process.env.BRIDGE_TEST_PYTHON) {
+      const create=await fetch(`${root}/api/v1/users`,{method:"POST",headers:{cookie,"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"bridge-astro",name:"Bridge Test",role:"astronauta",password})});
+      assert.equal(create.status,201);
+      const deviceToken=randomBytes(32).toString("hex");
+      const local=new SqliteRepository(path);provisionDevice(local,"bridge-astro","esp32-test",deviceToken);local.close();
+      const auth=await fetch(`${root}/api/v1/auth/login`,{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"bridge-astro",password})});
+      const astroCookie=auth.headers.get("set-cookie")!.split(";")[0];
+      const python=process.env.BRIDGE_TEST_PYTHON;
+      const emitter=spawn(python,["-u","-c",`import os,pty,time
+master,slave=pty.openpty()
+print(os.ttyname(slave),flush=True)
+start=time.monotonic()
+while True:
+ state='100' if time.monotonic()-start<4 else '0'
+ bpm='68' if state=='100' else '0'
+ os.write(master,('1.2,'+bpm+','+state+',5,12,100,120,98,68,150'+chr(10)).encode())
+ time.sleep(.004)
+`],{stdio:["ignore","pipe","pipe"]});
+      let bridge:ReturnType<typeof spawn>|undefined;
+      try {
+        const port=await new Promise<string>((resolve,reject)=>{emitter.stdout.once("data",value=>resolve(String(value).trim()));emitter.once("error",reject);});
+        bridge=spawn(python,["tools/bridge/bridge.py","serial"],{env:{...process.env,DEVICE_ID:"esp32-test",DEVICE_TOKEN:deviceToken,BRIDGE_API_URL:root,SERIAL_PORT:port,BRIDGE_SPOOL_PATH:join(directory,"bridge.sqlite")},stdio:"ignore"});
+        let observed=false;
+        for(let i=0;i<60;i++) {
+          const response=await fetch(`${root}/api/v1/me/measurements/latest`,{headers:{cookie:astroCookie}});
+          const summary=await response.json();
+          if(summary.latest.some((value:{value:number})=>value.value===68)&&summary.devices[0]?.signal?.status==="no_contact") {observed=true;break;}
+          await new Promise(resolve=>setTimeout(resolve,250));
+        }
+        assert.ok(observed,"El puente debe persistir pulso y después pérdida de contacto desde el puerto serial emulado.");
+        console.log("Puente serial → HTTP → SQLite verificado con pseudoterminal, sin hardware físico.");
+      } finally {
+        for(const process of [bridge,emitter]) if(process && process.exitCode===null && process.signalCode===null) {
+          process.kill("SIGTERM");await new Promise(resolve=>process.once("exit",resolve));
+        }
+      }
+    }
     console.log("Producción HTTP verificada: salud, Swagger/OpenAPI, assets locales, login, permisos y sesión.");
   } finally {
     child.kill("SIGTERM");

@@ -1,0 +1,275 @@
+:root {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --navy: #e6efff;
+  --paper: #091525;
+}
+.appearance-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 8px;
+  border: 1px solid #cbd6e7;
+  border-radius: 10px;
+  color: #17365b;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    color 180ms ease;
+  flex-shrink: 0;
+}
+.theme-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+.theme-toggle:hover {
+  background: #e6efff;
+}
+.auth-card-stack > .appearance-controls {
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+html[data-theme="dark"] .site-header {
+  background: #0d1d32;
+  border-color: #283c56;
+}
+html[data-theme="dark"] .hero-surface path {
+  fill: #091525;
+}
+html[data-theme="dark"] .hero-description,
+html[data-theme="dark"] .interior p {
+  color: #bbcee8;
+}
+html[data-theme="dark"] .eyebrow {
+  color: #9ebce7;
+}
+html[data-theme="dark"] .site-header nav .active {
+  color: #8abbff;
+}
+html[data-theme="dark"] .header-login {
+  box-shadow: none;
+}
+html[data-theme="dark"] .benefits li {
+  border-color: #33465e;
+}
+html[data-theme="dark"] .benefits svg {
+  color: #8abbff;
+}
+html[data-theme="dark"] .language-select select,
+html[data-theme="dark"] .theme-toggle {
+  background: #172b44;
+  color: #e6efff;
+  border-color: #456081;
+}
+html[data-theme="dark"] .theme-toggle:hover {
+  background: #294568;
+}
+html[data-theme="dark"] .language-select svg {
+  color: #c8deff;
+}
+html[data-theme="dark"] .notice {
+  background: #172b44;
+  color: #d1e3ff;
+}
+html[data-theme="dark"] .panel-nav {
+  background: #0d1d32;
+  border-bottom: 1px solid #283c56;
+}
+html[data-theme="dark"] .auth-page {
+  --auth-ink: #edf3ff;
+  background: #091525;
+}
+html[data-theme="dark"] .auth-curve {
+  fill: #091525;
+}
+html[data-theme="dark"] .auth-card {
+  background: rgba(15, 31, 52, 0.94);
+  border: 1px solid #3d5676;
+  box-shadow: 0 16px 36px #0005;
+}
+html[data-theme="dark"] .auth-description,
+html[data-theme="dark"] .recovery-demo,
+html[data-theme="dark"] .recovery-hint,
+html[data-theme="dark"] .recovery-question small,
+html[data-theme="dark"] .setup-label,
+html[data-theme="dark"] .setup-question-group legend {
+  color: #bbcee8;
+}
+html[data-theme="dark"] .auth-field {
+  background: #0c1a2cd9;
+  border-color: #456081;
+}
+html[data-theme="dark"] .auth-field input::placeholder {
+  color: #bbcee8;
+}
+html[data-theme="dark"] .auth-reveal,
+html[data-theme="dark"] .auth-recovery,
+html[data-theme="dark"] .recovery-back,
+html[data-theme="dark"] .recovery-attempts {
+  color: #9fc5ff;
+}
+html[data-theme="dark"] .auth-home-link {
+  color: #c5ddff;
+  background: #12243b;
+}
+html[data-theme="dark"] .auth-home-link:hover {
+  background: #243d5c;
+}
+html[data-theme="dark"] .auth-notice,
+html[data-theme="dark"] .recovery-progress li span {
+  background: #203a59;
+  color: #d6e6ff;
+}
+html[data-theme="dark"] .recovery-progress li,
+html[data-theme="dark"] .recovery-question {
+  color: #d6e6ff;
+}
+html[data-theme="dark"] .recovery-progress li[aria-current] {
+  color: #9fc5ff;
+}
+html[data-theme="dark"] .recovery-progress li[aria-current] span {
+  background: #0053ed;
+  color: white;
+}
+html[data-theme="dark"] .setup-label select {
+  background: #12243b;
+  color: #e6efff;
+  border-color: #456081;
+}
+@media (max-width: 700px) {
+  .home .site-header > .brand {
+    grid-column: 1 / 3;
+  }
+  .home .site-header .appearance-controls {
+    grid-column: 3 / 5;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+  .home .appearance-controls .language-select select {
+    min-width: 98px;
+    width: 98px;
+    font-size: 11px;
+    padding-left: 30px;
+  }
+  .home .appearance-controls .theme-toggle {
+    width: 36px;
+    height: 40px;
+    padding: 6px;
+  }
+  .auth-card-stack > .appearance-controls {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .auth-card-stack > .auth-home-link {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .auth-card-stack > .auth-card {
+    grid-row: 3;
+  }
+  html[data-theme="dark"] .home .site-header,
+  html[data-theme="dark"] .home .site-footer {
+    background: #001323db;
+  }
+  html[data-theme="dark"] .home .hero-description {
+    color: #e6edfa;
+  }
+  html[data-theme="dark"] .home .benefits {
+    background: #10243bc9;
+    border-color: #6b8eb573;
+    color: #edf3ff;
+  }
+  html[data-theme="dark"] .auth-card {
+    background: #0b1d32bf;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+  }
+}
+@media (max-width: 360px) {
+  .home .site-header .brand {
+    font-size: 15px;
+    gap: 4px;
+  }
+  .home .site-header .brand img {
+    width: 26px;
+    height: 30px;
+  }
+  .appearance-controls {
+    gap: 5px;
+  }
+  .home .appearance-controls .language-select select {
+    min-width: 90px;
+    width: 90px;
+    padding-left: 26px;
+    padding-right: 2px;
+  }
+  .home .appearance-controls .language-select svg {
+    left: 6px;
+    width: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle {
+    transition: none;
+  }
+}
+@media (max-width: 700px) {
+  .auth-page .auth-card-stack > .appearance-controls {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .auth-page .auth-card-stack > .auth-home-link {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .auth-page .auth-card-stack > .auth-card {
+    grid-row: 3;
+  }
+}
+@media (max-width: 700px) {
+  .site-header .appearance-controls {
+    grid-column: 3 / 5;
+    grid-row: 1;
+    justify-content: flex-end;
+  }
+  .site-header .appearance-controls .language-select select {
+    min-width: 98px;
+    width: 98px;
+    padding-left: 30px;
+    font-size: 11px;
+  }
+  .site-header .appearance-controls .theme-toggle {
+    width: 36px;
+    padding: 6px;
+  }
+}
+@media (max-width: 360px) {
+  .site-header > .brand {
+    font-size: 15px;
+    gap: 4px;
+  }
+  .site-header > .brand img {
+    width: 26px;
+    height: 30px;
+  }
+  .site-header .appearance-controls .language-select select {
+    min-width: 90px;
+    width: 90px;
+    padding-left: 26px;
+    padding-right: 2px;
+  }
+  .site-header .appearance-controls .language-select svg {
+    left: 6px;
+    width: 16px;
+  }
+}

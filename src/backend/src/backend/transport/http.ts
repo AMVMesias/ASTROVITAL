@@ -14,8 +14,9 @@ export async function handle(work: () => Response | Promise<Response>) {
 }
 export function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  const expected = process.env.APP_ORIGIN || new URL(request.url).origin;
-  if ((origin && origin !== expected) || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError(403, "ORIGIN_DENIED", "Origen no autorizado.");
+  const allowed = new Set([new URL(request.url).origin]);
+  if (process.env.APP_ORIGIN) allowed.add(process.env.APP_ORIGIN);
+  if ((origin && !allowed.has(origin)) || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError(403, "ORIGIN_DENIED", "Origen no autorizado.");
   // Las mutaciones de navegador sin Origin también deben llevar el encabezado de nuestra UI.
   if (!origin && request.headers.get("x-nasa-request") !== "1") throw new AppError(403, "ORIGIN_REQUIRED", "Incluye Origin o X-Nasa-Request: 1.");
 }

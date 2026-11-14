@@ -51,6 +51,7 @@ export function HomePage() {
             {t("Iniciar sesión")}
             <Icon name="arrow" />
           </Link>
+
           <ul className="benefits">
             <li>
               <Icon name="heart" />

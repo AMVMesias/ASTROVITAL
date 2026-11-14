@@ -17,6 +17,7 @@ export interface Repository {
   device(id: string): (Device & { credentialHash: string }) | null;
   devices(astronautId: string): Device[];
   touchDevice(id: string, at: string): void;
+  signalStatus(id: string, status: string, observedAt: string, receivedAt: string): void;
   deviceReading(deviceId: string, readingId: string): { measurement: Measurement; fingerprint: string } | null;
   saveMeasurement(measurement: Measurement, fingerprint: string): void;
   measurements(astronautId: string, query: MeasurementQuery): Measurement[];

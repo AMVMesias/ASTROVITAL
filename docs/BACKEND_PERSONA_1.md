@@ -7,7 +7,7 @@ La autorización se comprueba en endpoints y casos de uso. La conexión del fron
 ## Preparación
 
 1. Ejecutar `npm ci` con Node 22.
-2. Copiar `.env.example` a `.env.local`. Definir `ADMIN_PASSWORD` de 12–128 caracteres; `ADMIN_USERNAME` es `admin` por defecto. No hay contraseña predeterminada.
+2. Copiar `src/backend/.env.example` a `src/backend/.env.local`. Los comandos admiten el `.env.local` antiguo en raíz si no existe el del backend. Definir `ADMIN_PASSWORD` de 12–128 caracteres; `ADMIN_USERNAME` es `admin` por defecto. No hay contraseña predeterminada.
 3. Ejecutar `npm run db:migrate` y `npm run db:seed`. Repetirlos no duplica datos ni cambia credenciales existentes.
 4. Ejecutar `npm run dev:backend` para abrir la API, y `npm run dev:frontend` en otra terminal para usar la interfaz.
 5. Abrir Swagger en `http://localhost:3001/api/docs` directamente o en `http://localhost:3000/api/docs` con el frontend iniciado. El esquema está en `/api/openapi`.
@@ -22,7 +22,7 @@ Swagger UI se sirve desde `swagger-ui-dist` mediante el backend: sin CDN, sin va
 
 En Swagger ejecutar login y después las operaciones del rol. La cookie HttpOnly se almacena en el navegador: el token no aparece en JSON ni se copia manualmente en Authorize. Para ESP32 usar Authorize con la credencial Bearer y completar `X-Device-Id`.
 
-Las mutaciones de sesión requieren `Origin` del mismo origen o `X-Nasa-Request: 1` para CLI sin Origin; Swagger añade ese encabezado. `APP_ORIGIN` permite fijar el origen exacto. Se rechaza cross-site y no se configura CORS abierto. Cookie HttpOnly, SameSite Strict, duración de ocho horas. Usar `COOKIE_SECURE=true` con HTTPS y `false` en LAN HTTP de demo.
+Las mutaciones de sesión requieren `Origin` del mismo origen o `X-Nasa-Request: 1` para CLI sin Origin; Swagger añade ese encabezado. `APP_ORIGIN` permite fijar el origen exacto. Se acepta también el origen propio del backend para Swagger directo. Se rechaza cross-site y no se configura CORS abierto. Cookie HttpOnly, SameSite Strict, duración de ocho horas. Usar `COOKIE_SECURE=true` con HTTPS y `false` en LAN HTTP de demo.
 
 ## Endpoints
 
@@ -67,7 +67,7 @@ Ejemplo manual con cookie de astronauta:
 
 Usar fecha original UTC terminada en `Z`; tolerancia futura de 60 s por desfase de reloj. Se guardan captura y recepción separadas. Actividad: `rest`, `exercise` o `eva`. El cliente no puede asignar dueño, autor, origen o calidad. Se rechazan campos desconocidos. Una medición y su pendiente se guardan en una única transacción SQLite.
 
-Historial: filtros `indicator`, `from`, `to`, `limit` (1–200, defecto 50), `offset` (0–1000000). Orden descendente por captura e ID. Los últimos valores conservan su fecha; no se declara vigencia sin la regla de persona 2.
+Historial: filtros `indicator`, `from`, `to`, `limit` (1–200, defecto 50), `offset` (0–1000000). Orden descendente por captura e ID. Los últimos valores conservan su fecha, antigüedad y evaluación mediante reglas demostrativas versionadas.
 
 ## Dispositivo y simulador
 
@@ -81,19 +81,25 @@ Enviar a `/api/v1/measurements` con `Content-Type: application/json`, `X-Device-
 
 El dispositivo y su dueño deben estar habilitados; el dueño debe ser astronauta. Primer envío: 201. Reenvío idéntico normalizado: 200 con `duplicate:true`, mismo ID y contexto original. Mismo readingId con otro contenido: 409. La última comunicación se actualiza en aceptaciones, incluidos reintentos idénticos. El firmware debe mantener IDs únicos tras reinicio. Hardware físico y frecuencia de muestreo aún no verificados.
 
-Para demo definir `DEMO_USERNAME` de un astronauta existente y `DEMO_RUN_ID`; ejecutar `npm run demo:simulate`. Genera 33 lecturas de sueño/bienestar/pulso en 12 días, con un día sin muestras y variación deliberada. Pasan por el mismo registro transaccional, conservan origen `simulated` y escenario. No derivan cifras fisiológicas del catálogo. Repetir el mismo DEMO_RUN_ID se rechaza; usar otro sin borrar datos. No hay endpoint público de simulación.
+Para demo definir `DEMO_USERNAME` de un astronauta existente y `DEMO_RUN_ID`; ejecutar `npm run demo:simulate`. Genera 33 lecturas de sueño/bienestar/pulso en 12 intervalos, con un intervalo sin muestras y variación deliberada. Pasan por el mismo registro transaccional, conservan origen `simulated` y escenario. No derivan cifras fisiológicas del catálogo. `DEMO_SPAN_SECONDS` define la duración total (60 s por defecto), limitada por la fecha de creación de la cuenta para no inventar asignaciones anteriores; la simulación también procesa los trabajos de evaluación. Repetir el mismo DEMO_RUN_ID se rechaza; usar otro sin borrar datos. No hay endpoint público de simulación.
 
-## Puente Bluetooth pendiente
+## Puente USB Serial y BLE
 
-Firmware prepara un servicio Bluetooth Low Energy (BLE) para notificar el pulso del AD8232. En el sketch revisado, el estado ECG puede indicar detección antes de que exista un BPM calculado. La validez del contacto y de la estimación debe quedar resuelta en el firmware antes de publicar el pulso. La primera entrega persiste `heart_rate` en `bpm`. El CSV de 250 Hz se conserva para depuración. Respiración y SpO₂ requieren una ampliación del contrato de ingesta.
+Implementado el puente del portátil con cola SQLite propia y credencial del dispositivo: `npm run bridge:serial` para el CSV del sketch proporcionado y `npm run bridge:ble` para el contrato GATT propuesto. Ver instalación, configuración, ejemplos y límites en [PUENTE_ESP32.md](PUENTE_ESP32.md). El firmware actual no tiene BLE ni reloj UTC; sus instantáneas se identifican con hora de recepción del portátil. Los UUID y la prueba física siguen pendientes de firmware/hardware.
 
-La Persona 1 recibe la notificación en el portátil y transforma la estimación nueva al formato HTTP anterior. Aprovisiona el dispositivo y usa su credencial en el puente. Ante un reintento, reenvía el mismo `readingId` y `capturedAt`. El estado de pérdida de señal se trata como calidad o desconexión, con la última lectura y su antigüedad visibles. La Persona 2 usa la hora de captura para asociar el entorno y evaluar la medición persistida. [Responsabilidades, contrato y prueba conjunta](PLAN_BACKEND_MVP.md)
+`POST /api/v1/devices/status` recibe estados autenticados sin convertir pérdida de señal en BPM cero. `GET /api/v1/me/device` expone señal y última comunicación; el historial conserva la última lectura. Los reintentos antiguos no reemplazan el estado más reciente.
 
 ## Contratos con persona 2
 
 `EnvironmentProvider.resolve(astronautId,capturedAt)` devuelve escenario, perfil/versión inmutable, ámbito, ID de asignación y disponibilidad de telemetría para la fecha original. `null` produce `409 ENVIRONMENT_MISSING`; perfil sin telemetría permite captura. La deduplicación ESP32 ocurre antes de consultar nuevamente el entorno.
 
+<<<<<<< HEAD
 La composición local resuelve el entorno por hora de captura. El perfil ISS se usa antes de la primera selección para el astronauta. El selector y las referencias están en GET y PUT de /api/v1/me/environment. El catálogo documental permanece separado de la telemetría.
+=======
+La composición usa **HistoricalEnvironmentProvider**, conectado al repositorio de persona 2 en la conexión SQLite compartida. `db:seed` carga los cuatro perfiles y fuentes con su revisión de contenido. Una cuenta nueva de astronauta recibe cabina ISS desde su fecha de creación; las cuentas previas sin asignación se preparan al repetir la semilla, conservando asignaciones existentes. Una lectura anterior al primer intervalo devuelve `ENVIRONMENT_MISSING`, sin inventar historia. `GET/POST /api/v1/me/environment` consulta/selecciona escenario para el propio astronauta; admin sin acceso. La selección comienza ahora y no permite retrofecharla desde HTTP.
+
+Se registraron migraciones de entorno/avisos y de trabajos de evaluación sin editar la migración original. Cada captura genera un trabajo transaccional; HTTP ejecuta `evaluatePersistedMeasurement` tras el commit. Ante fallo, la medición y su cola permanecen guardadas y la respuesta informa evaluación pendiente. `npm run assessment:retry` reprocesa hasta 100 pendientes por ejecución. Los IDs deterministas del módulo de avisos evitan duplicados. `latest` entrega evaluación actual, referencia/evidencia y antigüedad por indicador, con reglas `demo-sleep-1`, `demo-wellbeing-1` y `demo-heart-rate-1`; parámetros demostrativos en `LocalAssessmentService.ts`.
+>>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
 
 `LocalQueue` es un adaptador interno para un solo emisor por base:
 
@@ -103,7 +109,11 @@ La composición local resuelve el entorno por hora de captura. El perfil ISS se 
 - `reject(id,reason)`: rechazo visible, sin degradar un confirmado.
 - `retryRejected(id)`: retorna a pendiente manteniendo payload e ID.
 
+<<<<<<< HEAD
 El emisor/receptor debe tolerar entrega repetida; no se promete entrega exactamente una vez. No hay API pública de cola; `latest` solo expone conteos/rechazos propios. El repositorio dispone de consultas internas por astronauta, indicador y período para evaluación. El emisor usa este adaptador mediante `npm run sync:send`. El receptor PostgreSQL ya está implementado. La evaluación y los avisos se guardan dentro de la transacción de captura. El historial de avisos propios se consulta en /api/v1/me/alerts.
+=======
+El emisor/receptor debe tolerar entrega repetida; no se promete entrega exactamente una vez. No hay API pública de cola; `latest` solo expone conteos/rechazos propios. El repositorio dispone de consultas internas por astronauta, indicador y período para evaluación. El emisor usa este adaptador mediante `npm run sync:send`. El receptor PostgreSQL ya está implementado. La captura ya usa revisiones reales del catálogo; su evaluación posterior y recuperación están conectadas. La prueba real de recepción PostgreSQL necesita el entorno de pruebas del equipo.
+>>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
 
 ## Verificación reproducible
 
@@ -116,3 +126,5 @@ npm run test:production
 ```
 
 Typecheck incluye scripts/pruebas. Las pruebas usan SQLite real temporal: permisos, revocación, validación, deduplicación, rollback, contexto histórico, reapertura, cola, HTTP y contrato OpenAPI. La prueba de producción levanta Next.js con base temporal y verifica salud, Swagger/assets, login y permisos por HTTP; no toca datos reales. El receptor PostgreSQL y el ESP32 físico requieren validación conjunta posterior.
+
+La integración con el frontend y el flujo propuesto de primer acceso/recuperación por preguntas no forman parte de esta entrega del plan activo de captura; no se modificaron pantallas.

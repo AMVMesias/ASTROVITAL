@@ -1,0 +1,105 @@
+# Puente del portátil · ESP32 a API local
+
+El sketch aportado usa USB Serial a 230400 baudios, MODO_DEBUG=0 y diez columnas:
+`ecg,bpm,estado_ecg*50,resp_mg,rpm,estado_resp*50,ppg,spo2,bpm_ox,estado_ox*50`.
+No implementa BLE ni comunica UUID, UTC, ID de arranque o secuencia. El puente no modifica el firmware ni calcula BPM, respiración o saturación. El backend continúa en Next.js/TypeScript; Python se usa únicamente como adaptador del sistema operativo para USB y Bluetooth.
+
+## Instalar y configurar
+
+Desde la raíz, con Node 22 y Python 3.10+:
+
+```sh
+python3 -m venv tools/bridge/.venv
+tools/bridge/.venv/bin/python -m pip install -r tools/bridge/requirements.txt
+npm run db:migrate
+npm run db:seed
+```
+
+Los comandos leen `src/backend/.env.local` si existe; en instalaciones anteriores usan el `.env.local` de la raíz. Las variables exportadas en la terminal tienen prioridad. No se imprimen secretos. Configurar los valores siguientes en ese archivo:
+
+```dotenv
+DEVICE_USERNAME=astronauta1
+DEVICE_ID=esp32-demo
+# Definir una credencial privada de al menos 32 caracteres.
+DEVICE_TOKEN=
+BRIDGE_PYTHON=tools/bridge/.venv/bin/python
+BRIDGE_API_URL=http://localhost:3001
+BRIDGE_SPOOL_PATH=data/local/bridge.sqlite
+BRIDGE_SAMPLE_SECONDS=1
+BRIDGE_ACTIVITY=rest
+SERIAL_PORT=/dev/ttyUSB0
+```
+
+Crear primero `astronauta1` por la API del admin y ejecutar `npm run device:provision`. No incluir la credencial en el firmware ni en el navegador: permanece en el portátil. El ID debe corresponder a la placa física autorizada. El puente rechaza enviar por HTTP a un host remoto; para otro equipo se requiere HTTPS. No sigue redirecciones HTTP con la credencial.
+
+El ejemplo de puerto es ilustrativo: elegir el puerto de la placa (Linux `/dev/ttyUSB*` o `/dev/ttyACM*`; Windows `COM*`). No compartirlo con el monitor Serial del IDE. Confirmar que la placa realmente admite BLE antes de usar ese modo. No se han cambiado permisos del sistema ni emparejado dispositivos automáticamente.
+
+## Sketch actual: USB Serial
+
+En terminales separadas:
+
+```sh
+npm run dev:backend
+npm run bridge:serial
+```
+
+El puente valida las diez columnas finitas. Como máximo una vez por segundo (configurable hacia una frecuencia menor), toma una instantánea de la columna BPM del AD8232:
+
+| Estado ECG serial | Interpretación |
+| --- | --- |
+| `0` | `no_contact`; sin medición de pulso |
+| `50` | `no_signal`; sin medición de pulso |
+| `100` con BPM cero | `insufficient`; sin medición de pulso |
+| `100` con BPM entre 1 y 300 | Instantánea de pulso; validación de formato, no clínica |
+
+No envía los 250 valores de ECG por segundo, RPM, SpO₂ ni pulso del oxímetro. El formato no permite probar que cada fila corresponda a un latido nuevo, ni distinguir la retención transitoria durante debounce. Por eso el dato se identifica como `clock=host_received_csv_snapshot`: hora del portátil al recibir la muestra, no UTC de la placa ni validación de una nueva estimación. Confirmar reposo antes de usar `BRIDGE_ACTIVITY=rest`; usar `exercise` o `eva` cuando corresponda.
+
+Cada ejecución del puente genera un ID de sesión propio y una secuencia de instantáneas; **no se presenta ese ID como ID de arranque del ESP32**. La fecha, ID y payload se persisten antes del envío. Reintentar o reiniciar el emisor conserva exactamente la lectura pendiente. Sin identificadores de firmware no se puede deduplicar una misma estimación entre dos sesiones físicas diferentes: son instantáneas distintas con recepción distinta.
+
+## Contrato propuesto BLE v1
+
+El modo `npm run bridge:ble` está implementado mediante Bleak, pero el sketch actual todavía no lo puede alimentar. Configurar los valores reales cuando firmware los entregue:
+
+```dotenv
+BLE_ADDRESS=
+BLE_SERVICE_UUID=
+BLE_CHARACTERISTIC_UUID=
+```
+
+La característica notifica JSON UTF-8 terminado en LF. Se reensamblan fragmentos; no se supone que una notificación contenga un mensaje completo. No hay UUID inventados o por defecto. Ejemplos de contrato:
+
+```json
+{"v":1,"deviceId":"esp32-demo","bootId":"arranque001","sequence":1,"quality":"valid","bpm":68,"capturedAt":"2026-11-14T12:00:00.000Z"}
+{"v":1,"deviceId":"esp32-demo","bootId":"arranque001","sequence":2,"quality":"no_contact"}
+```
+
+`bootId` debe cambiar por arranque y `sequence` aumentar por evento, incluidos estados. El par forma `readingId`. El `deviceId` debe coincidir con el aprovisionado. No admitir `quality=valid` hasta tener contacto estable, al menos dos intervalos válidos, BPM positivo y detección reciente. Con las variables del sketch, firmware debe comprobar también `!sueltoAhora`, `!cambioPendiente`, `!sueltoEstable`, `cuenta>=2` y la antigüedad de `ultimoLatido`; el CSV actual no exporta todo ese contexto.
+
+`capturedAt` es opcional solo para captura en vivo sin UTC de placa. En ese caso el puente registra recepción del portátil con `clock=host_received`, la conserva al repetir el mismo ID y no intenta reconstruir lecturas atrasadas. Para memoria de mediciones desconectadas en la placa, firmware debe aportar UTC verificable o acordar un protocolo de sincronización de reloj; no se fabrican fechas a partir de un contador sin ancla.
+
+La pérdida de contacto/señal o desconexión llega a `POST /api/v1/devices/status` con la credencial del dispositivo. No produce BPM cero ni borra la última medición. Los estados nuevos no se sobrescriben con reenvíos de lecturas más antiguas. `GET /api/v1/me/device` entrega señal, fecha observada y última comunicación para el propio astronauta; `latest` incluye antigüedad del último dato.
+
+## Cola del puente
+
+Es independiente de la cola de sincronización con PostgreSQL. En el portátil guarda envíos pendientes hacia Next.js en `BRIDGE_SPOOL_PATH`, excluido de Git, sin token. Fallos de transporte, 429 y 5xx conservan pendientes; rechazos permanentes quedan con código y necesitan revisión. No se regeneran fechas ni IDs al recuperar conexión.
+
+```sh
+npm run bridge:status
+npm run bridge:flush
+# Solo después de corregir credencial o causa de rechazo:
+npm run bridge:retry
+```
+
+Las confirmaciones se conservan para deduplicar notificaciones repetidas. No se purgan automáticamente datos. Un único puente debe consumir una misma placa y archivo de cola. Las escrituras de la API en SQLite generan además su pendiente hacia nube.
+
+## Pruebas y límites verificados
+
+```sh
+npm run test:bridge
+# Después de compilar el backend, en Linux:
+BRIDGE_TEST_PYTHON=tools/bridge/.venv/bin/python npm run test:production
+```
+
+Las pruebas del puente no requieren hardware. La prueba adicional usa un pseudoterminal que reproduce CSV y pasa por pySerial, el proceso real del puente, HTTP y SQLite. La conexión física USB, Bluetooth y los UUID del ESP32 requieren la placa; una prueba emulada no acredita compatibilidad eléctrica, calidad del sensor ni validación clínica.
+
+Fuentes de los adaptadores: [pySerial API](https://pyserial.readthedocs.io/en/latest/pyserial_api.html) y [BleakClient y notificaciones](https://bleak.readthedocs.io/en/latest/api/client.html). El paquete y la interpretación del CSV se basan en el sketch suministrado por el usuario.
