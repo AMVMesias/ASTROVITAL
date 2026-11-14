@@ -763,3 +763,8 @@
  .auth-card-stack > .auth-home-link { grid-column: 1; grid-row: 1; align-self: center; font-size: 13px; gap: 5px; padding: 7px 5px; }
  .auth-card-stack > .auth-card { grid-column: 1 / -1; }
 }
+@media (max-width: 700px) {
+ .auth-card { background: rgba(255,255,255,.78); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); border: 1px solid #ffffff66; }
+ .auth-field { background: #ffffff94; }
+ .auth-description { color: #304b78; }
+}
