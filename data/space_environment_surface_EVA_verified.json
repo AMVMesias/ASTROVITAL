@@ -1,0 +1,562 @@
+{
+  "schema_version": "1.1.0",
+  "title": "Fuentes ambientales espaciales: tránsito, ISS, superficie lunar y superficie marciana",
+  "prepared_on": "2026-11-14",
+  "language": "es",
+  "scope": "Solamente condiciones ambientales EXTERIORES en la Luna y Marte; indicadores fisiológicos proceden de sensores externos al JSON. No se estiman parámetros internos de trajes.",
+  "verification": {
+    "status": "Fuentes documentales consultadas y valores extraídos de referencias; descargas API en vivo NO comprobadas",
+    "live_api_downloads_performed": false,
+    "time_series_embedded": false,
+    "policy": "No interpolar ni fabricar registros. null significa sin dato verificado. Las cifras publicadas son promedios, rangos o referencias con sus contextos originales; no son lecturas actuales."
+  },
+  "measurement_model": {
+    "required_fields_for_imported_record": [
+      "scenario_id",
+      "variable",
+      "value",
+      "unit",
+      "observed_at",
+      "source_id",
+      "instrument",
+      "location",
+      "measurement_context",
+      "quality_flag"
+    ],
+    "null_means": "sin lectura verificada, NO cero",
+    "radiation_rule": "No convertir µGy (dosis absorbida) a µSv (dosis equivalente) usando factor arbitrario ni atribuir medida instrumental directamente al cuerpo humano",
+    "boundary_rule": "La Luna y Marte usan datos del entorno exterior. Un traje presurizado separa ese ambiente del astronauta: no interpretar temperatura, presión o CO2 exteriores como mediciones dentro del traje.",
+    "inference_rule": "No inferir cambios de salud en el astronauta desde estos datos sin un modelo clínico validado",
+    "spacesuit_rule": "No asignar dosis personal, temperatura corporal, presión interna, oxígeno respirado o efectos cuantitativos a partir de datos exteriores sin mediciones del traje, blindaje y modelo validado.",
+    "exposure_rule": "Exposición a polvo exterior no implica inhalación con traje cerrado; evaluar contaminación/infiltración solo con mediciones verificadas."
+  },
+  "sources": {
+    "nasa_moon_facts": {
+      "organization": "NASA NSSDC",
+      "name": "Moon Fact Sheet",
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html",
+      "format": "html",
+      "access": "public"
+    },
+    "nasa_mars_facts": {
+      "organization": "NASA NSSDC",
+      "name": "Mars Fact Sheet",
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html",
+      "format": "html",
+      "access": "public"
+    },
+    "artemis1_2024": {
+      "organization": "George et al., Nature (2024)",
+      "name": "Space radiation measurements during the Artemis I lunar mission",
+      "url": "https://doi.org/10.1038/s41586-024-07927-7",
+      "format": "article_with_source_tables",
+      "access": "open_access"
+    },
+    "lnd_2020": {
+      "organization": "Zhang et al., Science Advances (2020)",
+      "name": "First measurements of the radiation dose on the lunar surface",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7518862/",
+      "format": "article_tables",
+      "access": "open_access"
+    },
+    "nasa_mars_rad": {
+      "organization": "NASA/JPL-Caltech/SwRI",
+      "name": "Radiation Measurements on Mars (Curiosity RAD)",
+      "url": "https://science.nasa.gov/resource/radiation-measurements-on-mars/",
+      "format": "published_analysis",
+      "access": "public"
+    },
+    "nasa_radlab": {
+      "organization": "NASA OSDR",
+      "name": "RadLab Data API",
+      "url": "https://visualization.osdr.nasa.gov/radlab/gui/data-api/",
+      "format": "json_api",
+      "access": "public"
+    },
+    "nasa_eda": {
+      "organization": "NASA OSDR",
+      "name": "Environmental Data App",
+      "url": "https://visualization.osdr.nasa.gov/eda/",
+      "format": "downloadable_tables",
+      "access": "public"
+    },
+    "nasa_meda": {
+      "organization": "NASA PDS",
+      "name": "Perseverance MEDA",
+      "url": "https://pdsatmospheres.nmsu.edu/data_and_services/atmospheres_data/PERSEVERANCE/meda.html",
+      "format": "csv_archives",
+      "access": "public"
+    },
+    "nasa_diviner": {
+      "organization": "NASA PDS",
+      "name": "LRO Diviner Calibrated Data",
+      "url": "https://pds-geosciences.wustl.edu/missions/lro/diviner.htm",
+      "format": "pds_tables",
+      "access": "public"
+    },
+    "nasa_crater": {
+      "organization": "NASA PDS",
+      "name": "LRO CRaTER",
+      "url": "https://pds.nasa.gov/ds-view/pds/viewBundle.jsp?identifier=urn%3Anasa%3Apds%3Alro-crater&version=1.6",
+      "format": "pds_archive",
+      "access": "public"
+    },
+    "nasa_msl_rad": {
+      "organization": "NASA Open Data / PDS",
+      "name": "MSL RAD Level 2 Observations",
+      "url": "https://data.nasa.gov/dataset/mars-science-laboratory-msl-radiation-assessment-detector-rad-level-2-observation-dosimetr",
+      "format": "archive_catalog",
+      "access": "public"
+    },
+    "nasa_donki": {
+      "organization": "NASA CCMC",
+      "name": "DONKI API",
+      "url": "https://api.nasa.gov/",
+      "format": "json_api",
+      "access": "public_api_key"
+    },
+    "nasa_oltaris": {
+      "organization": "NASA",
+      "name": "OLTARIS radiation transport modeling",
+      "url": "https://oltaris.larc.nasa.gov/",
+      "format": "restricted_model_service",
+      "access": "registration_required"
+    },
+    "nasa_celestial_dust_risk": {
+      "organization": "NASA Human Research Program",
+      "name": "Risk of Adverse In-Mission Health and Performance Effects and Long-Term Health Effects Due to Celestial Dust Exposure",
+      "url": "https://www.nasa.gov/directorates/esdmd/hhp/risk-of-adverse-health-performance-effects-of-celestial-dust-exposure/",
+      "format": "scientific_risk_summary",
+      "access": "public"
+    },
+    "nasa_lunar_regolith": {
+      "organization": "NASA Science",
+      "name": "What Hazards Are Caused by Lunar Regolith?",
+      "url": "https://science.nasa.gov/biological-physical/what-hazards-are-caused-by-lunar-regolith/",
+      "format": "scientific_summary",
+      "access": "public"
+    }
+  },
+  "scenarios": {
+    "deep_space_transit": {
+      "name": "Tránsito interplanetario en nave (referencia: Orion Artemis I)",
+      "setting": "interior_de_nave_no_es_superficie_exterior",
+      "environment": {
+        "effective_gravity": {
+          "value": null,
+          "unit": "m/s2",
+          "reason": "La microgravedad depende de la trayectoria y de las aceleraciones de la nave; no hay una medida universal para todos los tránsitos"
+        },
+        "radiation_gcr_equivalent_rate_range": {
+          "value": {
+            "min": 0.96,
+            "max": 1.24
+          },
+          "unit": "mSv/day",
+          "evidence_type": "published_measured_range",
+          "source_id": "artemis1_2024",
+          "context": "Interior de Orion; detectores HERA; componente GCR; no implica dosis personal ni eventos solares"
+        },
+        "radiation_mission_total_equivalent_range": {
+          "value": {
+            "min": 26.7,
+            "max": 35.4
+          },
+          "unit": "mSv",
+          "evidence_type": "published_measured_range",
+          "source_id": "artemis1_2024",
+          "context": "Dosis equivalentes acumuladas en posiciones instrumentadas durante Artemis I; misión sin tripulación"
+        },
+        "temperature_c": {
+          "value": null,
+          "reason": "No existe una temperatura ambiental universal del interior de naves interplanetarias"
+        },
+        "co2_ppm": {
+          "value": null,
+          "reason": "Depende del control ambiental de la nave y de telemetría específica"
+        },
+        "cabin_pressure_pa": {
+          "value": null,
+          "reason": "Depende del vehículo y de telemetría específica"
+        }
+      },
+      "data_sources": [
+        "artemis1_2024",
+        "nasa_donki",
+        "nasa_oltaris"
+      ]
+    },
+    "iss_leo": {
+      "name": "Estación Espacial Internacional, órbita terrestre baja",
+      "setting": "interior_iss_y_referencias_instrumentales",
+      "environment": {
+        "effective_gravity": {
+          "value": null,
+          "description": "Microgravedad orbital; no asignar gravedad superficial terrestre como gravedad efectiva a bordo"
+        },
+        "radiation_equivalent_rate_comparison": {
+          "value": 731,
+          "unit": "µSv/day",
+          "evidence_type": "measured_period_average_reported_in_peer_reviewed_article",
+          "source_id": "lnd_2020",
+          "context": "ISS DOSTEL DOSIS 3D; mismo período de comparación del experimento lunar, NO valor constante para la ISS"
+        },
+        "radiation_gcr_component_comparison": {
+          "value": 523,
+          "unit": "µSv/day",
+          "evidence_type": "measured_period_average_reported_in_peer_reviewed_article",
+          "source_id": "lnd_2020",
+          "context": "Componente GCR de la comparación ISS; el valor total también incluye anomalía del Atlántico Sur"
+        },
+        "cabin_temperature_c": {
+          "value": null,
+          "reason": "Disponible por misión en EDA; no se descargó una serie verificable"
+        },
+        "cabin_relative_humidity_pct": {
+          "value": null,
+          "reason": "Disponible por misión en EDA; no se descargó una serie verificable"
+        },
+        "cabin_co2_ppm": {
+          "value": null,
+          "reason": "Disponible por misión en EDA; no se descargó una serie verificable"
+        },
+        "cabin_pressure_pa": {
+          "value": null,
+          "reason": "No verificado para un instante y módulo concretos"
+        }
+      },
+      "data_sources": [
+        "nasa_eda",
+        "nasa_radlab",
+        "lnd_2020"
+      ]
+    },
+    "moon_surface": {
+      "name": "Superficie lunar exterior (EVA con traje)",
+      "setting": "superficie_exterior_lunar_con_traje",
+      "environment": {
+        "gravity_surface": {
+          "value": 1.62,
+          "unit": "m/s2",
+          "evidence_type": "planetary_reference",
+          "source_id": "nasa_moon_facts"
+        },
+        "gravity_relative_to_earth": {
+          "value": 0.165,
+          "unit": "g_earth",
+          "evidence_type": "planetary_reference",
+          "source_id": "nasa_moon_facts"
+        },
+        "exterior_surface_temperature_equator_range": {
+          "value": {
+            "min": 95,
+            "max": 390
+          },
+          "unit": "K",
+          "evidence_type": "published_reference_range",
+          "source_id": "nasa_moon_facts",
+          "context": "Rango diurno de temperatura ecuatorial de la superficie, NO del aire ni del interior de una base"
+        },
+        "exosphere_surface_pressure_night": {
+          "value": 3e-15,
+          "unit": "bar",
+          "evidence_type": "published_reference",
+          "source_id": "nasa_moon_facts",
+          "context": "Exosfera nocturna; depende de condiciones y ubicación; no es atmósfera respirable"
+        },
+        "radiation_total_absorbed_dose_rate": {
+          "value": 13.2,
+          "unit": "µGy/hour",
+          "evidence_type": "measured_study_average",
+          "source_id": "lnd_2020",
+          "uncertainty": {
+            "plus_minus": 1.0,
+            "unit": "µGy/hour"
+          },
+          "context": "Chang’e-4 LND, absorbida en silicio, instrumento en módulo de aterrizaje; NO dosis humana dentro de hábitat"
+        },
+        "radiation_neutral_absorbed_dose_rate": {
+          "value": 3.1,
+          "unit": "µGy/hour",
+          "evidence_type": "measured_study_average",
+          "source_id": "lnd_2020",
+          "uncertainty": {
+            "plus_minus": 0.5,
+            "unit": "µGy/hour"
+          },
+          "context": "Partículas neutras en detector LND; no sumar de nuevo al total"
+        },
+        "radiation_equivalent_dose_rate": {
+          "value": 1369,
+          "unit": "µSv/day",
+          "evidence_type": "measured_study_average",
+          "source_id": "lnd_2020",
+          "context": "Promedio reportado en superficie lunar; no dosis en una base protegida"
+        }
+      },
+      "data_sources": [
+        "nasa_moon_facts",
+        "lnd_2020",
+        "nasa_diviner",
+        "nasa_crater",
+        "nasa_celestial_dust_risk",
+        "nasa_lunar_regolith"
+      ],
+      "exposure_context": {
+        "astronaut_configuration": "Traje espacial presurizado durante actividad extravehicular (EVA)",
+        "suit_internal_measurements": null,
+        "suit_model": null,
+        "personal_dose": null,
+        "reason": "No se ha identificado un modelo específico de traje con telemetría pública aplicable; no extrapolar valores exteriores al interior."
+      },
+      "documented_health_relevance": [
+        {
+          "factor": "radiacion_espacial",
+          "evidence": "Campo radiológico medido en superficie lunar; existe riesgo de radiación en vuelos espaciales. La medición LND no es dosis de una persona vestida con traje.",
+          "source_ids": [
+            "lnd_2020"
+          ],
+          "quantitative_physiological_effect": null
+        },
+        {
+          "factor": "polvo_lunar",
+          "evidence": "NASA documenta irritación respiratoria de astronautas Apollo tras ingreso de polvo al entorno respirable; con traje sellado, no asumir inhalación directa durante EVA.",
+          "source_ids": [
+            "nasa_lunar_regolith",
+            "nasa_celestial_dust_risk"
+          ],
+          "quantitative_physiological_effect": null
+        },
+        {
+          "factor": "gravedad_parcial",
+          "evidence": "La gravedad de superficie lunar es un parámetro físico medido; sin datos individuales no se asigna una respuesta fisiológica específica.",
+          "source_ids": [
+            "nasa_moon_facts"
+          ],
+          "quantitative_physiological_effect": null
+        }
+      ]
+    },
+    "mars_surface": {
+      "name": "Superficie marciana exterior (EVA con traje)",
+      "setting": "superficie_exterior_marciana_con_traje",
+      "environment": {
+        "gravity_surface_mean": {
+          "value": 3.73,
+          "unit": "m/s2",
+          "evidence_type": "planetary_reference",
+          "source_id": "nasa_mars_facts"
+        },
+        "gravity_relative_to_earth": {
+          "value": 0.38,
+          "unit": "g_earth",
+          "evidence_type": "planetary_reference",
+          "source_id": "nasa_mars_facts"
+        },
+        "exterior_surface_pressure_mean_radius": {
+          "value": 6.36,
+          "unit": "mbar",
+          "evidence_type": "planetary_reference",
+          "source_id": "nasa_mars_facts",
+          "context": "Valor de referencia a radio medio; NO lectura instantánea en Jezero"
+        },
+        "exterior_surface_pressure_seasonal_reference_range": {
+          "value": {
+            "min": 4.0,
+            "max": 8.7
+          },
+          "unit": "mbar",
+          "evidence_type": "planetary_reference_range",
+          "source_id": "nasa_mars_facts"
+        },
+        "exterior_atmosphere_co2_volume_fraction": {
+          "value": 95.1,
+          "unit": "% vol",
+          "evidence_type": "planetary_reference",
+          "source_id": "nasa_mars_facts"
+        },
+        "exterior_mean_temperature": {
+          "value": 214,
+          "unit": "K",
+          "evidence_type": "planetary_reference_mean",
+          "source_id": "nasa_mars_facts",
+          "context": "Promedio global aproximado; no registro por sol ni temperatura del hábitat"
+        },
+        "exterior_radiation_absorbed_dose_gcr_rate": {
+          "value": 210,
+          "unit": "µGy/day",
+          "evidence_type": "published_observational_approximation",
+          "source_id": "nasa_mars_rad",
+          "context": "Curiosity RAD, aproximadamente 10 meses de observación desde agosto de 2012; dosis absorbida y NO dosis equivalente"
+        },
+        "exterior_atmosphere_o2_volume_fraction": {
+          "value": 0.16,
+          "unit": "% vol",
+          "evidence_type": "planetary_reference",
+          "source_id": "nasa_mars_facts",
+          "context": "Composición media exterior, no oxígeno respirado en traje"
+        },
+        "exterior_viking1_diurnal_air_temperature_range": {
+          "value": {
+            "min": 184,
+            "max": 242
+          },
+          "unit": "K",
+          "evidence_type": "published_reference_range",
+          "source_id": "nasa_mars_facts",
+          "context": "Ejemplo observado en sitio Viking 1, no todas las ubicaciones ni el aire del traje"
+        },
+        "exterior_viking_dust_storm_wind_speed_range": {
+          "value": {
+            "min": 17,
+            "max": 30
+          },
+          "unit": "m/s",
+          "evidence_type": "published_reference_range",
+          "source_id": "nasa_mars_facts",
+          "context": "Sitios Viking en tormentas de polvo, no condición constante"
+        }
+      },
+      "data_sources": [
+        "nasa_mars_facts",
+        "nasa_meda",
+        "nasa_msl_rad",
+        "nasa_mars_rad",
+        "nasa_celestial_dust_risk"
+      ],
+      "exposure_context": {
+        "astronaut_configuration": "Traje espacial presurizado durante actividad extravehicular (EVA)",
+        "suit_internal_measurements": null,
+        "suit_model": null,
+        "personal_dose": null,
+        "reason": "No se ha identificado un modelo específico de traje con telemetría pública aplicable; no extrapolar valores exteriores al interior."
+      },
+      "documented_health_relevance": [
+        {
+          "factor": "radiacion_espacial",
+          "evidence": "RAD midió radiación en superficie de Marte; la dosis del detector no equivale a dosis personal bajo traje.",
+          "source_ids": [
+            "nasa_mars_rad"
+          ],
+          "quantitative_physiological_effect": null
+        },
+        {
+          "factor": "polvo_marciano",
+          "evidence": "NASA identifica la exposición a polvo celeste como peligro potencial; no hay medición aquí de infiltración al traje ni dosis inhalada.",
+          "source_ids": [
+            "nasa_celestial_dust_risk"
+          ],
+          "quantitative_physiological_effect": null
+        },
+        {
+          "factor": "gravedad_parcial",
+          "evidence": "El valor de gravedad marciana es referencia planetaria; no es posible atribuirle un cambio medido de frecuencia cardíaca sin datos adicionales.",
+          "source_ids": [
+            "nasa_mars_facts"
+          ],
+          "quantitative_physiological_effect": null
+        }
+      ]
+    }
+  },
+  "data_connectors": [
+    {
+      "id": "iss_radiation_radlab",
+      "scenario": "iss_leo",
+      "source_id": "nasa_radlab",
+      "access_type": "GET_JSON",
+      "method": "GET",
+      "url": "https://visualization.osdr.nasa.gov/radlab/api/?spacecraft=ISS&instrument=DosTel&timestamp%3E=2022-04-01T23%3A00&timestamp%3C2022-04-02T01%3A05&absorbed_dose_rate%3E2&flux&latitude&longitude&altitude&format=json",
+      "parameters_note": "Consulta basada en ejemplo documentado oficialmente; requiere validar disponibilidad y respuesta antes de usar",
+      "fields_and_units": {
+        "timestamp": "ISO 8601",
+        "absorbed_dose_rate": "µGy/hour",
+        "latitude": "degree",
+        "longitude": "degree",
+        "altitude": "km"
+      },
+      "tested_live": false
+    },
+    {
+      "id": "iss_environment_eda",
+      "scenario": "iss_leo",
+      "source_id": "nasa_eda",
+      "access_type": "MANUAL_EXPORT",
+      "url": "https://visualization.osdr.nasa.gov/eda/",
+      "fields_and_units": {
+        "temperature": "°C (confirmar en exportación)",
+        "relative_humidity": "%",
+        "co2": "confirmar unidad del archivo"
+      },
+      "tested_live": false
+    },
+    {
+      "id": "mars_meda",
+      "scenario": "mars_surface",
+      "source_id": "nasa_meda",
+      "access_type": "CSV_PDS_INDEX_AND_FILES",
+      "url": "https://pdsatmospheres.nmsu.edu/data_and_services/atmospheres_data/PERSEVERANCE/meda.html",
+      "recommended_collections": [
+        "derived pressure",
+        "calibrated air temperature",
+        "derived humidity",
+        "derived wind",
+        "calibrated radiation and dust"
+      ],
+      "tested_live": false
+    },
+    {
+      "id": "mars_rad",
+      "scenario": "mars_surface",
+      "source_id": "nasa_msl_rad",
+      "access_type": "PDS_ARCHIVE",
+      "url": "https://data.nasa.gov/dataset/mars-science-laboratory-msl-radiation-assessment-detector-rad-level-2-observation-dosimetr",
+      "tested_live": false
+    },
+    {
+      "id": "moon_diviner",
+      "scenario": "moon_surface",
+      "source_id": "nasa_diviner",
+      "access_type": "PDS_CALIBRATED_ARCHIVE",
+      "url": "https://pds-geosciences.wustl.edu/missions/lro/diviner.htm",
+      "tested_live": false
+    },
+    {
+      "id": "moon_crater",
+      "scenario": "moon_surface",
+      "source_id": "nasa_crater",
+      "access_type": "PDS_ARCHIVE",
+      "url": "https://pds.nasa.gov/ds-view/pds/viewBundle.jsp?identifier=urn%3Anasa%3Apds%3Alro-crater&version=1.6",
+      "tested_live": false
+    },
+    {
+      "id": "solar_events_sep",
+      "scenario": "deep_space_transit",
+      "source_id": "nasa_donki",
+      "access_type": "GET_JSON",
+      "method": "GET",
+      "url_template": "https://api.nasa.gov/DONKI/SEP?startDate={YYYY-MM-DD}&endDate={YYYY-MM-DD}&api_key={NASA_API_KEY}",
+      "tested_live": false,
+      "warning": "Los eventos reportados no equivalen directamente a dosis recibida en un vehículo o en la superficie planetaria"
+    },
+    {
+      "id": "solar_events_cme",
+      "scenario": "deep_space_transit",
+      "source_id": "nasa_donki",
+      "access_type": "GET_JSON",
+      "method": "GET",
+      "url_template": "https://api.nasa.gov/DONKI/CME?startDate={YYYY-MM-DD}&endDate={YYYY-MM-DD}&api_key={NASA_API_KEY}",
+      "tested_live": false,
+      "warning": "Una CME registrada no determina por sí sola la exposición real de la tripulación"
+    }
+  ],
+  "not_included": [
+    "astronaut_biometrics",
+    "habitat_future_moon_mars",
+    "real_time_state",
+    "physiological_causality",
+    "Cualquier dato supuesto de presurización, microclima, filtración o blindaje de un traje espacial específico",
+    "Transformaciones de condiciones exteriores a cambios fisiológicos individuales sin evidencia y sensores",
+    "Series temporales de los archivos PDS: conectores listados pero registros no descargados"
+  ]
+}
