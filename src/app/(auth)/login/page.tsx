@@ -56,11 +56,6 @@ export default function Login() {
             />
             <span>NASA Health</span>
           </Link>
-          <h2 id="auth-title">Iniciar sesión</h2>
-          <p className="auth-description">
-            Accede a la plataforma para consultar y gestionar la salud de la
-            tripulación.
-          </p>
           <LoginForm />
         </div>
       </section>

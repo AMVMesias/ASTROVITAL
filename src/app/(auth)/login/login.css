@@ -329,3 +329,228 @@
     height: 26px;
   }
 }
+/* Transición entre el acceso y los pasos de recuperación. */
+.auth-flow-viewport {
+  overflow: hidden;
+  margin: -5px;
+  padding: 5px;
+}
+.auth-flow-panel {
+  animation: auth-slide-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.auth-flow-back {
+  animation-name: auth-slide-back;
+}
+.auth-flow-panel h2:focus {
+  outline: none;
+}
+.auth-flow-panel h2 {
+  font-size: clamp(28px, 2.7vw, 46px);
+}
+@keyframes auth-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(45px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes auth-slide-back {
+  from {
+    opacity: 0;
+    transform: translateX(-45px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.recovery-demo {
+  margin: -12px 0 18px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #506b9d;
+}
+.recovery-progress {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  margin: 0 0 24px;
+  list-style: none;
+  font-size: 12px;
+  color: #506b9d;
+}
+.recovery-progress li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.recovery-progress li span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #e3eaf7;
+}
+.recovery-progress li[aria-current] {
+  color: #0648d8;
+  font-weight: 700;
+}
+.recovery-progress li[aria-current] span {
+  color: white;
+  background: #0648d8;
+}
+.recovery-question {
+  margin: 0;
+  color: #07174d;
+  font-size: 18px;
+  line-height: 1.4;
+}
+.recovery-question small {
+  display: block;
+  margin-bottom: 6px;
+  color: #506b9d;
+  font-size: 12px;
+}
+.recovery-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #506b9d;
+}
+.recovery-back {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #506b9d;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 13px;
+}
+@media (max-width: 900px), (max-height: 700px) {
+  .recovery-progress {
+    margin-bottom: 14px;
+  }
+  .recovery-demo {
+    margin-bottom: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-flow-panel {
+    animation: none;
+  }
+}
+.setup-label {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  color: #506b9d;
+}
+.setup-label select {
+  width: 100%;
+  min-width: 0;
+  padding: 12px 8px;
+  border: 1px solid #c9d5e9;
+  border-radius: 10px;
+  background: #f5f8fd;
+  color: #07174d;
+  font: inherit;
+}
+/* Keep longer recovery steps within the same compact card. */
+.auth-flow-panel:has(.recovery-demo) .auth-description {
+  margin-bottom: 20px;
+}
+.auth-flow-panel:has(.recovery-demo) .auth-form {
+  gap: 12px;
+}
+.auth-flow-panel:has(.recovery-demo) .auth-submit {
+  margin-top: 6px;
+}
+.auth-flow-panel:has(.recovery-demo) .auth-recovery {
+  margin: 2px 0;
+}
+@media (max-width: 900px) {
+  .auth-card-area:has(.recovery-demo) {
+    margin-top: -70px;
+  }
+  .auth-page:has(.recovery-demo) .auth-intro {
+    padding-bottom: 58px;
+  }
+}
+.setup-questions {
+  display: grid;
+  gap: 10px;
+}
+.setup-question-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.setup-question-group legend {
+  padding: 0;
+  margin-bottom: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #506b9d;
+}
+.setup-question-group select {
+  font-size: 13px;
+  padding: 8px;
+}
+.setup-question-group .auth-field {
+  height: 38px;
+}
+.setup-question-group input {
+  font-size: 14px;
+}
+.auth-card:has(.setup-questions) {
+  padding-top: 22px;
+  padding-bottom: 22px;
+}
+.auth-card:has(.setup-questions) .auth-brand {
+  margin-bottom: 10px;
+}
+.auth-card:has(.setup-questions) .auth-brand img {
+  width: 52px;
+}
+.auth-card:has(.setup-questions) h2 {
+  font-size: 30px;
+}
+.auth-card:has(.setup-questions) .auth-description {
+  font-size: 15px;
+  margin-bottom: 18px;
+}
+.auth-card:has(.setup-questions) .auth-submit {
+  min-height: 42px;
+  font-size: 16px;
+}
+.auth-card:has(.setup-questions) .auth-recovery {
+  font-size: 14px;
+}
+.recovery-attempts {
+  margin: 0;
+  font-size: 13px;
+  color: #0648d8;
+  font-weight: 700;
+}
+.auth-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (max-width: 900px) {
+  .auth-page:has(.setup-questions) .auth-intro {
+    display: none;
+  }
+  .auth-page:has(.setup-questions) .auth-card-area {
+    margin: 0;
+    padding: 16px 5%;
+    align-items: center;
+  }
+}
