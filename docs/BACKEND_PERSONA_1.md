@@ -93,7 +93,7 @@ La Persona 1 recibe la notificación en el portátil y transforma la estimación
 
 `EnvironmentProvider.resolve(astronautId,capturedAt)` devuelve escenario, perfil/versión inmutable, ámbito, ID de asignación y disponibilidad de telemetría para la fecha original. `null` produce `409 ENVIRONMENT_MISSING`; perfil sin telemetría permite captura. La deduplicación ESP32 ocurre antes de consultar nuevamente el entorno.
 
-La composición usa **PreparationEnvironmentProvider**: adaptador provisional explícito `preparation-iss-cabin`, versión `preparation-1`, sin telemetría ni intervalos históricos reales. Sustituirlo por el proveedor de persona 2; las pruebas ya comprueban un proveedor histórico, cambios de versión y ausencia. El cargador del catálogo y las asignaciones históricas ya existen. Falta conectarlos a este proveedor y exponer el selector.
+La composición local resuelve el entorno por hora de captura. El perfil ISS se usa antes de la primera selección para el astronauta. El selector y las referencias están en GET y PUT de /api/v1/me/environment. El catálogo documental permanece separado de la telemetría.
 
 `LocalQueue` es un adaptador interno para un solo emisor por base:
 
@@ -103,7 +103,7 @@ La composición usa **PreparationEnvironmentProvider**: adaptador provisional ex
 - `reject(id,reason)`: rechazo visible, sin degradar un confirmado.
 - `retryRejected(id)`: retorna a pendiente manteniendo payload e ID.
 
-El emisor/receptor debe tolerar entrega repetida; no se promete entrega exactamente una vez. No hay API pública de cola; `latest` solo expone conteos/rechazos propios. El repositorio dispone de consultas internas por astronauta, indicador y período para evaluación. El emisor usa este adaptador mediante `npm run sync:send`. El receptor PostgreSQL ya está implementado. La evaluación posterior a captura y su recuperación siguen pendientes de integración.
+El emisor/receptor debe tolerar entrega repetida; no se promete entrega exactamente una vez. No hay API pública de cola; `latest` solo expone conteos/rechazos propios. El repositorio dispone de consultas internas por astronauta, indicador y período para evaluación. El emisor usa este adaptador mediante `npm run sync:send`. El receptor PostgreSQL ya está implementado. La evaluación y los avisos se guardan dentro de la transacción de captura. El historial de avisos propios se consulta en /api/v1/me/alerts.
 
 ## Verificación reproducible
 

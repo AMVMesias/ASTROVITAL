@@ -1,3 +1,6 @@
+import { GET as getEnvironment, PUT as setEnvironment } from "../src/backend/src/app/api/v1/me/environment/route";
+import { GET as listAlerts } from "../src/backend/src/app/api/v1/me/alerts/route";
+import { POST as actAlert } from "../src/backend/src/app/api/v1/me/alerts/[id]/route";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -79,6 +82,33 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     assert.equal((await device(request("/api/v1/measurements","POST",pulse,undefined,headers))).status,200);
     assert.equal((await device(request("/api/v1/measurements","POST",{...pulse,value:69},undefined,headers))).status,409);
     assert.equal((await device(request("/api/v1/measurements","POST",pulse,astroCookie))).status,401);
+    const environmentUrl="/api/v1/me/environment";
+    assert.equal((await getEnvironment(request(environmentUrl))).status,401);
+    assert.equal((await getEnvironment(request(environmentUrl,"GET",undefined,adminCookie))).status,403);
+    const initial=(await (await getEnvironment(request(environmentUrl,"GET",undefined,astroCookie))).json());
+    assert.equal(initial.profiles.length,4);
+    assert.equal(initial.active.scenarioId,"iss_leo");
+    const values=[65,65,65,82,83];
+    const start=Date.now()-60_000;
+    for (const [index,value] of values.entries()) {
+      const reading={...pulse,value,capturedAt:new Date(start+index*1000).toISOString(),readingId:"test-series-"+index};
+      assert.equal((await device(request("/api/v1/measurements","POST",reading,undefined,headers))).status,201);
+    }
+    const alertsUrl="/api/v1/me/alerts";
+    assert.equal((await listAlerts(request(alertsUrl,"GET",undefined,adminCookie))).status,403);
+    const alerts=(await (await listAlerts(request(alertsUrl,"GET",undefined,astroCookie))).json()).alerts;
+    assert.equal(alerts.length,1);
+    assert.equal(alerts[0].reason,"deviation");
+    const close=await actAlert(request(alertsUrl,"POST",{type:"close"},astroCookie),{params:Promise.resolve({id:alerts[0].id})});
+    assert.equal((await close.json()).alert.status,"closed");
+    const selected=await setEnvironment(request(environmentUrl,"PUT",{scenarioId:"moon_surface"},astroCookie));
+    assert.equal((await selected.json()).active.scenarioId,"moon_surface");
+    const late={...pulse,capturedAt:new Date(start+10_000).toISOString(),readingId:"late"};
+    const lateResult=await device(request("/api/v1/measurements","POST",late,undefined,headers));
+    assert.equal((await lateResult.json()).measurement.environment.scenarioId,"iss_leo");
+    const next={...input,capturedAt:new Date().toISOString()};
+    const nextResult=await manual(request("/api/v1/me/measurements","POST",next,astroCookie));
+    assert.equal((await nextResult.json()).measurement.environment.scenarioId,"moon_surface");
     const invalidJson=new NextRequest("http://localhost:3000/api/v1/me/measurements",{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1",cookie:astroCookie},body:"{"});
     assert.equal((await manual(invalidJson)).status,400);
     assert.equal((await manual(request("/api/v1/me/measurements","POST",{note:"x".repeat(17000)},astroCookie))).status,413);

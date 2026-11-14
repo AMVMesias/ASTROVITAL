@@ -4,7 +4,14 @@ import { SqliteRepository } from "../infrastructure/sqlite/SqliteRepository";
 import { AuthService } from "../application/auth/AuthService";
 import { UserService } from "../application/users/UserService";
 import { MeasurementService } from "../application/measurements/MeasurementService";
-import { PreparationEnvironmentProvider } from "../application/environment/PreparationEnvironmentProvider";
+import input from "../../../../../data/space_environment_surface_EVA_verified.json";
+import { createMissionEnvironment } from "../application/environment/missionEnvironment";
+import { createMeasurementAssessment } from "../application/assessment/measurementAssessment";
+import { loadDocumentaryCatalog } from "../infrastructure/environment/documentaryCatalog";
+import { createSqliteEnvironmentRepository, seedEnvironmentCatalog } from "../infrastructure/sqlite/environmentRepository";
+import { createSqliteAlertRepository } from "../infrastructure/sqlite/alertRepository";
+
+const catalog = loadDocumentaryCatalog(input);
 import { LocalQueue } from "../application/sync-queue/LocalQueue";
 
 export function localPath() {
@@ -12,9 +19,22 @@ export function localPath() {
   // Archivo de ejecución local, nunca un recurso que deba copiarse al despliegue.
   return resolve(/* turbopackIgnore: true */ process.env.SQLITE_PATH || "data/local/nasa-health.sqlite");
 }
-export function createServices(repo: SqliteRepository, environment: EnvironmentProvider = new PreparationEnvironmentProvider()) {
+export function createServices(repo: SqliteRepository, environment?: EnvironmentProvider) {
   const auth = new AuthService(repo);
-  return { repo, auth, users: new UserService(repo, auth), measurements: new MeasurementService(repo, auth, environment), queue: new LocalQueue(repo) };
+  seedEnvironmentCatalog(repo.db, catalog);
+  const assignments = createSqliteEnvironmentRepository(repo.db);
+  const environments = environment ?? createMissionEnvironment(catalog, assignments, (astronautId) => {
+    const mission = repo.get("SELECT mission_id FROM astronauts WHERE id = ?", astronautId);
+    return typeof mission?.mission_id === "string" ? mission.mission_id : undefined;
+  });
+  const alerts = createSqliteAlertRepository(repo.db);
+  const assessment = createMeasurementAssessment((id, query) => repo.measurements(id, query), alerts);
+  return {
+    repo, auth, catalog, assignments, environments, alerts,
+    users: new UserService(repo, auth),
+    measurements: new MeasurementService(repo, auth, environments, assessment),
+    queue: new LocalQueue(repo),
+  };
 }
 let services: ReturnType<typeof createServices> | undefined;
 export function localServices() { return services ??= createServices(new SqliteRepository(localPath())); }

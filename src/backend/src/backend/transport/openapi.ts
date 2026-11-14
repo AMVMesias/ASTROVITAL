@@ -17,9 +17,9 @@ const measurementInput = {
 const userWrite = { type: "object", additionalProperties: false, properties: { username: { type: "string", minLength: 3, maxLength: 64, pattern: "^[a-zA-Z0-9._-]+$" }, name: { type: "string", minLength: 1, maxLength: 120 }, role: { type: "string", enum: ["admin","astronauta"] }, enabled: { type: "boolean", default: true }, password: { type: "string", format: "password", minLength: 12, maxLength: 128, writeOnly: true } } };
 export const openapi = {
   openapi: "3.0.3",
-  info: { title: "NASA Health · API", version: "1.0.0", description: "Backend persona 1. SQLite local con Next.js/Node 22.13+. Login mediante cookie HttpOnly, revocación y separación de roles. Primero db:seed; sin credenciales por defecto. Swagger funciona sin CDN. Las mutaciones de sesión requieren Origin del mismo origen o X-Nasa-Request: 1 para clientes CLI. Los datos de salud son personales; admin no tiene acceso. Ambiente preparation-1 provisional, sin telemetría. El receptor de sincronización usa PostgreSQL y una credencial de equipo por misión." },
+  info: { title: "NASA Health · API", version: "1.0.0", description: "Backend persona 1. SQLite local con Next.js/Node 22.13+. Login mediante cookie HttpOnly, revocación y separación de roles. Primero db:seed; sin credenciales por defecto. Swagger funciona sin CDN. Las mutaciones de sesión requieren Origin del mismo origen o X-Nasa-Request: 1 para clientes CLI. Los datos de salud son personales; admin no tiene acceso. Perfiles ambientales versionados con asignaciones históricas y sin telemetría en vivo. El receptor de sincronización usa PostgreSQL y una credencial de equipo por misión." },
   servers: [{ url: "/", description: "Mismo equipo local" }],
-  tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización"].map(name => ({ name })),
+  tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización","Entorno","Avisos"].map(name => ({ name })),
   paths: {
     "/api/health": { get: operation("Disponibilidad del servicio (sin comprobar SQLite)","Disponibilidad", { type: "object", properties: { status: { type: "string", enum: ["ok"] } } }, { security: [] }) },
     "/api/v1/sync/measurements": { post: operation(
@@ -38,6 +38,26 @@ export const openapi = {
         },
       },
     ) },
+    "/api/v1/me/environment": {
+      get: operation("Consultar catálogo y entorno activo (astronauta)", "Entorno", { type: "object",
+        properties: { schemaVersion: string, revision: string, sources: { type: "object" },
+          profiles: { type: "array", items: { type: "object" } }, active: ref("Environment") } }),
+      put: operation("Seleccionar entorno desde este momento (astronauta)", "Entorno", { type: "object",
+        properties: { active: ref("Environment") } }, { requestBody: body({ type: "object",
+          required: ["scenarioId"], properties: { scenarioId: { type: "string", enum: ["iss_leo","deep_space_transit","moon_surface","mars_surface"] } } }) }),
+    },
+    "/api/v1/me/alerts": {
+      get: operation("Listar avisos propios", "Avisos", { type: "object", properties: { alerts: { type: "array", items: ref("Alert") } } }),
+    },
+    "/api/v1/me/alerts/{id}": {
+      parameters: [{ name: "id", in: "path", required: true, schema: string }],
+      get: operation("Consultar aviso propio y acciones", "Avisos", ref("AlertDetail")),
+      post: operation("Registrar acción sobre aviso propio", "Avisos", ref("AlertDetail"), {
+        requestBody: body({ type: "object", required: ["type"], properties: {
+          type: { type: "string", enum: ["observation","repeat","track","close"] }, note: { type: "string", maxLength: 1000 },
+        } }),
+      }),
+    },
     "/api/v1/auth/login": { post: operation("Iniciar sesión de cuenta habilitada", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }, { security: [], requestBody: body({ type: "object", additionalProperties: false, required: ["username","password"], properties: { username: string, password: { type: "string", format: "password", maxLength: 128 } } }) }) },
     "/api/v1/auth/session": { get: operation("Consultar identidad y vigencia", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }) },
     "/api/v1/auth/logout": { post: operation("Revocar la sesión actual", "Acceso", { type: "object", properties: { status: string } }) },
@@ -80,6 +100,18 @@ export const openapi = {
           },
         ],
       },
+      Assessment: { type: "object", properties: { measurementId: string, indicator: string, ruleVersion: string,
+        status: { type: "string", enum: ["insufficient","invalid","stale","stable","deviation"] },
+        evidence: { type: "array", items: string },
+        reference: { type: "object", properties: { mean: { type: "number" }, count: { type: "integer" }, from: timestamp, to: timestamp } },
+      } },
+      Alert: { type: "object", properties: { id: string, measurementId: string, missionId: string, astronautId: string, createdAt: timestamp,
+        kind: { type: "string", enum: ["quality","variation"] }, reason: { type: "string", enum: ["invalid","stale","deviation"] },
+        status: { type: "string", enum: ["open","tracking","closed"] }, evidence: ref("Assessment"),
+      } },
+      AlertDetail: { type: "object", properties: { alert: ref("Alert"), actions: { type: "array", items: {
+        type: "object", properties: { authorId: string, type: { type: "string", enum: ["observation","repeat","track","close"] }, note: string, createdAt: timestamp },
+      } } } },
       SyncError: { type: "object", required: ["error"], properties: { error: { type: "string", enum: ["invalid_batch", "unauthorized", "batch_too_large", "sync_unavailable"] } } },
       SyncReceipts: { type: "object", required: ["receipts"], properties: { receipts: { type: "array", items: {
         oneOf: [
@@ -93,7 +125,7 @@ export const openapi = {
       Measurement: { type: "object", properties: { id: string, astronautId: string, missionId: string, moduleId: string, indicator: { type: "string", enum: ["sleep","wellbeing","heart_rate"] }, value: { type: "number" }, unit: string, origin: { type: "string", enum: ["manual","device","simulated"] }, quality: { type: "string", enum: ["valid"] }, capturedAt: timestamp, receivedAt: timestamp, authorId: nullableString, deviceId: nullableString, readingId: nullableString, activity: { type: "string", enum: ["rest","exercise","eva"] }, note: string, scenario: nullableString, environment: ref("Environment") } },
       Device: { type: "object", properties: { id: string, astronautId: string, enabled: { type: "boolean" }, lastCommunicationAt: { ...timestamp, nullable: true } } },
       CaptureResult: { type: "object", required: ["measurement","duplicate"], properties: { measurement: ref("Measurement"), duplicate: { type: "boolean" } } },
-      Summary: { type: "object", properties: { latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, queue: { type: "object", properties: { pending: { type: "integer" }, confirmed: { type: "integer" }, rejected: { type: "integer" }, rejections: { type: "array", items: { type: "object", properties: { id: string, reason: nullableString } } } } }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: { type: "object", properties: { status: { type: "string", enum: ["not_connected"] }, message: string } } } },
+      Summary: { type: "object", properties: { latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, queue: { type: "object", properties: { pending: { type: "integer" }, confirmed: { type: "integer" }, rejected: { type: "integer" }, rejections: { type: "array", items: { type: "object", properties: { id: string, reason: nullableString } } } } }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: { type: "array", items: ref("Assessment") } } },
     },
   },
 };

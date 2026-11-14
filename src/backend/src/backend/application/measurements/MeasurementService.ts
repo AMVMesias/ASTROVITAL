@@ -5,8 +5,10 @@ import { date, object, only, text } from "../../domain/validation";
 import { digest } from "../../infrastructure/security/credentials";
 import { AuthService } from "../auth/AuthService";
 
+import type { createMeasurementAssessment } from "../assessment/measurementAssessment";
+
 export class MeasurementService {
-  constructor(private repo: Repository, private auth: AuthService, private environment: EnvironmentProvider) {}
+  constructor(private repo: Repository, private auth: AuthService, private environment: EnvironmentProvider, private assessment?: ReturnType<typeof createMeasurementAssessment>) {}
   manual(session: Session, input: unknown) {
     return this.repo.atomic(() => {
       const user = this.auth.requireSession(session.sessionId, "astronauta");
@@ -60,6 +62,7 @@ export class MeasurementService {
     const measurement: Measurement = { id: randomUUID(), astronautId, missionId, moduleId, indicator, value: input.value, unit: config.unit, origin, quality: "valid", capturedAt,
       receivedAt: new Date().toISOString(), authorId, deviceId: deviceId ?? null, readingId, activity, note, scenario: scenario ?? null, environment };
     this.repo.saveMeasurement(measurement, fingerprint);
+    this.assessment?.record(measurement);
     return { measurement, duplicate: false };
   }
   history(session: Session, params: URLSearchParams) {
@@ -77,8 +80,10 @@ export class MeasurementService {
   }
   summary(session: Session) {
     const user = this.auth.requireSession(session.sessionId, "astronauta");
-    return { latest: this.repo.latest(user.astronautId!), devices: this.repo.devices(user.astronautId!), queue: this.repo.queueStatus(user.astronautId!), indicators: indicatorConfig,
+    const latest = this.repo.latest(user.astronautId!);
+    const now = new Date();
+    return { latest, devices: this.repo.devices(user.astronautId!), queue: this.repo.queueStatus(user.astronautId!), indicators: indicatorConfig,
       environment: this.environment.resolve(user.astronautId!, new Date().toISOString()),
-      evaluation: { status: "not_connected", message: "Evaluación y reglas de vigencia pendientes del módulo de persona 2." } };
+      evaluation: latest.map((measurement) => ({ measurementId: measurement.id, indicator: measurement.indicator, ...this.assessment?.evaluate(measurement, now) })) };
   }
 }

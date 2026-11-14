@@ -1,6 +1,9 @@
 import type { DatabaseSync } from "node:sqlite";
 
 // Persona 2 añade migraciones con otro ID; las ya aplicadas son inmutables.
+import { migrateAlerts } from "./alertRepository";
+import { migrateEnvironment } from "./environmentRepository";
+
 export const migrations = [{ id: "001_person1_local", sql: `
 CREATE TABLE missions(id TEXT PRIMARY KEY, name TEXT NOT NULL, phase TEXT NOT NULL);
 CREATE TABLE modules(id TEXT PRIMARY KEY, mission_id TEXT NOT NULL REFERENCES missions(id), name TEXT NOT NULL);
@@ -27,11 +30,16 @@ CREATE TABLE login_attempts(username TEXT PRIMARY KEY, failures INTEGER NOT NULL
 
 export function migrate(db: DatabaseSync) {
   db.exec("CREATE TABLE IF NOT EXISTS schema_migrations(id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)");
-  for (const migration of migrations) {
+  const apply = [
+    ...migrations.map((migration) => ({ id: migration.id, run: () => db.exec(migration.sql) })),
+    { id: "002_person2_environment", run: () => migrateEnvironment(db) },
+    { id: "003_person2_alerts", run: () => migrateAlerts(db) },
+  ];
+  for (const migration of apply) {
     db.exec("BEGIN IMMEDIATE");
     try {
       if (!db.prepare("SELECT id FROM schema_migrations WHERE id=?").get(migration.id)) {
-        db.exec(migration.sql);
+        migration.run();
         db.prepare("INSERT INTO schema_migrations VALUES(?,?)").run(migration.id, new Date().toISOString());
       }
       db.exec("COMMIT");

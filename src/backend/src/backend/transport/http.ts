@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { localServices } from "../composition/local";
-import { AppError } from "../domain/model";
+import { AppError, type Role } from "../domain/model";
 
 export const SESSION_COOKIE = "nasa_session";
 export function respond(value: unknown, status = 200) { return NextResponse.json(value, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } }); }
@@ -34,7 +34,11 @@ export async function json(request: Request) {
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown; }
   catch { throw new AppError(400, "INVALID_JSON", "JSON inválido."); }
 }
-export function requestSession(request: NextRequest) { return localServices().auth.session(request.cookies.get(SESSION_COOKIE)?.value); }
+export function requestSession(request: NextRequest, role?: Role) {
+  const session = localServices().auth.session(request.cookies.get(SESSION_COOKIE)?.value);
+  if (role && session.role !== role) throw new AppError(403, "FORBIDDEN", "No tienes permiso para esta operación.");
+  return session;
+}
 export function cookieOptions() {
   return { httpOnly: true, sameSite: "strict" as const, secure: process.env.COOKIE_SECURE === "true" || !!process.env.VERCEL, path: "/" };
 }
