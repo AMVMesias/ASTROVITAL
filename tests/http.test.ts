@@ -1,6 +1,8 @@
+import { GET as listAlerts } from "../src/backend/src/app/api/v1/me/alerts/route";
+import { GET as alertDetail, POST as actAlert } from "../src/backend/src/app/api/v1/me/alerts/[id]/route";
 import { onboardingBody } from "./fixtures/auth";
 import { POST as completeOnboarding } from "../src/backend/src/app/api/v1/auth/onboarding/route";
-import { GET as environment, POST as select } from "../src/backend/src/app/api/v1/me/environment/route";
+import { GET as environment, POST as select, PUT as setEnvironment } from "../src/backend/src/app/api/v1/me/environment/route";
 import { POST as signal } from "../src/backend/src/app/api/v1/devices/status/route";
 import { sameOrigin } from "../src/backend/src/backend/transport/http";
 import { test } from "node:test";
@@ -68,6 +70,8 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     const initialCookie=astroLogin.headers.get("set-cookie")!.split(";")[0];
     assert.equal((await astroLogin.json()).user.requiresOnboarding,true);
     assert.equal((await history(request("/api/v1/me/measurements","GET",undefined,initialCookie))).status,403);
+    assert.equal((await listAlerts(request("/api/v1/me/alerts","GET",undefined,initialCookie))).status,403);
+    assert.equal((await setEnvironment(request("/api/v1/me/environment","PUT",{scenarioId:"mars_surface"},initialCookie))).status,403);
     assert.equal((await completeOnboarding(request("/api/v1/auth/onboarding","POST",onboardingBody(password+"-changed"),initialCookie))).status,200);
     const configuredLogin=await login(request("/api/v1/auth/login","POST",{username:user.username,password:password+"-changed"}));
     const astroCookie=configuredLogin.headers.get("set-cookie")!.split(";")[0];
@@ -99,6 +103,50 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     assert.equal((await device(request("/api/v1/measurements","POST",pulse,astroCookie))).status,401);
     assert.equal((await signal(request("/api/v1/devices/status","POST",{status:"no_contact",observedAt:new Date().toISOString()},undefined,headers))).status,200);
     assert.equal((await signal(request("/api/v1/devices/status","POST",{status:"no_contact",observedAt:new Date().toISOString()},astroCookie))).status,401);
+    // Las rutas remotas comparten contexto histórico, evaluación recuperable y autorización.
+    const environmentUrl="/api/v1/me/environment";
+    assert.equal(environmentBody.active.scenarioId,"iss_leo");
+    assert.ok(environmentBody.assignment.reference.revision);
+    assert.equal((await setEnvironment(request(environmentUrl,"PUT",{scenarioId:"unknown"},astroCookie))).status,400);
+    assert.equal((await setEnvironment(request(environmentUrl,"PUT",{scenarioId:"mars_surface"},adminCookie))).status,403);
+    const switched=await setEnvironment(request(environmentUrl,"PUT",{scenarioId:"mars_surface"},astroCookie));
+    assert.equal(switched.status,200);
+    const switchedBody=await switched.json();
+    assert.equal(switchedBody.active.scenarioId,"mars_surface");
+    const repeated=await setEnvironment(request(environmentUrl,"PUT",{scenarioId:"mars_surface"},astroCookie));
+    assert.equal((await repeated.json()).active.assignmentId,switchedBody.active.assignmentId);
+    assert.equal(app.repo.measurements(user.astronautId,{limit:100,offset:0}).find(value=>value.id===payload.measurement.id)!.environment.scenarioId,"moon_surface");
+    assert.equal((await listAlerts(request("/api/v1/me/alerts"))).status,401);
+    assert.equal((await listAlerts(request("/api/v1/me/alerts","GET",undefined,adminCookie))).status,403);
+    // Preparar ocho lecturas cronológicas válidas, posteriores a la asignación de Marte.
+    const start=Date.now();
+    await new Promise(resolve=>setTimeout(resolve,100));
+    for(const [index,value] of [65,65,65,65,65,90,91,92].entries()) {
+      const result=await device(request("/api/v1/measurements","POST",{...pulse,value,capturedAt:new Date(start+index*10).toISOString(),readingId:"remote-series-"+index},undefined,headers));
+      assert.equal(result.status,201);
+      assert.equal((await result.json()).evaluation.status,"done");
+    }
+    const summary=await (await latest(request("/api/v1/me/measurements/latest","GET",undefined,astroCookie))).json();
+    const evaluation=summary.evaluation.find((item:{indicator:string})=>item.indicator==="heart_rate");
+    assert.equal(evaluation.status,"deviation");
+    assert.equal(evaluation.assessment.status,evaluation.status);
+    const alertsUrl="/api/v1/me/alerts";
+    const alerts=(await (await listAlerts(request(alertsUrl,"GET",undefined,astroCookie))).json()).alerts;
+    assert.equal(alerts.length,1);
+    const context={params:Promise.resolve({id:alerts[0].id})};
+    assert.equal((await alertDetail(request(alertsUrl,"GET",undefined,adminCookie),context)).status,403);
+    const other=app.users.save(app.auth.session(adminCookie.slice("nasa_session=".length)),{username:"other-http",name:"Other",role:"astronauta",password});
+    // Una cuenta distinta, incluso con sesión válida restringida, no puede consultar avisos.
+    const otherLogin=await login(request("/api/v1/auth/login","POST",{username:other.username,password}));
+    const otherInitial=otherLogin.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await completeOnboarding(request("/api/v1/auth/onboarding","POST",onboardingBody(password+"-other"),otherInitial))).status,200);
+    const otherConfigured=await login(request("/api/v1/auth/login","POST",{username:other.username,password:password+"-other"}));
+    const otherCookie=otherConfigured.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await alertDetail(request(alertsUrl,"GET",undefined,otherCookie),context)).status,404);
+    assert.equal((await actAlert(request(alertsUrl,"POST",{type:"close"},otherCookie),context)).status,404);
+    const close=await actAlert(request(alertsUrl,"POST",{type:"close",note:"Verificado"},astroCookie),context);
+    assert.equal((await close.json()).alert.status,"closed");
+    assert.equal((await actAlert(request(alertsUrl,"POST",{type:"track"},astroCookie),context)).status,409);
     const invalidJson=new NextRequest("http://localhost:3000/api/v1/me/measurements",{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1",cookie:astroCookie},body:"{"});
     assert.equal((await manual(invalidJson)).status,400);
     assert.equal((await manual(request("/api/v1/me/measurements","POST",{note:"x".repeat(17000)},astroCookie))).status,413);

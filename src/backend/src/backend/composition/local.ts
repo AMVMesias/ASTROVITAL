@@ -7,6 +7,7 @@ import { AuthService } from "../application/auth/AuthService";
 import { UserService } from "../application/users/UserService";
 import { MeasurementService } from "../application/measurements/MeasurementService";
 import { HistoricalEnvironmentProvider } from "../infrastructure/environment/HistoricalEnvironmentProvider";
+import { createSqliteAlertRepository } from "../infrastructure/sqlite/alertRepository";
 import { LocalQueue } from "../application/sync-queue/LocalQueue";
 
 export function localPath() {
@@ -17,7 +18,7 @@ export function localPath() {
 export function createServices(repo: SqliteRepository, environment: EnvironmentProvider = new HistoricalEnvironmentProvider(repo)) {
   const auth = new AuthService(repo);
   const assessments = new LocalAssessmentService(repo);
-  return { repo, auth, recovery:new RecoveryService(repo,auth), assessments, users: new UserService(repo, auth), measurements: new MeasurementService(repo, auth, environment,value=>assessments.preview(value)), queue: new LocalQueue(repo) };
+  return { repo, auth, alerts:createSqliteAlertRepository(repo.db), recovery:new RecoveryService(repo,auth), assessments, users: new UserService(repo, auth), measurements: new MeasurementService(repo, auth, environment,value=>assessments.preview(value)), queue: new LocalQueue(repo) };
 }
 let services: ReturnType<typeof createServices> | undefined;
 export function localServices() { return services ??= createServices(new SqliteRepository(localPath())); }

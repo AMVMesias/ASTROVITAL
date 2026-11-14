@@ -1,3 +1,4 @@
+import type { Assessment } from "../assessment/assessMeasurements";
 import { randomUUID } from "node:crypto";
 import { AppError, indicatorConfig, type Activity, type EnvironmentProvider, type Indicator, type Measurement, type Origin, type Session } from "../../domain/model";
 import type { Repository } from "../../domain/repository";
@@ -6,7 +7,7 @@ import { digest } from "../../infrastructure/security/credentials";
 import { AuthService } from "../auth/AuthService";
 
 export class MeasurementService {
-  constructor(private repo: Repository, private auth: AuthService, private environment: EnvironmentProvider, private assess?: (value:Measurement)=>unknown) {}
+  constructor(private repo: Repository, private auth: AuthService, private environment: EnvironmentProvider, private assess?: (value:Measurement)=>Assessment) {}
   manual(session: Session, input: unknown) {
     return this.repo.atomic(() => {
       const user = this.auth.requireSession(session.sessionId, "astronauta");
@@ -97,6 +98,6 @@ export class MeasurementService {
     const latest=this.repo.latest(user.astronautId!);
     return { latest: latest.map(value=>({...value,ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(value.capturedAt))/1000))})), devices: this.repo.devices(user.astronautId!), queue: this.repo.queueStatus(user.astronautId!), indicators: indicatorConfig,
       environment: this.environment.resolve(user.astronautId!, new Date().toISOString()),
-      evaluation: this.assess ? latest.map(value=>({measurementId:value.id,assessment:this.assess!(value)})) : { status: "not_connected", message: "Evaluación no configurada." } };
+      evaluation: this.assess ? latest.map(value=>{const assessment=this.assess!(value);return {measurementId:value.id,indicator:value.indicator,...assessment,assessment};}) : { status: "not_connected", message: "Evaluación no configurada." } };
   }
 }

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 | --- | --- |
-| Versión | 0.8 |
+| Versión | 0.9 |
 | Estado | Referencia de implementación para revisión del equipo |
 | Fecha | 14 de noviembre de 2026 |
 | Trazabilidad | [Requisitos originales v0.2 (RF, RNF y RH)](https://github.com/AMVMesias/NASA_HEALTH/blob/e7d2ac1f25acfee01663027c6c01326d32d101c8/REQUISITOS_NASA_HEALTH.md) |
@@ -32,7 +32,7 @@ El MVP valida la utilidad del flujo para la tripulación. La comercialización, 
 
 | Capacidad | Entrega del MVP |
 | --- | --- |
-| Acceso | Inicio y cierre de sesión, cuenta inicial de admin precargada, creación e inhabilitación de cuentas desde la web (`astronauta` y `admin`), protección de páginas y operaciones de servidor. |
+| Acceso | Inicio y cierre de sesión, cuenta inicial de admin precargada, creación e inhabilitación de cuentas desde la web (`astronauta` y `admin`), protección de páginas y operaciones de servidor. Primer acceso obligatorio con cambio de contraseña inicial y tres preguntas de seguridad; recuperación mediante una de ellas, elegida al azar, con máximo tres intentos. Estos dos últimos flujos están pendientes de integración real. |
 | Escenario | Una misión y un módulo precargados. El selector pendiente de integración ofrecerá cuatro escenarios de referencia del catálogo local. |
 | Captura personal | Horas de sueño y bienestar por formulario, y frecuencia cardíaca en reposo por ESP32. El simulador usa el mismo flujo de registro y facilita una demo reproducible mientras se verifica el hardware. |
 | Tablero | Último valor, unidad, antigüedad, origen, calidad, referencia personal e historial por indicador y período. |
@@ -46,7 +46,7 @@ Las vistas del MVP cubren portada (`/`) y páginas informativas, acceso (`/login
 
 | ID | Caso y actor | Flujo principal | Alternativa o resultado |
 | --- | --- | --- | --- |
-| CU-01 | Iniciar y cerrar sesión · astronauta y admin | La persona entra con una cuenta habilitada y accede a la vista de su rol. Puede cerrar la sesión. | Con credenciales incorrectas o cuenta inhabilitada se muestra un error. Sin sesión o permiso se deniega el acceso. |
+| CU-01 | Iniciar y cerrar sesión · astronauta y admin | La persona entra con una cuenta habilitada. Si tiene pendiente el primer acceso, completa CU-11; en accesos posteriores entra a la vista de su rol. Puede cerrar la sesión. | Con credenciales incorrectas o cuenta inhabilitada se muestra un error. Sin sesión o permiso se deniega el acceso. |
 | CU-02 | Recibir medición · ESP32 | El ESP32 notifica el pulso por Bluetooth Low Energy al portátil. El puente presenta la credencial del dispositivo a la API local. El servidor valida la lectura, identifica al astronauta asignado y la guarda. | Si se reenvía la misma lectura, se guarda una sola vez. Los datos inválidos quedan fuera del cálculo de tendencias. |
 | CU-03 | Registrar dato manual · astronauta | Selecciona el indicador, registra valor y momento, y añade contexto si corresponde. | El error de validación explica qué campo corregir. El registro aceptado aparece en el historial con origen manual. |
 | CU-04 | Evaluar un cambio · astronauta | Consulta la tendencia frente a su referencia individual y revisa el origen, calidad y antigüedad del dato. | Si faltan lecturas comparables, se muestra «Datos insuficientes». Si la última lectura quedó desactualizada, se indica su antigüedad. |
@@ -56,6 +56,8 @@ Las vistas del MVP cubren portada (`/`) y páginas informativas, acceso (`/login
 | CU-08 | Ejecutar escenario · equipo de demo | Carga una serie sintética reproducible para demostrar variación, falta de datos y el seguimiento. | Los registros se identifican como simulados en el tablero y el historial. |
 | CU-09 | Operar sin Internet · astronauta y ESP32 | Con la red local activa, el astronauta inicia sesión, registra datos y consulta el historial. El puente sigue entregando a Next.js local las lecturas que recibe del ESP32 por BLE. | SQLite conserva las lecturas tras reiniciar el servicio. Si se pierde acceso al equipo local, la captura web se reanuda al recuperar ese enlace. |
 | CU-10 | Sincronizar mediciones · equipo local | Al recuperar Internet, Next.js local envía los registros pendientes a la API en Vercel y recibe una confirmación por registro. | Los errores transitorios permiten reenviar los mismos IDs. Los rechazos se muestran con su motivo. |
+| CU-11 | Completar primer acceso · astronauta y admin | Tras validar las credenciales iniciales entregadas por el admin, define una contraseña nueva y elige tres preguntas distintas, con una respuesta por pregunta. | El servidor habilita el panel solo después de guardar toda la configuración. Si abandona o falla el guardado, el primer acceso sigue pendiente. No existe registro público. |
+| CU-12 | Recuperar contraseña · astronauta y admin | En `/login`, pulsa «Recuperar contraseña», indica su usuario y responde una sola de sus tres preguntas guardadas, elegida aleatoriamente por el servidor. Si la respuesta es correcta, define y confirma una contraseña nueva. | Cada fallo consume un intento. Al tercer fallo se bloquea la recuperación y se indica contactar al administrador. Volver atrás, recargar o pedir otro desafío no reinicia el contador. |
 
 ## 5. Requisitos trazables y criterios de aceptación
 
@@ -72,6 +74,13 @@ Los IDs de esta tabla organizan la implementación del MVP. La última columna r
 | MVP-07 | Registrar acciones y cerrar avisos con trazabilidad. | El astronauta registra una acción (repetición u observación) y cierra o deja en seguimiento su propio aviso conservando el historial. | Extiende RF-33 a RF-36 |
 | MVP-08 | Operar en la red local con Next.js y SQLite. | Con Internet desconectado funcionan login, gestión local de usuarios habilitados, formulario, historial e ingesta del ESP32. Reiniciar el servicio conserva los registros. Al cortar el sensor se conserva la última lectura y se indica su antigüedad. | RNF-07 a RNF-13, RH-07, RH-08 |
 | MVP-09 | Sincronizar mediciones nuevas con PostgreSQL. | Al restablecer Internet, enviar los pendientes y repetir el mismo lote. Confirmar una sola copia por ID en la nube y el estado sincronizado en el equipo local. | Extiende RF-26 a RF-30 y RNF-05 a RNF-08 |
+| MVP-10 | Exigir configuración del primer acceso para cuentas creadas por el administrador. | Una cuenta nueva no puede abrir el panel ni ejecutar sus operaciones protegidas hasta completar el cambio de contraseña y las tres preguntas. Tras guardar y volver a entrar, se omite este paso. | Nuevo · CU-11; amplía RF-01, RF-02, RF-04, RF-06 |
+| MVP-11 | Cambiar la contraseña inicial y confirmar la nueva. | Rechazar una contraseña igual a la inicial, fuera de la política de 12–128 caracteres o con confirmación diferente. Un fallo de validación no habilita el panel. | Nuevo · CU-11; amplía RNF-02, RNF-05 |
+| MVP-12 | Configurar tres preguntas distintas del catálogo con una respuesta no vacía por pregunta. | Mostrar tres desplegables y tres campos de respuesta. Rechazar duplicados, IDs fuera del catálogo o respuestas vacías también en el servidor. Guardar la configuración completa, nunca parcialmente. | Nuevo · CU-11; amplía RNF-02, RNF-04, RNF-05 |
+| MVP-13 | Recuperar el acceso con una sola pregunta aleatoria y máximo tres intentos. | El servidor selecciona una de las tres preguntas configuradas y la mantiene durante el desafío. Una respuesta correcta permite continuar; tres incorrectas bloquean la recuperación de esa cuenta. El bloqueo persiste al recargar y al crear otro desafío. | Nuevo · CU-12; amplía RF-02, RNF-03, RNF-04 |
+| MVP-14 | Autorizar y persistir de forma segura el restablecimiento de contraseña. | Impedir el cambio sin respuesta validada en el servidor. La autorización temporal es de un solo uso y tiene caducidad. El cambio invalida sesiones y desafíos previos; el siguiente login acepta la nueva contraseña y rechaza la anterior. | Nuevo · CU-12; amplía RNF-02 a RNF-05 |
+
+Los requisitos MVP-10 a MVP-14 incorporan las decisiones posteriores sobre primer acceso y recuperación. No estaban explícitos en los requisitos históricos v0.2. Su implementación real está pendiente; los criterios de aceptación se encuentran en la sección 5.3.
 
 ### 5.1 Operaciones CRUD y permisos
 
@@ -102,6 +111,16 @@ Los IDs de esta tabla organizan la implementación del MVP. La última columna r
 4. **Evaluación y cierre.** Verificar la referencia y la evidencia del aviso como astronauta, añadir una acción, pasar el aviso a seguimiento y cerrarlo con la misma cuenta autorizada. Comprobar que el historial conserva todas las acciones.
 5. **Continuidad.** Guardar ambas clases de lecturas sin Internet en SQLite, reiniciar el servicio, recuperar Internet y sincronizar dos veces. Verificar una copia por ID en PostgreSQL y el estado de confirmación local.
 
+### 5.3 Aceptación del primer acceso y la recuperación
+
+1. Crear una cuenta desde el admin. Comprobar que solo permite completar el primer acceso, incluso al intentar acceder directamente al panel o a sus APIs.
+2. Probar contraseña inicial repetida, confirmación distinta, preguntas duplicadas, pregunta inexistente y respuestas en blanco. Ningún caso habilita la cuenta para el panel.
+3. Guardar una contraseña nueva y las tres respuestas válidas. Reiniciar el servicio y verificar que la configuración persiste y que el siguiente login no repite el primer acceso.
+4. Recuperar con una de las tres preguntas seleccionada por el servidor. Verificar que nunca se envían las respuestas guardadas al navegador y que la pregunta permanece fija durante el desafío.
+5. Fallar dos veces, volver atrás y recargar. Debe quedar un solo intento. Fallar la tercera vez y solicitar un desafío nuevo: la recuperación sigue bloqueada y muestra la indicación de contactar al admin.
+6. En otra cuenta de prueba, responder correctamente y restablecer la contraseña. Rechazar autorización ausente, caducada o reutilizada; verificar revocación de sesiones y credenciales anteriores.
+7. Comprobar la transición de la tarjeta, navegación por teclado, movimiento reducido y visualización en PC y móvil. El flujo local debe funcionar sin Internet mientras exista conexión con el servidor local.
+
 ## 6. Reglas y modelo de datos
 
 - **Identidad y procedencia.** El registro manual pertenece al astronauta de la sesión. El servidor asigna las lecturas físicas mediante la vinculación del dispositivo. Cada lectura del ESP32 lleva un identificador único por dispositivo para deduplicar reintentos. Se guardan hora de captura y de recepción en UTC.
@@ -111,8 +130,9 @@ Los IDs de esta tabla organizan la implementación del MVP. La última columna r
 
 | Entidad | Datos y relaciones principales |
 | --- | --- |
-| Usuario y Astronauta | Cuenta, rol (`astronauta` o `admin`), estado (habilitada o inhabilitada) y perfil asociado cuando es astronauta. El admin gestiona cuentas sin acceder a datos de salud; el astronauta accede solo a su perfil, mediciones y avisos. |
+| Usuario y Astronauta | Cuenta, estado de primer acceso pendiente o completado, rol (`astronauta` o `admin`), estado (habilitada o inhabilitada) y perfil asociado cuando es astronauta. El admin gestiona cuentas sin acceder a datos de salud; el astronauta accede solo a su perfil, mediciones y avisos. |
 | Misión y Módulo | Destino, fase, ubicación operativa y período del escenario. |
+| Configuración de recuperación | Tres IDs de pregunta por cuenta y sus hashes de respuesta con sal. Desafío con pregunta seleccionada, contador persistente de fallos y bloqueo; autorización temporal de restablecimiento con caducidad y consumo. Pendiente de implementar. |
 | Dispositivo | Identificador, credencial, astronauta asignado y última comunicación. |
 | Indicador y Medición personal | Tipo, unidad o escala, valor, origen, calidad, hora y contexto de actividad. |
 | Perfil de destino y Lectura ambiental | Referencias exteriores con fuente. Telemetría de módulo con variable, valor, unidad, origen y fecha. |
@@ -156,8 +176,8 @@ El orden de trabajo, los responsables y las pruebas técnicas están en el [plan
 
 ### Guion de aceptación
 
-1. Entrar como admin inicial en `/login`, ir a `/usuarios/nuevo`, crear una cuenta de astronauta y verificar su asignación a la misión y módulo precargados.
-2. Entrar como astronauta. Registrar sueño manualmente y comprobar una lectura de pulso del ESP32 con su origen visible.
+1. Entrar como admin inicial en `/login`, completar el primer acceso si está pendiente y luego ir a `/usuarios/nuevo`, crear una cuenta de astronauta y verificar su asignación a la misión y módulo precargados.
+2. Entrar como astronauta y completar el primer acceso (contraseña nueva y tres preguntas distintas). Verificar por separado la recuperación y el bloqueo de tres intentos según la sección 5.3. Registrar sueño manualmente y comprobar una lectura de pulso del ESP32 con su origen visible.
 3. Consultar la iluminación del hábitat durante la noche registrada. Cargar una serie sintética con referencia estable y una desviación sostenida.
 4. Abrir el aviso, comprobar su explicación, guardar una nota de seguimiento y cerrarlo desde la cuenta del astronauta.
 5. Ejecutar casos de lectura inválida, referencia insuficiente y corte de ingesta. Volver a entrar como admin, inhabilitar una cuenta de prueba en `/usuarios` y comprobar que su sesión previa y nuevo acceso quedan bloqueados. Desconectar Internet con la red local activa, iniciar sesión con una cuenta habilitada, capturar un dato manual y otro del sensor, y comprobar que ambos siguen en el historial tras reiniciar el servicio.

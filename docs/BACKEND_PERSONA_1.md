@@ -123,3 +123,9 @@ El backend de primer acceso y recuperación por preguntas ya está implementado;
 
 
 Las cuentas nuevas creadas por el admin tienen `user.requiresOnboarding=true`. Deben completar `POST /api/v1/auth/onboarding` antes de capturar datos o usar sus permisos normales. El admin semilla y las cuentas existentes conservan acceso; no se generan preguntas o respuestas por defecto. Los comandos de simulación/dispositivo respetan el estado del dueño y no sustituyen el primer acceso.
+
+## Compatibilidad de la integración remota
+
+`GET /api/v1/me/environment` entrega el contexto `active` y la asignación histórica en `assignment`. `POST` conserva la selección explícita con revisión y `PUT` acepta `scenarioId` con la revisión vigente. Ambos requieren astronauta con primer acceso completo. La ausencia de asignación histórica sigue produciendo `ENVIRONMENT_MISSING`, sin inventar historia.
+
+`GET /api/v1/me/alerts` y `GET/POST /api/v1/me/alerts/{id}` consultan avisos y registran acciones únicamente del astronauta autenticado. La evaluación permanece recuperable después de la captura; el resumen incluye campos de evaluación directos y el objeto `assessment` por compatibilidad. Se mantienen las reglas de `LocalAssessmentService`, sin ejecutar una segunda evaluación con parámetros distintos.

@@ -25,7 +25,7 @@ export const openapi = {
   openapi: "3.0.3",
   info: { title: "NASA Health · API", version: "1.0.0", description: "Backend persona 1. SQLite local con Next.js/Node 22.13+. Login mediante cookie HttpOnly, revocación y separación de roles. Primero db:seed; sin credenciales por defecto. Swagger funciona sin CDN. Las mutaciones de sesión requieren Origin del mismo origen o X-Nasa-Request: 1 para clientes CLI. Los datos de salud son personales; admin no tiene acceso. Ambiente preparation-1 provisional, sin telemetría. El receptor de sincronización usa PostgreSQL y una credencial de equipo por misión." },
   servers: [{ url: "/", description: "Mismo equipo local" }],
-  tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización"].map(name => ({ name })),
+  tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización","Avisos"].map(name => ({ name })),
   paths: {
     "/api/v1/auth/security-questions": {get:operation("Consultar catálogo de preguntas", "Acceso", {type:"object",properties:{questions:{type:"array",items:ref("SecurityQuestion")}}},{security:[]})},
     "/api/v1/auth/onboarding": {
@@ -37,8 +37,21 @@ export const openapi = {
     "/api/v1/auth/recovery/reset": {post:operation("Cambiar contraseña con autorización de un solo uso", "Acceso", recoveryResult, {security:[],description:"No acepta cambios sin token válido. Revoca todas las sesiones y autorizaciones de recuperación. No inicia sesión automáticamente.",requestBody:body({type:"object",additionalProperties:false,required:["resetToken","newPassword","confirmation"],properties:{resetToken:{type:"string",format:"password",writeOnly:true,minLength:64,maxLength:64},...recoveryPassword}})})},
     "/api/v1/users/{id}/recovery/unlock": {parameters:[{name:"id",in:"path",required:true,schema:string}],post:operation("Desbloquear recuperación y revocar desafíos (admin)", "Usuarios", {type:"object",properties:{status:{type:"string",enum:["unlocked"]}}},{description:"Conserva preguntas y contraseña. Para reemplazar credencial y preguntas, usar PATCH de usuario con password: fuerza primer acceso y elimina respuestas previas."})},
     "/api/v1/me/environment": {
-      get: operation("Catálogo documental y asignación propia (astronauta)", "Mediciones", {type:"object",properties:{revision:string,profiles:{type:"array",items:{type:"object"}},sources:{type:"object"},active:{type:"object",nullable:true},telemetryAvailable:{type:"boolean"}}}),
+      get: operation("Catálogo documental y asignación propia (astronauta)", "Mediciones", {type:"object",properties:{revision:string,profiles:{type:"array",items:{type:"object"}},sources:{type:"object"},active:{...ref("Environment"),nullable:true},assignment:{type:"object",nullable:true},telemetryAvailable:{type:"boolean"}}}),
+      put: operation("Seleccionar escenario con la revisión vigente (astronauta)", "Mediciones", {type:"object",properties:{active:ref("Environment")}}, {requestBody:body({type:"object",additionalProperties:false,required:["scenarioId"],properties:{scenarioId:{type:"string",enum:["deep_space_transit","iss_leo","moon_surface","mars_surface"]}}})}),
       post: operation("Seleccionar escenario desde ahora (astronauta)", "Mediciones", {type:"object",properties:{assignment:{type:"object"}}}, {requestBody:body({type:"object",additionalProperties:false,required:["scenarioId","revision"],properties:{scenarioId:{type:"string",enum:["deep_space_transit","iss_leo","moon_surface","mars_surface"]},revision:string}})}),
+    },
+    "/api/v1/me/alerts": {
+      get: operation("Listar avisos propios", "Avisos", { type: "object", properties: { alerts: { type: "array", items: ref("Alert") } } }),
+    },
+    "/api/v1/me/alerts/{id}": {
+      parameters: [{ name: "id", in: "path", required: true, schema: string }],
+      get: operation("Consultar aviso propio y acciones", "Avisos", ref("AlertDetail")),
+      post: operation("Registrar acción sobre aviso propio", "Avisos", ref("AlertDetail"), {
+        requestBody: body({ type: "object", required: ["type"], properties: {
+          type: { type: "string", enum: ["observation","repeat","track","close"] }, note: { type: "string", maxLength: 1000 },
+        } }),
+      }),
     },
     "/api/v1/devices/status": {post:operation("Registrar pérdida de señal/contacto sin crear medición", "Dispositivos", {type:"object",properties:{status:{type:"string",enum:["recorded"]}}}, {
       security:[{deviceBearer:[]}],parameters:[{name:"X-Device-Id",in:"header",required:true,schema:string}],
@@ -106,6 +119,13 @@ export const openapi = {
           },
         ],
       },
+      Alert: { type: "object", properties: { id: string, measurementId: string, missionId: string, astronautId: string, createdAt: timestamp,
+        kind: { type: "string", enum: ["quality","variation"] }, reason: { type: "string", enum: ["invalid","stale","deviation"] },
+        status: { type: "string", enum: ["open","tracking","closed"] }, evidence: ref("Assessment"),
+      } },
+      AlertDetail: { type: "object", properties: { alert: ref("Alert"), actions: { type: "array", items: {
+        type: "object", properties: { authorId: string, type: { type: "string", enum: ["observation","repeat","track","close"] }, note: string, createdAt: timestamp },
+      } } } },
       SyncError: { type: "object", required: ["error"], properties: { error: { type: "string", enum: ["invalid_batch", "unauthorized", "batch_too_large", "sync_unavailable"] } } },
       SyncReceipts: { type: "object", required: ["receipts"], properties: { receipts: { type: "array", items: {
         oneOf: [
@@ -119,7 +139,7 @@ export const openapi = {
       Measurement: { type: "object", properties: { id: string, astronautId: string, missionId: string, moduleId: string, indicator: { type: "string", enum: ["sleep","wellbeing","heart_rate"] }, value: { type: "number" }, unit: string, origin: { type: "string", enum: ["manual","device","simulated"] }, quality: { type: "string", enum: ["valid"] }, capturedAt: timestamp, receivedAt: timestamp, authorId: nullableString, deviceId: nullableString, readingId: nullableString, activity: { type: "string", enum: ["rest","exercise","eva"] }, note: string, scenario: nullableString, environment: ref("Environment") } },
       Device: { type: "object", properties: { id: string, astronautId: string, enabled: { type: "boolean" }, lastCommunicationAt: { ...timestamp, nullable: true },signal:{type:"object",nullable:true,properties:{status:{type:"string",enum:["valid","no_contact","no_signal","insufficient","disconnected"]},observedAt:timestamp}} } },
       CaptureResult: { type: "object", required: ["measurement","duplicate"], properties: { measurement: ref("Measurement"), duplicate: { type: "boolean" },evaluation:{type:"object",properties:{status:{type:"string",enum:["done","pending"]},assessment:ref("Assessment"),code:string}} } },
-      Summary: { type: "object", properties: { latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, queue: { type: "object", properties: { pending: { type: "integer" }, confirmed: { type: "integer" }, rejected: { type: "integer" }, rejections: { type: "array", items: { type: "object", properties: { id: string, reason: nullableString } } } } }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: {type:"array",items:{type:"object",properties:{measurementId:string,assessment:ref("Assessment")}}} } },
+      Summary: { type: "object", properties: { latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, queue: { type: "object", properties: { pending: { type: "integer" }, confirmed: { type: "integer" }, rejected: { type: "integer" }, rejections: { type: "array", items: { type: "object", properties: { id: string, reason: nullableString } } } } }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: {type:"array",items:{type:"object",properties:{measurementId:string,indicator:{type:"string",enum:["heart_rate","sleep","wellbeing"]},status:{type:"string",enum:["insufficient","invalid","stale","stable","deviation"]},ruleVersion:string,evidence:{type:"array",items:string},reference:{type:"object"},assessment:ref("Assessment")}}} } },
     },
   },
 };
