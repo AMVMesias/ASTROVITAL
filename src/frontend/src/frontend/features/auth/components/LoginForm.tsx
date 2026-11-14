@@ -1,6 +1,8 @@
 "use client";
+import { useLanguage } from "../../../providers/LanguageProvider";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../../components/ui/Icon";
+import type { MessageKey } from "../../../lib/i18n";
 import { SECURITY_QUESTIONS } from "../securityQuestions";
 
 type DemoAnswer = { questionId: string; answer: string };
@@ -23,7 +25,7 @@ type Screen =
   | "onboarding-password"
   | "onboarding-question"
   | "onboarding-complete";
-const headings: Record<Screen, [string, string]> = {
+const headings: Record<Screen, [MessageKey, MessageKey]> = {
   "onboarding-password": [
     "Primer acceso",
     "Tu cuenta fue creada por el administrador. Antes de continuar, cambia tu contraseña inicial.",
@@ -58,10 +60,11 @@ const headings: Record<Screen, [string, string]> = {
   ],
 };
 export function LoginForm() {
+  const { t } = useLanguage();
   const [screen, setScreen] = useState<Screen>("login");
   const [backward, setBackward] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState<MessageKey | "">("");
   const [username, setUsername] = useState("");
   const [selectedQuestions, setSelectedQuestions] = useState(["", "", ""]);
   const [challenge, setChallenge] = useState<DemoChallenge | null>(null);
@@ -94,30 +97,37 @@ export function LoginForm() {
         className={`auth-flow-panel ${backward ? "auth-flow-back" : ""}`}
       >
         <h2 id="auth-title" ref={heading} tabIndex={-1}>
-          {headings[screen][0]}
+          {t(headings[screen][0])}
         </h2>
-        <p className="auth-description">{headings[screen][1]}</p>
+        <p className="auth-description">{t(headings[screen][1])}</p>
         {(recovery || onboarding) && (
           <p className="recovery-demo">
-            Vista previa · La verificación y el cambio real requieren conectar
-            el backend.
+            {t(
+              "Vista previa · La verificación y el cambio real requieren conectar el backend.",
+            )}
           </p>
         )}
         {recovery && screen !== "complete" && (
-          <ol className="recovery-progress" aria-label="Pasos de recuperación">
-            {["Usuario", "Pregunta", "Contraseña"].map((label, index) => (
-              <li
-                key={label}
-                aria-current={
-                  index === ["identify", "question", "password"].indexOf(screen)
-                    ? "step"
-                    : undefined
-                }
-              >
-                <span>{index + 1}</span>
-                {label}
-              </li>
-            ))}
+          <ol
+            className="recovery-progress"
+            aria-label={t("Pasos de recuperación")}
+          >
+            {[t("Usuario"), t("Pregunta"), t("Contraseña")].map(
+              (label, index) => (
+                <li
+                  key={label}
+                  aria-current={
+                    index ===
+                    ["identify", "question", "password"].indexOf(screen)
+                      ? "step"
+                      : undefined
+                  }
+                >
+                  <span>{index + 1}</span>
+                  {label}
+                </li>
+              ),
+            )}
           </ol>
         )}
         <form
@@ -225,14 +235,14 @@ export function LoginForm() {
         >
           {(screen === "login" || screen === "identify") && (
             <label className="auth-field">
-              <span className="sr-only">Usuario</span>
+              <span className="sr-only">{t("Usuario")}</span>
               <Icon name="user" />
               <input
                 name="username"
                 type="text"
                 autoComplete="username"
                 required
-                placeholder="Usuario"
+                placeholder={t("Usuario")}
                 defaultValue={username}
                 maxLength={100}
               />
@@ -241,20 +251,20 @@ export function LoginForm() {
           {screen === "question" && (
             <>
               <p className="recovery-question">
-                <small>Una de tus tres preguntas</small>
-                {
+                <small>{t("Una de tus tres preguntas")}</small>
+                {t(
                   SECURITY_QUESTIONS.find((q) => q.id === challenge?.questionId)
-                    ?.label
-                }
+                    ?.label ?? "Pregunta de seguridad",
+                )}
               </p>
               <label className="auth-field">
-                <span className="sr-only">Respuesta de seguridad</span>
+                <span className="sr-only">{t("Respuesta de seguridad")}</span>
                 <Icon name="shield" />
                 <input
                   name="answer"
                   type="text"
                   required
-                  placeholder="Tu respuesta"
+                  placeholder={t("Tu respuesta")}
                   autoComplete="off"
                   maxLength={200}
                   disabled={!challenge || challenge.failures >= 3}
@@ -262,12 +272,17 @@ export function LoginForm() {
               </label>
               <p className="recovery-hint">
                 {challenge?.example
-                  ? "Cuenta de ejemplo: responde «demo», o configura primero tus tres preguntas desde el primer acceso."
-                  : "Responde con el dato de ejemplo que configuraste en esta sesión."}
+                  ? t(
+                      "Cuenta de ejemplo: responde «demo», o configura primero tus tres preguntas desde el primer acceso.",
+                    )
+                  : t(
+                      "Responde con el dato de ejemplo que configuraste en esta sesión.",
+                    )}
               </p>
               <p className="recovery-attempts" role="status">
-                Intentos restantes:{" "}
-                {Math.max(0, 3 - (challenge?.failures ?? 0))} de 3
+                {t("Intentos restantes:")}{" "}
+                {Math.max(0, 3 - (challenge?.failures ?? 0))}
+                {t("de 3")}
               </p>
             </>
           )}
@@ -276,7 +291,7 @@ export function LoginForm() {
             screen === "onboarding-password") && (
             <label className="auth-field">
               <span className="sr-only">
-                {screen === "login" ? "Contraseña" : "Nueva contraseña"}
+                {screen === "login" ? t("Contraseña") : t("Nueva contraseña")}
               </span>
               <Icon name="lock" />
               <input
@@ -288,14 +303,16 @@ export function LoginForm() {
                 required
                 minLength={screen !== "login" ? 12 : undefined}
                 placeholder={
-                  screen === "login" ? "Contraseña" : "Nueva contraseña"
+                  screen === "login" ? t("Contraseña") : t("Nueva contraseña")
                 }
               />
               <button
                 type="button"
                 className="auth-reveal"
                 aria-label={
-                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                  showPassword
+                    ? t("Ocultar contraseña")
+                    : t("Mostrar contraseña")
                 }
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword(!showPassword)}
@@ -306,7 +323,7 @@ export function LoginForm() {
           )}
           {(screen === "password" || screen === "onboarding-password") && (
             <label className="auth-field">
-              <span className="sr-only">Confirmar contraseña</span>
+              <span className="sr-only">{t("Confirmar contraseña")}</span>
               <Icon name="lock" />
               <input
                 name="confirmation"
@@ -314,22 +331,25 @@ export function LoginForm() {
                 autoComplete="new-password"
                 required
                 minLength={12}
-                placeholder="Confirmar contraseña"
+                placeholder={t("Confirmar contraseña")}
               />
             </label>
           )}
           {screen === "onboarding-question" && (
             <div className="setup-questions">
               <p className="recovery-hint">
-                Usa respuestas de prueba. Esta demo las conserva solo en memoria
-                hasta recargar la página.
+                {t(
+                  "Usa respuestas de prueba. Esta demo las conserva solo en memoria hasta recargar la página.",
+                )}
               </p>
               {selectedQuestions.map((selected, index) => (
                 <fieldset key={index} className="setup-question-group">
-                  <legend>Pregunta {index + 1}</legend>
+                  <legend>
+                    {t("Pregunta")} {index + 1}
+                  </legend>
                   <label className="setup-label">
                     <span className="sr-only">
-                      Pregunta de seguridad {index + 1}
+                      {t("Pregunta de seguridad")} {index + 1}
                     </span>
                     <select
                       name={`question${index}`}
@@ -344,7 +364,7 @@ export function LoginForm() {
                       }
                     >
                       <option value="" disabled>
-                        Selecciona una pregunta
+                        {t("Selecciona una pregunta")}
                       </option>
                       {SECURITY_QUESTIONS.map((question) => (
                         <option
@@ -355,21 +375,21 @@ export function LoginForm() {
                             selectedQuestions.includes(question.id)
                           }
                         >
-                          {question.label}
+                          {t(question.label)}
                         </option>
                       ))}
                     </select>
                   </label>
                   <label className="auth-field">
                     <span className="sr-only">
-                      Respuesta de seguridad {index + 1}
+                      {t("Respuesta de seguridad")} {index + 1}
                     </span>
                     <Icon name="shield" />
                     <input
                       name={`securityAnswer${index}`}
                       required
                       autoComplete="off"
-                      placeholder={`Respuesta ${index + 1}`}
+                      placeholder={`${t("Respuesta")} ${index + 1}`}
                       maxLength={200}
                     />
                   </label>
@@ -379,7 +399,7 @@ export function LoginForm() {
           )}
           {notice && (
             <p role="alert" className="auth-notice">
-              {notice}
+              {t(notice)}
             </p>
           )}
           {screen !== "complete" && screen !== "onboarding-complete" && (
@@ -391,17 +411,18 @@ export function LoginForm() {
               }
             >
               {screen === "login"
-                ? "Iniciar sesión"
+                ? t("Iniciar sesión")
                 : screen === "password" || screen === "onboarding-question"
-                  ? "Finalizar vista previa"
-                  : "Continuar"}
+                  ? t("Finalizar vista previa")
+                  : t("Continuar")}
               <Icon name="arrow" />
             </button>
           )}
           {screen === "complete" && (
             <p className="auth-notice" role="status">
-              La integración pendiente deberá validar tu respuesta antes de
-              permitir guardar una nueva contraseña.
+              {t(
+                "La integración pendiente deberá validar tu respuesta antes de permitir guardar una nueva contraseña.",
+              )}
             </p>
           )}
           {screen === "login" ? (
@@ -411,7 +432,7 @@ export function LoginForm() {
               onClick={() => navigate("identify")}
             >
               <Icon name="lock" />
-              Recuperar contraseña
+              {t("Recuperar contraseña")}
             </button>
           ) : (
             <>
@@ -420,7 +441,7 @@ export function LoginForm() {
                 className="auth-recovery"
                 onClick={() => navigate("login", true)}
               >
-                Volver a iniciar sesión
+                {t("Volver a iniciar sesión")}
               </button>
               {(screen === "question" || screen === "password") && (
                 <button
@@ -433,7 +454,7 @@ export function LoginForm() {
                     )
                   }
                 >
-                  Volver al paso anterior
+                  {t("Volver al paso anterior")}
                 </button>
               )}
             </>

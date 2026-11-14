@@ -1,3 +1,5 @@
+"use client";
+import { useLanguage } from "../../providers/LanguageProvider";
 import Link from "next/link";
 import { Brand } from "./Brand";
 import { Icon } from "../ui/Icon";
@@ -26,24 +28,25 @@ const groups = [
       ["Accesibilidad", "/legal#accesibilidad"],
     ],
   },
-];
+] as const;
 export function Footer() {
+  const { t } = useLanguage();
   return (
     <footer className="site-footer">
       <div className="footer-main">
         <Brand footer />
         {groups.map((group) => (
           <div className="footer-group" key={group.title}>
-            <h2>{group.title}</h2>
+            <h2>{t(group.title)}</h2>
             {group.links.map(([text, url]) => (
               <Link key={text} href={url}>
-                {text}
+                {t(text)}
               </Link>
             ))}
           </div>
         ))}
         <div className="social">
-          <h2>Síguenos</h2>
+          <h2>{t("Síguenos")}</h2>
           <div>
             {[
               ["youtube", "YouTube", "https://www.youtube.com/@NASA"],
@@ -58,7 +61,7 @@ export function Footer() {
               <a
                 key={icon}
                 href={href}
-                aria-label={`NASA en ${label}`}
+                aria-label={`${t("NASA en")} ${label}`}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -71,7 +74,8 @@ export function Footer() {
       <div className="footer-bottom">
         <span>NASA Space Apps Challenge 2026</span>
         <span>
-          Prototipo académico <b>·</b> NASA Health v1.0
+          {t("Prototipo académico")}
+          <b>·</b> NASA Health v1.0
         </span>
       </div>
     </footer>

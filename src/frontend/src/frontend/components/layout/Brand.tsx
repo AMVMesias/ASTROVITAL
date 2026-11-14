@@ -1,11 +1,14 @@
+"use client";
+import { useLanguage } from "../../providers/LanguageProvider";
 import Link from "next/link";
 import Image from "next/image";
 export function Brand({ footer = false }: { footer?: boolean }) {
+  const { t } = useLanguage();
   return (
     <Link
       href="/"
       className={`brand ${footer ? "brand-footer" : ""}`}
-      aria-label="NASA Health, inicio"
+      aria-label={t("NASA Health, inicio")}
     >
       <Image
         src="/images/nasa-logo.svg"
@@ -18,9 +21,9 @@ export function Brand({ footer = false }: { footer?: boolean }) {
         NASA Health
         {footer && (
           <small>
-            Monitoreo y bienestar de astronautas
+            {t("Monitoreo y bienestar de astronautas")}
             <br />
-            en misiones espaciales.
+            {t("en misiones espaciales.")}
           </small>
         )}
       </span>

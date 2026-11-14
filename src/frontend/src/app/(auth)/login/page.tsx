@@ -1,9 +1,13 @@
+"use client";
+import { useLanguage } from "../../../frontend/providers/LanguageProvider";
+import { LanguageSelect } from "../../../frontend/components/ui/LanguageSelect";
 import Image from "next/image";
 import Link from "next/link";
 import { LoginForm } from "../../../frontend/features/auth/components/LoginForm";
 import "./login.css";
 
 export default function Login() {
+  const { t } = useLanguage();
   return (
     <main className="auth-page">
       <div className="auth-scene" aria-hidden="true">
@@ -30,26 +34,28 @@ export default function Login() {
           NASA HEALTH
         </p>
         <h1>
-          Monitoreo de salud
+          {t("Monitoreo de salud")}
           <br />
-          en misiones espaciales
+          {t("en misiones espaciales")}
         </h1>
         <p>
-          Plataforma para recopilar, analizar y dar seguimiento
-          <br className="auth-desktop-break" /> a indicadores de salud de
-          astronautas.
+          {t("Plataforma para recopilar, analizar y dar seguimiento")}
+          <br className="auth-desktop-break" />
+          {t("a indicadores de salud de astronautas.")}
         </p>
       </section>
       <section className="auth-card-area" aria-labelledby="auth-title">
         <div className="auth-card-stack">
+          <LanguageSelect />
           <Link href="/" className="auth-home-link">
-            <span aria-hidden="true">←</span> Volver a la página de inicio
+            <span aria-hidden="true">←</span>
+            {t("Volver a la página de inicio")}
           </Link>
           <div className="auth-card">
             <Link
               href="/"
               className="auth-brand"
-              aria-label="NASA Health, volver al inicio"
+              aria-label={t("NASA Health, volver al inicio")}
             >
               <Image
                 src="/images/nasa-logo.svg"

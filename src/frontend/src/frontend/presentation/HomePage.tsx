@@ -1,9 +1,12 @@
+"use client";
+import { useLanguage } from "../providers/LanguageProvider";
 import Image from "next/image";
 import Link from "next/link";
 import { Header } from "../components/layout/Header";
 import { Footer } from "../components/layout/Footer";
 import { Icon } from "../components/ui/Icon";
 export function HomePage() {
+  const { t } = useLanguage();
   return (
     <div className="home">
       <Header />
@@ -11,7 +14,9 @@ export function HomePage() {
         <div className="hero-photo">
           <Image
             src="/images/earth-window.webp"
-            alt="La Tierra y su atmósfera azul vistas desde la ventana de una estación espacial"
+            alt={t(
+              "La Tierra y su atmósfera azul vistas desde la ventana de una estación espacial",
+            )}
             fill
             priority
             sizes="(max-width: 700px) 100vw, 65vw"
@@ -31,43 +36,44 @@ export function HomePage() {
         <div className="hero-copy">
           <p className="eyebrow">
             <span />
-            Monitoreo de salud en misiones espaciales
+            {t("Monitoreo de salud en misiones espaciales")}
           </p>
           <h1>
-            Seguimiento y bienestar
-            <br className="desktop-break" /> de astronautas
+            {t("Seguimiento y bienestar")}
+            <br className="desktop-break" /> {t("de astronautas")}
           </h1>
           <p className="hero-description">
-            Plataforma para recopilar, analizar y dar seguimiento a
-            <br className="desktop-break" /> indicadores de salud durante
-            misiones espaciales.
+            {t("Plataforma para recopilar, analizar y dar seguimiento a")}
+            <br className="desktop-break" />{" "}
+            {t("indicadores de salud durante misiones espaciales.")}
           </p>
           <Link href="/login" className="button hero-login">
-            Iniciar sesión <Icon name="arrow" />
+            {t("Iniciar sesión")}
+            <Icon name="arrow" />
           </Link>
           <ul className="benefits">
             <li>
               <Icon name="heart" />
               <span>
-                Monitoreo
+                {t("Monitoreo")}
                 <br />
-                de salud
+                {t("de salud")}
               </span>
             </li>
             <li>
               <Icon name="chart" />
               <span>
-                Análisis
+                {t("Análisis")}
                 <br />
-                de indicadores
+                {t("de indicadores")}
               </span>
             </li>
             <li>
               <Icon name="shield" />
               <span>
-                Misiones
+                {t("Misiones")}
                 <br />
-                más seguras
+                {t("más seguras")}
               </span>
             </li>
           </ul>

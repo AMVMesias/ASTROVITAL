@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { LanguageProvider } from "../frontend/providers/LanguageProvider";
 
 export const metadata: Metadata = {
   title: "NASA Health | Bienestar en el espacio",
@@ -11,7 +12,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   );
 }
