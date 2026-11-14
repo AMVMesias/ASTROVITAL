@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 | --- | --- |
-| Versión | 0.3 |
+| Versión | 0.4 |
 | Estado | Referencia de implementación para revisión del equipo |
 | Fecha | 14 de noviembre de 2026 |
 | Documentos de origen | [Requisitos v0.2](REQUISITOS_NASA_HEALTH.md) y [propuesta de MVP](PROPUESTA_MVP_NASA_HEALTH.md) |
@@ -38,7 +38,7 @@ El MVP valida la utilidad del flujo para la tripulación. La comercialización, 
 | Tablero | Último valor, unidad, antigüedad, origen, calidad, referencia personal e historial por indicador y período. |
 | Contexto ambiental | Ficha de destino y telemetría de iluminación simulada del módulo junto al historial de sueño. El modelo admite temperatura y presión de cabina, oxígeno, CO₂ y humedad. |
 | Avisos | Avisos de calidad y de variación demostrativa, con explicación, orientación operativa, acción registrada y revisión de los casos derivados. |
-| Continuidad | Despliegue en Vercel para acceso web y ejecución local con base de datos y autenticación local para la demo sin Internet. |
+| Continuidad | Next.js con SQLite en el equipo local para operar sin Internet. Next.js en Vercel con PostgreSQL consolida las mediciones al recuperar conexión. La instalación como PWA y el almacenamiento en IndexedDB quedan fuera del MVP. |
 
 Las vistas iniciales son inicio de sesión, tablero con captura e historial, detalle de aviso y una lista sencilla de casos derivados para la segunda cuenta. La administración avanzada, el registro público, las exportaciones, la gestión de múltiples misiones, la sincronización con Tierra y la gamificación quedan para fases posteriores.
 
@@ -54,6 +54,8 @@ Las vistas iniciales son inicio de sesión, tablero con captura e historial, det
 | CU-06 | Atender aviso · astronauta | Abre el aviso, lee el motivo y registra una repetición, una observación o la solicitud de revisión. | La acción queda asociada al aviso con autor y fecha. Si solicita revisión, el caso aparece en la lista del responsable. |
 | CU-07 | Revisar caso · responsable de salud | Consulta la evidencia y las acciones previas, registra su evaluación y cierra el caso. | Se conserva el historial de acciones. |
 | CU-08 | Ejecutar escenario · equipo de demo | Carga una serie sintética reproducible para demostrar variación, falta de datos y el seguimiento. | Los registros se identifican como simulados en el tablero y el historial. |
+| CU-09 | Operar sin Internet · astronauta y ESP32 | Con la red local activa, el astronauta inicia sesión, registra datos y consulta el historial. El ESP32 sigue enviando lecturas a Next.js local. | SQLite conserva las lecturas tras reiniciar el servicio. Si se pierde acceso al equipo local, la captura web se reanuda al recuperar ese enlace. |
+| CU-10 | Sincronizar mediciones · equipo local | Al recuperar Internet, Next.js local envía los registros pendientes a la API en Vercel y recibe una confirmación por registro. | Los errores transitorios permiten reenviar los mismos IDs. Los rechazos se muestran con su motivo. |
 
 ## 5. Requisitos trazables y criterios de aceptación
 
@@ -68,7 +70,8 @@ Los IDs de esta tabla organizan la implementación del MVP. La última columna r
 | MVP-05 | Mostrar contexto ambiental por ubicación y tiempo. | Una noche de sueño se puede consultar junto a la iluminación de su módulo, con fuente y hora visibles. | Extiende RF-23 a RF-25 y el modelo de datos v0.2 |
 | MVP-06 | Distinguir aviso de calidad de aviso por variación. | Una lectura inválida o ausente y una variación sostenida producen indicadores de estado distintos. El aviso muestra su motivo. | RF-19, RF-31 a RF-36, RF-42, RF-43, RNF-07, RNF-08, RNF-15 |
 | MVP-07 | Registrar acciones y resolver casos derivados. | La cuenta del astronauta solicita revisión y la del responsable registra una acción y cierra el caso. | Extiende RF-33 a RF-36 |
-| MVP-08 | Operar en el portátil de demo y documentar el arranque. | Con Internet desconectado funcionan el login, el formulario y el historial. Al cortar el sensor se conserva la lectura anterior con antigüedad visible. | RNF-07 a RNF-13, RH-07, RH-08 |
+| MVP-08 | Operar en la red local con Next.js y SQLite. | Con Internet desconectado funcionan login, formulario, historial e ingesta del ESP32. Reiniciar el servicio conserva los registros. Al cortar el sensor se conserva la última lectura y se indica su antigüedad. | RNF-07 a RNF-13, RH-07, RH-08 |
+| MVP-09 | Sincronizar mediciones nuevas con PostgreSQL. | Al restablecer Internet, enviar los pendientes y repetir el mismo lote. Confirmar una sola copia por ID en la nube y el estado sincronizado en el equipo local. | Extiende RF-26 a RF-30 y RNF-05 a RNF-08 |
 
 ## 6. Reglas y modelo de datos
 
@@ -95,7 +98,7 @@ Las condiciones del **hábitat, cabina o traje** se registran por módulo y per�
 
 ## 7. Arquitectura y despliegue
 
-**Decisión aprobada: Next.js para frontend y backend**, con App Router y TypeScript. PostgreSQL es la opción propuesta para persistencia. La base local se utiliza para verificar el flujo sin Internet. El entorno Vercel necesitará una instancia accesible desde el despliegue cuando se incorpore persistencia.
+**Decisión aprobada: Next.js para frontend y backend**, con App Router y TypeScript. El equipo local ejecuta Next.js con SQLite. El despliegue de Next.js en Vercel usará PostgreSQL para consolidar las mediciones sincronizadas. La persistencia y la sincronización están pendientes de implementación.
 
 | Capa | Responsabilidad |
 | --- | --- |
@@ -104,7 +107,15 @@ Las condiciones del **hábitat, cabina o traje** se registran por módulo y per�
 | Aplicación frontend | Coordina filtros, formularios y actualización de datos cuando las vistas incorporen interacción. |
 | Aplicación backend · `src/backend/application` | Casos de uso de mediciones, consulta y seguimiento. El formulario, el simulador y el ESP32 reutilizan el registro de mediciones. |
 | Dominio backend | Reglas de calidad, comparación y transiciones de avisos. |
-| Infraestructura backend | Repositorios PostgreSQL, autenticación y acceso a configuración. |
+| Infraestructura backend | Repositorio SQLite en el equipo local, repositorio PostgreSQL en la nube, autenticación y configuración. |
+
+### Operación local y sincronización
+
+El navegador y el ESP32 se conectan al Next.js del equipo local por la red del hábitat durante la demo. La sesión se valida localmente con las cuentas precargadas. Si se corta Internet, el equipo local sigue disponible. Si el navegador pierde el enlace con ese equipo, debe recuperarlo para iniciar sesión o registrar mediciones.
+
+Guardar cada medición y su entrada pendiente de envío en la misma transacción de SQLite. Usar un ID estable y una restricción de unicidad en PostgreSQL para aceptar reintentos sin duplicar registros. La API de Vercel valida la credencial del equipo local, verifica el alcance autorizado y devuelve una confirmación por registro. Mantener pendiente cada medición hasta recibir su confirmación. Mostrar los rechazos y su motivo para revisión. Incluir un control de reintento manual para la demo.
+
+El MVP sincroniza mediciones nuevas. Los avisos y las acciones se conservan en el entorno donde se generan. La sincronización de cambios en estos registros y la edición desde varios equipos quedan para una fase posterior.
 
 Usar una red local para la prueba con ESP32 y confirmar placa, sensor, receptor y protocolo antes de incorporar el hardware a la demo. La opción propuesta es Wi-Fi con ingesta HTTP y validación de credenciales. En producción, las operaciones remotas usan HTTPS. Proteger cookies, credenciales y datos por rol, y mantener los secretos fuera de Git. La actualización del tablero puede empezar con consultas periódicas. Las reglas de variación se evalúan al aceptar una medición válida. [Next.js, Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)
 
@@ -116,13 +127,15 @@ El despliegue inicial de `main` se realizó mediante Vercel CLI. La portada y `/
 2. **Agregar autenticación, persistencia y captura.** Preparar cuentas y misión de demo, aplicar permisos y construir la captura manual y simulada. Verificar que el historial conserva la procedencia.
 3. **Completar autoevaluación y respuesta.** Implementar línea base, estado de calidad, explicación del aviso, acciones y revisión. Agregar el contexto de iluminación al historial de sueño.
 4. **Integrar y comprobar el ESP32.** Enviar una lectura real, reenviar su identificador para probar deduplicación y cortar la señal para probar vigencia. Mantener el escenario sintético disponible para reproducir el guion.
-5. **Validar local y producción.** Ejecutar lint, verificación de tipos y build. Verificar la app local con Internet desconectado. Desplegar desde `main` y probar portada, salud, acceso protegido y flujo de demo en Vercel con datos ficticios.
+5. **Implementar sincronización.** Preparar SQLite, la cola persistente y la API en Vercel con PostgreSQL. Verificar reintentos, permisos y deduplicación.
+6. **Validar local y producción.** Ejecutar lint, verificación de tipos y build. Verificar la app local con Internet desconectado. Desplegar desde `main` y probar portada, salud, acceso protegido y flujo de demo en Vercel con datos ficticios.
 
 ### Guion de aceptación
 
 1. Entrar como astronauta. Registrar sueño manualmente y comprobar una lectura de pulso del ESP32 con su origen visible.
 2. Consultar la iluminación del hábitat durante la noche registrada. Cargar una serie sintética con referencia estable y una desviación sostenida.
 3. Abrir el aviso, comprobar su explicación, guardar una nota y solicitar revisión. Entrar con el segundo rol y cerrar el caso con una observación.
-4. Ejecutar casos de lectura inválida, referencia insuficiente y corte de ingesta. Desconectar Internet y repetir el inicio de sesión, la captura manual y la consulta en el entorno local.
+4. Ejecutar casos de lectura inválida, referencia insuficiente y corte de ingesta. Desconectar Internet con la red local activa, volver a iniciar sesión, capturar un dato manual y otro del sensor, y comprobar que ambos siguen en el historial tras reiniciar el servicio.
+5. Recuperar Internet y sincronizar. Reenviar el mismo lote y comprobar que PostgreSQL conserva una sola copia por medición. Cortar por separado el enlace con el equipo local y verificar que la captura web se reanuda al recuperarlo.
 
 Los indicadores y escenarios se fundamentan en el [Human Research Roadmap de NASA](https://humanresearchroadmap.nasa.gov/Evidence/) y el [estudio de Inspiration4](https://pmc.ncbi.nlm.nih.gov/articles/PMC11357997/). La entrega debe incluir instrucciones reproducibles, identificación de datos sintéticos y la versión de las reglas de aviso usadas en la demo.
