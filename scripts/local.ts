@@ -1,3 +1,5 @@
+import { sendLocalQueue } from "../src/backend/src/backend/application/sync/sendLocalQueue";
+import { createMeasurementSender } from "../src/backend/src/backend/infrastructure/http/sendMeasurements";
 import { loadEnvConfig } from "@next/env";
 import { localPath, createServices } from "../src/backend/src/backend/composition/local";
 import { SqliteRepository } from "../src/backend/src/backend/infrastructure/sqlite/SqliteRepository";
@@ -36,6 +38,12 @@ try {
       }
     }
     console.log("33 lecturas sintéticas creadas mediante el flujo de captura. Un día sin muestras.");
+  } else if (command === "sync") {
+    const { NASA_SYNC_ENDPOINT: endpoint, NASA_SYNC_TOKEN: token } = process.env;
+    if (!endpoint || !token) throw new Error("Configura NASA_SYNC_ENDPOINT y NASA_SYNC_TOKEN.");
+    const { queue } = createServices(repo);
+    const receipts = await sendLocalQueue(queue, createMeasurementSender(new URL(endpoint), token));
+    console.log(JSON.stringify({ receipts }));
   } else if (command === "migrate") console.log("Migraciones aplicadas.");
-  else throw new Error("Comandos: migrate, seed, device, revoke-device, simulate.");
+  else throw new Error("Comandos: migrate, seed, device, revoke-device, simulate, sync.");
 } finally { repo.close(); }

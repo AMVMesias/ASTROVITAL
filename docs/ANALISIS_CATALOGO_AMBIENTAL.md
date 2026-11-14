@@ -1,6 +1,6 @@
 # Análisis del catálogo ambiental y uso en NASA Health
 
-Fecha: 14 de noviembre de 2026. Archivo revisado: [space_environment_surface_EVA_verified.json](src/backend/application/health/space_environment_surface_EVA_verified.json).
+Fecha: 14 de noviembre de 2026. Archivo revisado: [space_environment_surface_EVA_verified.json](../data/space_environment_surface_EVA_verified.json).
 
 ## Resultado del análisis
 

@@ -17,11 +17,27 @@ const measurementInput = {
 const userWrite = { type: "object", additionalProperties: false, properties: { username: { type: "string", minLength: 3, maxLength: 64, pattern: "^[a-zA-Z0-9._-]+$" }, name: { type: "string", minLength: 1, maxLength: 120 }, role: { type: "string", enum: ["admin","astronauta"] }, enabled: { type: "boolean", default: true }, password: { type: "string", format: "password", minLength: 12, maxLength: 128, writeOnly: true } } };
 export const openapi = {
   openapi: "3.0.3",
-  info: { title: "NASA Health · API local", version: "1.0.0", description: "Backend persona 1. SQLite local con Next.js/Node 22.13+. Login mediante cookie HttpOnly, revocación y separación de roles. Primero db:seed; sin credenciales por defecto. Swagger funciona sin CDN. Las mutaciones de sesión requieren Origin del mismo origen o X-Nasa-Request: 1 para clientes CLI. Los datos de salud son personales; admin no tiene acceso. Ambiente preparation-1 provisional, sin telemetría. PostgreSQL, evaluación y avisos corresponden a persona 2." },
+  info: { title: "NASA Health · API", version: "1.0.0", description: "Backend persona 1. SQLite local con Next.js/Node 22.13+. Login mediante cookie HttpOnly, revocación y separación de roles. Primero db:seed; sin credenciales por defecto. Swagger funciona sin CDN. Las mutaciones de sesión requieren Origin del mismo origen o X-Nasa-Request: 1 para clientes CLI. Los datos de salud son personales; admin no tiene acceso. Ambiente preparation-1 provisional, sin telemetría. El receptor de sincronización usa PostgreSQL y una credencial de equipo por misión." },
   servers: [{ url: "/", description: "Mismo equipo local" }],
-  tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad"].map(name => ({ name })),
+  tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización"].map(name => ({ name })),
   paths: {
     "/api/health": { get: operation("Disponibilidad del servicio (sin comprobar SQLite)","Disponibilidad", { type: "object", properties: { status: { type: "string", enum: ["ok"] } } }, { security: [] }) },
+    "/api/v1/sync/measurements": { post: operation(
+      "Recibir mediciones del equipo local", "Sincronización", ref("SyncReceipts"), {
+        description: "Hasta 50 mediciones y 96 KiB por lote. Cada confirmación identifica la medición. Reenviar un registro idéntico conserva una sola copia. Una misión ajena, un perfil desconocido o un ID con contenido distinto reciben un rechazo individual.",
+        security: [{ syncBearer: [] }],
+        requestBody: body({ type: "object", required: ["measurements"], properties: {
+          measurements: { type: "array", minItems: 1, maxItems: 50, items: ref("SyncMeasurement") },
+        } }),
+        responses: {
+          "200": response("Confirmación individual del lote", ref("SyncReceipts")),
+          "400": response("Lote inválido", ref("SyncError")),
+          "401": response("Credencial incorrecta o ausente", ref("SyncError")),
+          "413": response("Límite de bytes excedido", ref("SyncError")),
+          "503": response("Sincronización no disponible", ref("SyncError")),
+        },
+      },
+    ) },
     "/api/v1/auth/login": { post: operation("Iniciar sesión de cuenta habilitada", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }, { security: [], requestBody: body({ type: "object", additionalProperties: false, required: ["username","password"], properties: { username: string, password: { type: "string", format: "password", maxLength: 128 } } }) }) },
     "/api/v1/auth/session": { get: operation("Consultar identidad y vigencia", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }) },
     "/api/v1/auth/logout": { post: operation("Revocar la sesión actual", "Acceso", { type: "object", properties: { status: string } }) },
@@ -52,8 +68,25 @@ export const openapi = {
     }) },
   },
   components: {
-    securitySchemes: { sessionCookie: { type: "apiKey", in: "cookie", name: "nasa_session", description: "Se establece al ejecutar login en este navegador. No se copia manualmente en Swagger." }, deviceBearer: { type: "http", scheme: "bearer", description: "Credencial del dispositivo aprovisionada por comando local." } },
+    securitySchemes: { syncBearer: { type: "http", scheme: "bearer", description: "Credencial del equipo local autorizada para una misión." }, sessionCookie: { type: "apiKey", in: "cookie", name: "nasa_session", description: "Se establece al ejecutar login en este navegador. No se copia manualmente en Swagger." }, deviceBearer: { type: "http", scheme: "bearer", description: "Credencial del dispositivo aprovisionada por comando local." } },
     schemas: {
+      SyncMeasurement: {
+        allOf: [
+          ref("Measurement"),
+          { type: "object", required: ["id", "astronautId", "missionId", "moduleId", "indicator", "value", "unit",
+            "origin", "quality", "capturedAt", "receivedAt", "authorId", "deviceId", "readingId", "activity", "note", "scenario", "environment"],
+            properties: { capturedAt: { ...timestamp, example: "2026-11-14T12:00:00.000Z" }, receivedAt: { ...timestamp, example: "2026-11-14T12:00:01.000Z" },
+              environment: { allOf: [ref("Environment")], required: ["scenarioId", "profileId", "profileVersion", "scope", "assignmentId", "telemetryAvailable"] } },
+          },
+        ],
+      },
+      SyncError: { type: "object", required: ["error"], properties: { error: { type: "string", enum: ["invalid_batch", "unauthorized", "batch_too_large", "sync_unavailable"] } } },
+      SyncReceipts: { type: "object", required: ["receipts"], properties: { receipts: { type: "array", items: {
+        oneOf: [
+          { type: "object", required: ["measurementId", "status"], properties: { measurementId: string, status: { type: "string", enum: ["accepted"] } } },
+          { type: "object", required: ["measurementId", "status", "reason"], properties: { measurementId: string, status: { type: "string", enum: ["rejected"] }, reason: { type: "string", enum: ["conflict", "unknown_environment", "mission_forbidden"] } } },
+        ],
+      } } } },
       Error: { type: "object", required: ["error"], properties: { error: { type: "object", required: ["code","message"], properties: { code: string, message: string, fields: { type: "object", additionalProperties: string } } } } },
       User: { type: "object", properties: { id: string, username: string, name: string, role: { type: "string", enum: ["astronauta","admin"] }, enabled: { type: "boolean" }, astronautId: nullableString, missionId: nullableString, moduleId: nullableString, createdAt: timestamp } },
       Environment: { type: "object", properties: { scenarioId: string, profileId: string, profileVersion: string, assignmentId: string, scope: { type: "string", enum: ["cabin","exterior"] }, telemetryAvailable: { type: "boolean" } } },

@@ -1,6 +1,6 @@
 # NASA Health · Plan de trabajo del backend para dos personas
 
-Este plan toma la [especificación v0.7 local](ESPECIFICACION_MVP_NASA_HEALTH.md) para cuentas y avisos, e incorpora el catálogo documental [space_environment_surface_EVA_verified.json](src/backend/application/health/space_environment_surface_EVA_verified.json). La selección de cuatro escenarios es una ampliación de planificación: CU-11 y MVP-10 no están definidos en la especificación local y no se usan aquí como requisitos aprobados. El repositorio tiene vistas iniciales y `GET /api/health`. Ambas personas desarrollan en **main**.
+Este plan toma la [especificación v0.7 local](ESPECIFICACION_MVP_NASA_HEALTH.md) para cuentas y avisos, e incorpora el catálogo documental [space_environment_surface_EVA_verified.json](../data/space_environment_surface_EVA_verified.json). La selección de cuatro escenarios es una ampliación de planificación: CU-11 y MVP-10 no están definidos en la especificación local y no se usan aquí como requisitos aprobados. El repositorio tiene vistas iniciales y `GET /api/health`. Ambas personas desarrollan en **main**.
 
 El admin gestiona cuentas y perfiles básicos desde la web. El astronauta registra y consulta sus propias mediciones, atiende sus avisos y los cierra. El acceso del admin a operaciones de salud y el acceso del astronauta a la administración de cuentas se deniegan en el servidor.
 

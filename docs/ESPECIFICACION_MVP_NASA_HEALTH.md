@@ -148,7 +148,7 @@ El MVP sincroniza mediciones nuevas. Los avisos y las acciones se conservan en e
 
 Usar una red local para la prueba con ESP32 y confirmar placa, sensor, receptor y protocolo antes de incorporar el hardware a la demo. La opción propuesta es Wi-Fi con ingesta HTTP y validación de credenciales. En producción, las operaciones remotas usan HTTPS. Proteger cookies, credenciales y datos por rol, y mantener los secretos fuera de Git. La actualización del tablero puede empezar con consultas periódicas. Las reglas de variación se evalúan al aceptar una medición válida. [Next.js, Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)
 
-El despliegue inicial de `main` se realizó mediante Vercel CLI. La portada y `/api/health` están implementados y verificados en el despliegue inicial. El vínculo automático GitHub–Vercel sigue pendiente. Para publicar código desde el proyecto ya vinculado localmente, usar `npx vercel deploy --prod` y verificar las rutas del entorno. [README del repositorio](README.md)
+El despliegue inicial de `main` se realizó mediante Vercel CLI. La portada y `/api/health` están implementados y verificados en el despliegue inicial. El vínculo automático GitHub–Vercel sigue pendiente. Para publicar código desde el proyecto ya vinculado localmente, usar `npx vercel deploy --prod` y verificar las rutas del entorno. [README del repositorio](../README.md)
 
 ## 8. Plan de implementación y verificación
 

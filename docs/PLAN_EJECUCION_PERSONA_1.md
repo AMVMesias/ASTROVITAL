@@ -164,7 +164,7 @@ La persona 1 termina cuando las cinco tareas de su reparto tienen evidencia repr
 
 ## 7. Ajuste de ejecución por el catálogo ambiental incorporado
 
-Base: [JSON ambiental](src/backend/application/health/space_environment_surface_EVA_verified.json) y [análisis de integración](ANALISIS_CATALOGO_AMBIENTAL.md). El JSON tiene versión de esquema 1.1.0; esa versión no reemplaza la versión de contenido que se guardará con cada perfil.
+Base: [JSON ambiental](../data/space_environment_surface_EVA_verified.json) y [análisis de integración](ANALISIS_CATALOGO_AMBIENTAL.md). El JSON tiene versión de esquema 1.1.0; esa versión no reemplaza la versión de contenido que se guardará con cada perfil.
 
 | Hito existente | Trabajo adicional de persona 1 | Dependencia de persona 2 |
 | --- | --- | --- |

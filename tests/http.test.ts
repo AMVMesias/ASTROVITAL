@@ -27,6 +27,7 @@ function request(path: string, method="GET", body?: unknown, cookie?: string, ex
 test("OpenAPI válido, Swagger local sin CDN, rutas documentadas y assets limitados", async () => {
   const parsed=await SwaggerParser.validate(JSON.parse(JSON.stringify(openapi)));
   assert.equal(parsed.info.version,"1.0.0");
+  assert.deepEqual(parsed.paths?.["/api/v1/sync/measurements"]?.post?.security,[{syncBearer:[]}]);
   assert.equal((await schema().json()).openapi,"3.0.3");
   const html=await docs().text();
   assert.ok(html.includes("/api/docs/assets/swagger-ui-bundle.js"));

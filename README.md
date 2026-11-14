@@ -12,7 +12,7 @@ El frontend redirige `/api/*` al backend mediante un proxy para conservar las co
 
 ## Desarrollo local
 
-Se requiere Node.js 22.13 o superior dentro de la rama 22. Desde la raíz, ejecuta `npm ci`. Copia `src/backend/.env.example` a `src/backend/.env.local` y `src/frontend/.env.example` a `src/frontend/.env.local`. Configura las credenciales locales según [BACKEND_PERSONA_1.md](BACKEND_PERSONA_1.md).
+Se requiere Node.js 22.13 o superior dentro de la rama 22. Desde la raíz, ejecuta `npm ci`. Copia `src/backend/.env.example` a `src/backend/.env.local` y `src/frontend/.env.example` a `src/frontend/.env.local`. Configura las credenciales locales según [BACKEND_PERSONA_1.md](docs/BACKEND_PERSONA_1.md).
 
 En terminales separadas, desde la raíz, ejecuta `npm run dev:backend` y `npm run dev:frontend`. El frontend está en http://localhost:3000 y la API en http://localhost:3001/api. Swagger está en http://localhost:3000/api/docs.
 
@@ -23,3 +23,19 @@ En terminales separadas, desde la raíz, ejecuta `npm run dev:backend` y `npm ru
 Ejecuta `npm run lint`, `npm run typecheck`, `npm test`, `npm run build` y `npm run test:production`. Para iniciar las compilaciones, usa `npm run start:backend` y `npm run start:frontend` en terminales separadas.
 
 Para desplegar, configura ambos servicios por separado y establece `BACKEND_URL` en el frontend y `APP_ORIGIN` en el backend. La URL del backend debe ser accesible desde el servidor del frontend. El backend local usa SQLite y no ofrece persistencia en Vercel; consulta la documentación del backend antes de desplegarlo.
+
+## Backend de Persona 2
+
+El catálogo documental conserva cuatro escenarios y su revisión. Los avisos y las asignaciones se guardan en SQLite. La recepción de mediciones en PostgreSQL usa `POST /api/v1/sync/measurements`.
+
+```sh
+node --import tsx scripts/seed-environment.mjs <ruta.sqlite>
+node --import tsx --test tests/environment.test.mjs tests/persona2.test.mjs
+node --import tsx scripts/provision-sync.mjs
+```
+
+Para provisionar la base, exporta `NASA_SYNC_DATABASE_URL` en la terminal que ejecuta el script. Para arrancar el receptor, configura esa variable en el entorno del backend. El servidor también requiere `NASA_SYNC_TOKEN` y `NASA_SYNC_MISSION_ID` para autorizar al equipo local dentro de su misión. La prueba HTTP usa una base PostgreSQL de pruebas y requiere `NASA_SYNC_TEST_DATABASE_URL`, `NASA_SYNC_TEST_ENDPOINT` y el mismo token del servidor. Ejecutar `node --import tsx --test tests/postgres-sync.test.mjs`.
+
+La integración local usa la conexión SQLite común para `migrateEnvironment` y `migrateAlerts`. Al guardar una medición, captura proporciona el historial a `evaluatePersistedMeasurement`. El módulo de acceso verifica la sesión antes de seleccionar un escenario o habilitar operaciones de avisos. El emisor consume la cola SQLite con `npm run sync:send`. Configura `NASA_SYNC_ENDPOINT` con la URL completa del receptor y `NASA_SYNC_TOKEN` con la credencial del equipo. El receptor acepta perfiles provisionados en PostgreSQL y conserva un rechazo individual si una medición usa el perfil provisional `preparation-1`. La selección ambiental y la evaluación deben conectarse a captura antes de la demo integral.
+
+Consulta la [especificación del MVP](docs/ESPECIFICACION_MVP_NASA_HEALTH.md), el [plan del backend](docs/PLAN_BACKEND_MVP.md) y el [primer acceso](docs/PRIMER_ACCESO_Y_RECUPERACION.md) en [docs/](docs/).

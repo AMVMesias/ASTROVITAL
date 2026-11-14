@@ -6,7 +6,7 @@ Solo el administrador crea cuentas. No existe registro público.
 
 1. El administrador entrega al usuario sus credenciales iniciales.
 2. Al autenticar, el backend indica si debe completar el primer acceso.
-3. En ese caso, el usuario define una nueva contraseña y elige tres preguntas distintas del catálogo `securityQuestions.ts`, con una respuesta para cada una.
+3. En ese caso, el usuario define una nueva contraseña y elige tres preguntas distintas del catálogo [`securityQuestions.ts`](../src/frontend/src/frontend/features/auth/securityQuestions.ts), con una respuesta para cada una.
 4. El backend guarda la configuración y habilita el acceso normal al panel. Los accesos posteriores omiten esta configuración.
 5. La recuperación solicita el usuario y muestra una sola de las tres preguntas guardadas, elegida al azar por el servidor. La pregunta permanece fija durante el desafío.
 6. Se permiten tres respuestas incorrectas como máximo. El servidor debe mantener el contador y el bloqueo aunque se vuelva atrás, se recargue o se solicite otro desafío. Al agotarlos se solicita ayuda del administrador.
