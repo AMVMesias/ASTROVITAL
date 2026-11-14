@@ -10,7 +10,7 @@ export function HomePage() {
       <main className="hero">
         <div className="hero-photo">
           <Image
-            src="/images/earth-window.png"
+            src="/images/earth-window.webp"
             alt="La Tierra y su atmósfera azul vistas desde la ventana de una estación espacial"
             fill
             priority

@@ -9,7 +9,7 @@ export default function Login() {
       <div className="auth-scene" aria-hidden="true">
         <Image
           className="auth-scene-photo"
-          src="/images/login-space-printed.png"
+          src="/images/login-space-printed.webp"
           alt=""
           fill
           priority
