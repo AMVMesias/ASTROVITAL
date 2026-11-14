@@ -48,11 +48,6 @@ select:focus-visible {
   white-space: nowrap;
   border: 0;
 }
-.header-brand-group {
-  display: flex;
-  align-items: center;
-  gap: clamp(12px, 2vw, 28px);
-}
 .language-select {
   position: relative;
   display: inline-flex;
