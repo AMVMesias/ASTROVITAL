@@ -57,6 +57,9 @@ export default function Login() {
             <span>NASA Health</span>
           </Link>
           <LoginForm />
+          <Link href="/" className="auth-home-link">
+            <span aria-hidden="true">←</span> Volver a la página de inicio
+          </Link>
         </div>
       </section>
     </main>

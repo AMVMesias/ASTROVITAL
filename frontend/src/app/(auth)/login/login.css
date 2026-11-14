@@ -99,6 +99,22 @@
   line-height: 1;
   letter-spacing: -0.045em;
 }
+.auth-home-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  margin: 14px auto 0;
+  color: #345783;
+  font-size: 14px;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.auth-home-link:hover {
+  color: #0053ed;
+}
 .auth-description {
   margin: 0 0 32px;
   font-size: clamp(16px, 1.3vw, 22px);
