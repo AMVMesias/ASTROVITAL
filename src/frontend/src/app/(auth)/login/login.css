@@ -810,3 +810,18 @@
  .auth-page .auth-card-stack > .appearance-controls,
  .auth-page .auth-card-stack > .auth-home-link { margin-bottom: 8px; }
 }
+/* Taller phones keep the intro and form together instead of reserving a banner. */
+@media (max-width: 700px) and (min-height: 741px) {
+ .auth-page .auth-intro,
+ .auth-page:has(.recovery-demo) .auth-intro {
+   height: auto; min-height: 0;
+   padding: max(24px, env(safe-area-inset-top)) 5% 10px;
+ }
+ .auth-page .auth-card-area,
+ .auth-page .auth-card-area:has(.recovery-demo) {
+   flex: 0 0 auto; min-height: 0; margin: 0;
+   padding: 10px 5% max(24px, env(safe-area-inset-bottom));
+   align-items: flex-start;
+ }
+ .auth-page .auth-card-stack { margin: 0; }
+}
