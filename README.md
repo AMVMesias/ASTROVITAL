@@ -2,9 +2,14 @@
 
 Prototipo de monitoreo de salud para NASA Space Apps 2026.
 
+Backend de persona 1 implementado: acceso, usuarios, captura, historial, SQLite y
+cola local. Swagger: `/api/docs`; OpenAPI: `/api/openapi`.
+Consultar [preparación, contratos y pruebas](BACKEND_PERSONA_1.md).
+La integración con el frontend queda pendiente por instrucción del usuario.
+
 ## Desarrollo local
 
-Requiere Node.js 22 y npm.
+Requiere Node.js 22.13 o superior dentro de la rama 22 y npm.
 
 ```sh
 npm ci

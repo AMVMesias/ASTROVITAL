@@ -6,3 +6,8 @@
 /.env*
 
 !.env.example
+/data/local/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/coverage/

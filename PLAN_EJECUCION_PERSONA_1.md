@@ -1,6 +1,6 @@
 # NASA Health · Plan de ejecución de la persona 1
 
-Fecha: 14 de noviembre de 2026. Estado: plan propuesto, pendiente de ejecución.
+Fecha: 14 de noviembre de 2026. Estado: backend implementado; frontend excluido por instrucción posterior del usuario. Integración con persona 2 pendiente.
 
 ## 1. Base revisada y alcance
 
@@ -179,3 +179,14 @@ Los cuatro IDs de escenario son `deep_space_transit`, `iss_leo`, `moon_surface` 
 Añadir a las pruebas de integración: perfil inexistente rechazado explícitamente; perfil existente sin telemetría permite captura; lectura antigua conserva contexto de captura; versión posterior no cambia historial; conflicto de contenido para una misma versión se rechaza; nube con versión desconocida devuelve rechazo individual recuperable. Verificar que las referencias de radiación del detector no se guardan como dosis del astronauta y que solo se comparan indicadores/contextos compatibles.
 
 La ubicación actual del JSON bajo `application/health` no obliga a importar datos científicos en el caso de uso `getHealth`. Mantener el endpoint de disponibilidad independiente del catálogo; persona 2 encapsula lectura/validación en un adaptador de infraestructura ambiental. La reubicación física del original se decide al implementar y conserva trazabilidad.
+
+
+## 8. Estado de la entrega de backend
+
+Por instrucción posterior del usuario, la ejecución se limitó al servidor. Los pasos de integración de login, panel, usuarios y dashboard del frontend no se ejecutan en esta entrega; no hay protección de páginas añadida. Los endpoints y casos de uso sí verifican sesiones, rol y propiedad.
+
+Implementados: migraciones y semillas SQLite; contraseñas scrypt y sesiones revocables; administración de cuentas; captura manual y ESP32; deduplicación; historial y últimos valores propios; procedencia y contexto ambiental por contrato; persistencia transaccional de medición/cola; simulador local y adaptador de pendientes/confirmaciones/rechazos. Swagger/OpenAPI se entrega en `/api/docs` y `/api/openapi`.
+
+La composición acepta un `EnvironmentProvider` reemplazable; el adaptador actual es explícitamente provisional y no implementa asignaciones históricas reales ni el catálogo de cuatro escenarios. Evaluación, avisos, telemetría ambiental y receptor PostgreSQL siguen bajo persona 2. El ESP32 físico y la pérdida real de conectividad requieren prueba conjunta; las pruebas actuales usan SQLite real, dispositivos de prueba y fuentes locales.
+
+La configuración de formato de demo define bienestar entero de 1 a 5; sueño 0–24 h y pulso 1–300 bpm como validación de entrada, no reglas clínicas. Documentación reproducible, decisiones y comandos en [BACKEND_PERSONA_1.md](BACKEND_PERSONA_1.md). El catálogo documental está actualmente en `data/space_environment_surface_EVA_verified.json`; las referencias a su ubicación anterior en este plan describen la revisión inicial.
