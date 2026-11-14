@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SqliteRepository } from "../src/backend/infrastructure/sqlite/SqliteRepository";
-import { provisionDevice, seed } from "../src/backend/infrastructure/sqlite/seed";
-import { createServices } from "../src/backend/composition/local";
-import { AppError, type EnvironmentContext, type EnvironmentProvider } from "../src/backend/domain/model";
-import { MeasurementService } from "../src/backend/application/measurements/MeasurementService";
+import { SqliteRepository } from "../backend/src/backend/infrastructure/sqlite/SqliteRepository";
+import { provisionDevice, seed } from "../backend/src/backend/infrastructure/sqlite/seed";
+import { createServices } from "../backend/src/backend/composition/local";
+import { AppError, type EnvironmentContext, type EnvironmentProvider } from "../backend/src/backend/domain/model";
+import { MeasurementService } from "../backend/src/backend/application/measurements/MeasurementService";
 
 const credential = "test-password-strong-123";
 const deviceToken = "test-device-token-000000000000000000001";

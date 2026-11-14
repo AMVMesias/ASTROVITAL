@@ -11,3 +11,8 @@
 *.sqlite-wal
 *.sqlite-shm
 /coverage/
+
+**/.next/
+**/next-env.d.ts
+**/*.tsbuildinfo
+**/.env.local

@@ -5,8 +5,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { SqliteRepository } from "../src/backend/infrastructure/sqlite/SqliteRepository";
-import { seed } from "../src/backend/infrastructure/sqlite/seed";
+import { SqliteRepository } from "../backend/src/backend/infrastructure/sqlite/SqliteRepository";
+import { seed } from "../backend/src/backend/infrastructure/sqlite/seed";
 
 async function main() {
   const directory=mkdtempSync(join(tmpdir(),"nasa-production-"));
@@ -18,7 +18,7 @@ async function main() {
   if(!address || typeof address==="string") throw new Error("Puerto no disponible.");
   const port=address.port;
   await new Promise<void>(resolve=>listener.close(()=>resolve()));
-  const child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","--port",String(port)],{env:{...process.env,SQLITE_PATH:path,APP_ORIGIN:`http://127.0.0.1:${port}`,APP_MODE:"local",VERCEL:"",COOKIE_SECURE:"false"},stdio:["ignore","pipe","pipe"]});
+  const child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","backend","--hostname","127.0.0.1","--port",String(port)],{env:{...process.env,SQLITE_PATH:path,APP_ORIGIN:`http://127.0.0.1:${port}`,APP_MODE:"local",VERCEL:"",COOKIE_SECURE:"false"},stdio:["ignore","pipe","pipe"]});
   let log=""; child.stdout.on("data",chunk=>{log+=String(chunk);}); child.stderr.on("data",chunk=>{log+=String(chunk);});
   const root=`http://127.0.0.1:${port}`;
   try {

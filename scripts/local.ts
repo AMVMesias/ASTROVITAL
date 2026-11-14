@@ -1,7 +1,7 @@
 import { loadEnvConfig } from "@next/env";
-import { localPath, createServices } from "../src/backend/composition/local";
-import { SqliteRepository } from "../src/backend/infrastructure/sqlite/SqliteRepository";
-import { provisionDevice, seed } from "../src/backend/infrastructure/sqlite/seed";
+import { localPath, createServices } from "../backend/src/backend/composition/local";
+import { SqliteRepository } from "../backend/src/backend/infrastructure/sqlite/SqliteRepository";
+import { provisionDevice, seed } from "../backend/src/backend/infrastructure/sqlite/seed";
 
 loadEnvConfig(process.cwd());
 const repo = new SqliteRepository(localPath());
