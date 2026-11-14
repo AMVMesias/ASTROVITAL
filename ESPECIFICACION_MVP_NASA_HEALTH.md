@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 | --- | --- |
-| Versión | 0.4 |
+| Versión | 0.5 |
 | Estado | Referencia de implementación para revisión del equipo |
 | Fecha | 14 de noviembre de 2026 |
 | Documentos de origen | [Requisitos v0.2](REQUISITOS_NASA_HEALTH.md) y [propuesta de MVP](PROPUESTA_MVP_NASA_HEALTH.md) |
@@ -72,6 +72,35 @@ Los IDs de esta tabla organizan la implementación del MVP. La última columna r
 | MVP-07 | Registrar acciones y resolver casos derivados. | La cuenta del astronauta solicita revisión y la del responsable registra una acción y cierra el caso. | Extiende RF-33 a RF-36 |
 | MVP-08 | Operar en la red local con Next.js y SQLite. | Con Internet desconectado funcionan login, formulario, historial e ingesta del ESP32. Reiniciar el servicio conserva los registros. Al cortar el sensor se conserva la última lectura y se indica su antigüedad. | RNF-07 a RNF-13, RH-07, RH-08 |
 | MVP-09 | Sincronizar mediciones nuevas con PostgreSQL. | Al restablecer Internet, enviar los pendientes y repetir el mismo lote. Confirmar una sola copia por ID en la nube y el estado sincronizado en el equipo local. | Extiende RF-26 a RF-30 y RNF-05 a RNF-08 |
+
+### 5.1 Operaciones CRUD y permisos
+
+**Demo** se implementa en el flujo del MVP. **Preparación** se resuelve con datos iniciales o configuración controlada por el operador. **Posterior** queda en el backlog. En esta matriz, retirar puede significar desactivar, desvincular, archivar o revocar, según el recurso. El operador prepara el entorno y se conserva la separación entre los roles de astronauta y responsable de salud.
+
+| Recurso y trazabilidad | Crear | Consultar | Actualizar | Retirar |
+| --- | --- | --- | --- | --- |
+| Cuentas y roles · RF-06, RF-07 | Preparación · aprovisionar cuentas con credenciales hasheadas y rol asignado. | Demo · consultar identidad y rol propios. Posterior · listar cuentas para administración. | Preparación · cambiar credencial o rol mediante el operador. Posterior · gestión desde la web. | Preparación · desactivar cuenta e invalidar sus sesiones. Conservar autoría e historial. |
+| Sesiones · CU-01, RF-01 a RF-05 | Demo · autenticar credenciales y abrir sesión local. | Demo · comprobar vigencia, cuenta activa y permisos en el servidor. | Demo · aplicar caducidad de sesión. Los cambios de credenciales o permisos requieren una sesión nueva. | Demo · cerrar sesión e invalidarla. |
+| Perfiles · RF-08 a RF-10, RF-13 | Preparación · crear astronauta y vincular su cuenta. | Demo · el astronauta ve su perfil. El responsable accede al contexto del perfil en casos derivados de su misión. | Preparación · corregir datos del perfil. Posterior · edición y listado administrativo en la web. | Posterior · archivar perfil conservando mediciones y acciones. |
+| Misiones, módulos, destino y asignaciones · RF-11, RF-12, MVP-02, MVP-05 | Preparación · cargar misión, fase, módulo, destino y asignaciones. | Demo · consultar el contexto autorizado y la ficha del destino. | Preparación · configurar la misión de demo. Posterior · administrar fases y asignaciones desde la web. | Posterior · cerrar o archivar y conservar el contexto histórico. |
+| Dispositivos, sensores y vínculos · RF-14 a RF-19, RF-43 | Preparación · registrar ESP32, sensor y vínculo con el astronauta. | Demo · consultar origen, estado y última comunicación del dispositivo asociado. | Preparación · reasignar o rotar la credencial. Demo · actualizar la última comunicación al recibir una lectura aceptada. | Preparación · desvincular o revocar el dispositivo y conservar la procedencia histórica. |
+| Catálogo de indicadores y reglas · RF-20 a RF-25, RF-31 a RF-36 | Preparación · cargar indicadores, unidades, escalas y reglas versionadas. | Demo · mostrar los disponibles y explicar la regla de cada aviso. | Preparación · publicar una versión nueva conservando la aplicada a avisos anteriores. | Posterior · desactivar para nuevas mediciones preservando el historial. |
+| Mediciones personales · CU-02 a CU-04, RF-15, RF-20 a RF-30 | Demo · el astronauta registra manualmente. El ESP32 y el simulador envían lecturas con su procedencia. | Demo · consultar último valor e historial filtrado por indicador y período, dentro del acceso autorizado. | Demo · el sistema actualiza vigencia y sincronización. Posterior · correcciones trazables de valores. Una repetición crea otra lectura. | Posterior · aplicar política de retención. |
+| Lecturas ambientales · CU-05, MVP-05 | Demo · cargar iluminación simulada por módulo y hora. | Demo · consultar ambiente y sueño en el mismo período. | Preparación · ajustar la configuración del escenario. La siguiente observación se guarda como lectura nueva. | Posterior · aplicar retención manteniendo la trazabilidad del escenario. |
+| Referencia individual · CU-04, MVP-04 | Demo · calcular referencia con lecturas válidas y comparables. | Demo · consultar valor, período, cantidad de muestras y contexto. | Demo · recalcular según la regla configurada y conservar la evidencia usada en cada aviso. | Posterior · gestionar referencias históricas. |
+| Avisos · CU-06, CU-07, RF-31 a RF-36 | Demo · el sistema genera un aviso por calidad o por variación. | Demo · listar avisos propios y, para el responsable, casos derivados de su misión. | Demo · solicitar revisión, registrar seguimiento y cerrar el caso con el rol autorizado. | Posterior · archivar según la política de retención. |
+| Acciones de seguimiento · CU-06, CU-07 | Demo · registrar repetición, nota, derivación o revisión con autor y fecha. | Demo · consultar las acciones desde el aviso autorizado. | Demo · anexar una acción nueva para ampliar o corregir una observación. | Posterior · aplicar retención de auditoría. |
+| Escenarios de simulación · CU-08, RF-37 a RF-40 | Preparación · definir series sintéticas. Demo · ejecutar un escenario y generar lecturas etiquetadas. | Demo · identificar escenario y origen simulado en el historial. | Preparación · versionar escenarios. | Preparación · reiniciar el entorno de demo con datos ficticios. |
+| Cola de sincronización · CU-10, MVP-09 | Demo · generar un pendiente por medición local en la misma transacción. | Demo · consultar pendientes, confirmaciones y rechazos. | Demo · enviar, reintentar con el mismo ID y registrar la confirmación de PostgreSQL. | Posterior · depurar registros confirmados según retención. |
+| Tablero, reportes y exportación · RF-41 a RF-45 | Demo · generar el resumen a partir de lecturas, avisos y dispositivos. Posterior · generar archivos de reporte. | Demo · buscar historial por filtros autorizados. Posterior · descargar exportaciones. | Demo · cambiar filtros y actualizar la vista. | Posterior · retirar archivos de reporte cuando se implemente su almacenamiento. |
+
+### 5.2 Pruebas de operaciones y permisos
+
+1. **Acceso.** Cargar las dos cuentas, comprobar login válido e inválido, consultar la sesión, cerrar sesión y verificar que una solicitud posterior se rechaza. Desactivar una cuenta de prueba y verificar el rechazo con su sesión previa.
+2. **Aislamiento.** Intentar consultar una medición ajena desde otra cuenta de astronauta. Comprobar que el responsable accede solo a casos derivados de su misión y que el astronauta carece de permiso para cerrarlos como responsable.
+3. **Captura e historial.** Registrar una lectura manual, enviar dos veces el mismo ID del ESP32, desvincular el dispositivo y comprobar la procedencia histórica y el rechazo de nuevas lecturas de ese dispositivo.
+4. **Evaluación y seguimiento.** Verificar la referencia y la evidencia del aviso, añadir una acción, derivar el caso y cerrarlo desde la cuenta autorizada. Comprobar que el historial conserva todas las acciones.
+5. **Continuidad.** Guardar ambas clases de lecturas sin Internet en SQLite, reiniciar el servicio, recuperar Internet y sincronizar dos veces. Verificar una copia por ID en PostgreSQL y el estado de confirmación local.
 
 ## 6. Reglas y modelo de datos
 
