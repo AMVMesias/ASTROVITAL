@@ -778,3 +778,26 @@
  .auth-page:not(:has(.recovery-demo)) .auth-card h2 { font-size: 32px; }
  .auth-page:not(:has(.recovery-demo)) .auth-field { height: 50px; }
 }
+/* On short phones prioritize the complete access card over the intro banner. */
+@media (max-width: 700px) and (max-height: 740px) {
+ .auth-page { min-height: 100svh; display: flex; flex-direction: column; }
+ .auth-page .auth-intro { display: none; }
+ .auth-page .auth-card-area,
+ .auth-page .auth-card-area:has(.recovery-demo),
+ .auth-page:has(.setup-questions) .auth-card-area {
+   flex: 1 0 auto;
+   min-height: 100svh;
+   margin: 0;
+   padding: max(16px, env(safe-area-inset-top)) 5% max(16px, env(safe-area-inset-bottom));
+   align-items: center;
+   justify-content: center;
+ }
+ .auth-page .auth-card-stack { margin: auto 0; }
+}
+@media (max-width: 700px) and (max-height: 740px) {
+ .auth-page .auth-card-area,
+ .auth-page .auth-card-area:has(.recovery-demo),
+ .auth-page:has(.setup-questions) .auth-card-area {
+   padding-bottom: max(env(safe-area-inset-bottom), clamp(16px, calc(100svh - 550px), 112px));
+ }
+}
