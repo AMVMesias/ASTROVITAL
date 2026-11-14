@@ -48,7 +48,7 @@ Los parámetros del árbol son de demostración. Para pulso, sueño y bienestar,
 Las migraciones de entorno y avisos ya se registran en la conexión SQLite común. Al guardar una medición, captura proporciona el historial a `evaluatePersistedMeasurement`. El módulo de acceso verifica la sesión antes de seleccionar un escenario o habilitar operaciones de avisos. El emisor consume la cola SQLite con `npm run sync:send`. Configura `NASA_SYNC_ENDPOINT` con la URL completa del receptor y `NASA_SYNC_TOKEN` con la credencial del equipo. El receptor acepta perfiles provisionados en PostgreSQL y conserva un rechazo individual si una medición usa el perfil provisional `preparation-1`. La captura ya usa asignaciones ambientales históricas y ejecuta evaluación post-commit con trabajos recuperables mediante `npm run assessment:retry`.
 >>>>>>> a7784becb2c9209f3c47237b12eb7c1f106069a9
 
-Consulta la [especificación del MVP](docs/ESPECIFICACION_MVP_NASA_HEALTH.md), el [plan del backend](docs/PLAN_BACKEND_MVP.md) y el [primer acceso](docs/PRIMER_ACCESO_Y_RECUPERACION.md) en [docs/](docs/).
+Consulta la [especificación del MVP](docs/ESPECIFICACION_MVP_NASA_HEALTH.md) y el [plan del backend](docs/PLAN_BACKEND_MVP.md) en [docs/](docs/).
 
 ## Puente de Persona 1
 

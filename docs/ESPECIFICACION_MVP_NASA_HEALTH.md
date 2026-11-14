@@ -80,7 +80,7 @@ Los IDs de esta tabla organizan la implementación del MVP. La última columna r
 | MVP-13 | Recuperar el acceso con una sola pregunta aleatoria y máximo tres intentos. | El servidor selecciona una de las tres preguntas configuradas y la mantiene durante el desafío. Una respuesta correcta permite continuar; tres incorrectas bloquean la recuperación de esa cuenta. El bloqueo persiste al recargar y al crear otro desafío. | Nuevo · CU-12; amplía RF-02, RNF-03, RNF-04 |
 | MVP-14 | Autorizar y persistir de forma segura el restablecimiento de contraseña. | Impedir el cambio sin respuesta validada en el servidor. La autorización temporal es de un solo uso y tiene caducidad. El cambio invalida sesiones y desafíos previos; el siguiente login acepta la nueva contraseña y rechaza la anterior. | Nuevo · CU-12; amplía RNF-02 a RNF-05 |
 
-Los requisitos MVP-10 a MVP-14 incorporan las decisiones posteriores sobre primer acceso y recuperación. No estaban explícitos en los requisitos históricos v0.2. Su detalle y estado real se mantienen en [Primer acceso y recuperación](PRIMER_ACCESO_Y_RECUPERACION.md).
+Los requisitos MVP-10 a MVP-14 incorporan las decisiones posteriores sobre primer acceso y recuperación. No estaban explícitos en los requisitos históricos v0.2. Su implementación real está pendiente; los criterios de aceptación se encuentran en la sección 5.3.
 
 ### 5.1 Operaciones CRUD y permisos
 
