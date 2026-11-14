@@ -2,15 +2,15 @@
 
 Implementación: Next.js App Router, TypeScript y SQLite local con `node:sqlite`. Requiere Node **22.13+ dentro de la rama 22**; SQLite es experimental en esa rama y no requiere compilar dependencias nativas adicionales. En Vercel o con `APP_MODE=cloud`, las operaciones locales devuelven `503 LOCAL_ONLY`, sin abrir SQLite. PostgreSQL, evaluación, avisos y recepción de sincronización corresponden a persona 2.
 
-Por instrucción del usuario, esta entrega se limita al backend. **No se conectaron ni protegieron las páginas del frontend**; sus formularios y marcadores quedan como estaban. La autorización se comprueba en endpoints y casos de uso.
+La autorización se comprueba en endpoints y casos de uso. La conexión del frontend a estas operaciones sigue pendiente.
 
 ## Preparación
 
 1. Ejecutar `npm ci` con Node 22.
 2. Copiar `.env.example` a `.env.local`. Definir `ADMIN_PASSWORD` de 12–128 caracteres; `ADMIN_USERNAME` es `admin` por defecto. No hay contraseña predeterminada.
 3. Ejecutar `npm run db:migrate` y `npm run db:seed`. Repetirlos no duplica datos ni cambia credenciales existentes.
-4. Ejecutar `npm run dev`, o `npm run build` y `npm start` para producción local.
-5. Abrir **http://localhost:3000/api/docs**. OpenAPI está en `/api/openapi`.
+4. Ejecutar `npm run dev:backend` para abrir la API, y `npm run dev:frontend` en otra terminal para usar la interfaz.
+5. Abrir Swagger en `http://localhost:3001/api/docs` directamente o en `http://localhost:3000/api/docs` con el frontend iniciado. El esquema está en `/api/openapi`.
 
 Base predeterminada: `data/local/nasa-health.sqlite`, configurable con `SQLITE_PATH`. La base y sus auxiliares se excluyen de Git. Las migraciones también se aplican al abrir la base; las semillas siempre son explícitas. Misión `demo-mission`, módulo `demo-module` y parámetros son demostrativos. Cada prueba usa una base temporal; no borrar una base real para reiniciar escenarios. Coordinar IDs de migración con persona 2; no editar migraciones ya aplicadas.
 
@@ -41,6 +41,7 @@ Las mutaciones de sesión requieren `Origin` del mismo origen o `X-Nasa-Request:
 | `GET /api/v1/me/measurements/latest` | Astronauta; últimos valores, dispositivos, contexto y estado de cola propios |
 | `GET /api/v1/me/device` | Astronauta; dispositivos y última comunicación propios |
 | `POST /api/v1/measurements` | Credencial de dispositivo; pulso del astronauta vinculado |
+| `POST /api/v1/sync/measurements` | Credencial del equipo local; confirma mediciones de la misión autorizada en PostgreSQL |
 
 El admin no consulta ni captura salud; el astronauta no administra cuentas. Los casos de uso vuelven a comprobar la sesión y el rol. Los DTO administrativos excluyen hashes, tokens, mediciones y avisos. Cambio de rol/contraseña o inhabilitación revoca sesiones dentro de la misma transacción. Se conserva perfil, historial y autoría administrativa, sin guardar secretos en auditoría. No se permite retirar el último admin habilitado.
 
@@ -86,7 +87,7 @@ Para demo definir `DEMO_USERNAME` de un astronauta existente y `DEMO_RUN_ID`; ej
 
 `EnvironmentProvider.resolve(astronautId,capturedAt)` devuelve escenario, perfil/versión inmutable, ámbito, ID de asignación y disponibilidad de telemetría para la fecha original. `null` produce `409 ENVIRONMENT_MISSING`; perfil sin telemetría permite captura. La deduplicación ESP32 ocurre antes de consultar nuevamente el entorno.
 
-La composición usa **PreparationEnvironmentProvider**: adaptador provisional explícito `preparation-iss-cabin`, versión `preparation-1`, sin telemetría ni intervalos históricos reales. Sustituirlo por el proveedor de persona 2; las pruebas ya comprueban un proveedor histórico, cambios de versión y ausencia. No se implementó selector ni importación científica del catálogo de `data/`.
+La composición usa **PreparationEnvironmentProvider**: adaptador provisional explícito `preparation-iss-cabin`, versión `preparation-1`, sin telemetría ni intervalos históricos reales. Sustituirlo por el proveedor de persona 2; las pruebas ya comprueban un proveedor histórico, cambios de versión y ausencia. El cargador del catálogo y las asignaciones históricas ya existen. Falta conectarlos a este proveedor y exponer el selector.
 
 `LocalQueue` es un adaptador interno para un solo emisor por base:
 
@@ -96,7 +97,7 @@ La composición usa **PreparationEnvironmentProvider**: adaptador provisional ex
 - `reject(id,reason)`: rechazo visible, sin degradar un confirmado.
 - `retryRejected(id)`: retorna a pendiente manteniendo payload e ID.
 
-El emisor/receptor debe tolerar entrega repetida; no se promete entrega exactamente una vez. No hay API pública de cola; `latest` solo expone conteos/rechazos propios. El repositorio dispone de consultas internas por astronauta, indicador y período para evaluación. Evaluación posterior y su recuperación, catálogo histórico y PostgreSQL son integraciones pendientes de persona 2.
+El emisor/receptor debe tolerar entrega repetida; no se promete entrega exactamente una vez. No hay API pública de cola; `latest` solo expone conteos/rechazos propios. El repositorio dispone de consultas internas por astronauta, indicador y período para evaluación. El emisor usa este adaptador mediante `npm run sync:send`. El receptor PostgreSQL ya está implementado. La evaluación posterior a captura y su recuperación siguen pendientes de integración.
 
 ## Verificación reproducible
 
@@ -109,5 +110,3 @@ npm run test:production
 ```
 
 Typecheck incluye scripts/pruebas. Las pruebas usan SQLite real temporal: permisos, revocación, validación, deduplicación, rollback, contexto histórico, reapertura, cola, HTTP y contrato OpenAPI. La prueba de producción levanta Next.js con base temporal y verifica salud, Swagger/assets, login y permisos por HTTP; no toca datos reales. El receptor PostgreSQL y el ESP32 físico requieren validación conjunta posterior.
-
-Verificación de esta entrega (14 de noviembre de 2026): 14 pruebas aprobadas con Node 22.23.5, lint y ambos chequeos TypeScript correctos, build de producción correcto y prueba HTTP de producción aprobada. Se comprobó que no hay diferencias en `src/frontend`, las páginas del panel ni el login.

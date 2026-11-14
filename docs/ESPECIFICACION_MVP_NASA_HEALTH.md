@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 | --- | --- |
-| Versión | 0.7 |
+| Versión | 0.8 |
 | Estado | Referencia de implementación para revisión del equipo |
 | Fecha | 14 de noviembre de 2026 |
-| Documentos de origen | [Requisitos v0.2](REQUISITOS_NASA_HEALTH.md) y [propuesta de MVP](PROPUESTA_MVP_NASA_HEALTH.md) |
-| Base implementada | Next.js por capas, portada responsiva, vistas iniciales (login, panel e informativas) y endpoint de salud |
+| Trazabilidad | [Requisitos originales v0.2 (RF, RNF y RH)](https://github.com/AMVMesias/NASA_HEALTH/blob/e7d2ac1f25acfee01663027c6c01326d32d101c8/REQUISITOS_NASA_HEALTH.md) |
+| Base implementada | Dos aplicaciones Next.js. API local de acceso, usuarios, captura, historial y cola SQLite. Receptor PostgreSQL y módulos de entorno y evaluación pendientes de integración con captura. |
 | Producción | [NASA Health en Vercel](https://nasa-health-olive.vercel.app/) · [Estado de la API](https://nasa-health-olive.vercel.app/api/health) |
 
 ## 1. Objetivo y definición de éxito
@@ -33,7 +33,7 @@ El MVP valida la utilidad del flujo para la tripulación. La comercialización, 
 | Capacidad | Entrega del MVP |
 | --- | --- |
 | Acceso | Inicio y cierre de sesión, cuenta inicial de admin precargada, creación e inhabilitación de cuentas desde la web (`astronauta` y `admin`), protección de páginas y operaciones de servidor. |
-| Escenario | Una misión y un módulo precargados. Se propone un hábitat simulado en Marte. |
+| Escenario | Una misión y un módulo precargados. El selector pendiente de integración ofrecerá cuatro escenarios de referencia del catálogo local. |
 | Captura personal | Horas de sueño y bienestar por formulario, y frecuencia cardíaca en reposo por ESP32. El simulador usa el mismo flujo de registro y facilita una demo reproducible mientras se verifica el hardware. |
 | Tablero | Último valor, unidad, antigüedad, origen, calidad, referencia personal e historial por indicador y período. |
 | Contexto ambiental | Ficha de destino y telemetría de iluminación simulada del módulo junto al historial de sueño. El modelo admite temperatura y presión de cabina, oxígeno, CO₂ y humedad. |
@@ -127,37 +127,32 @@ Las condiciones del **hábitat, cabina o traje** se registran por módulo y per�
 
 ## 7. Arquitectura y despliegue
 
-**Decisión aprobada: Next.js para frontend y backend**, con App Router y TypeScript. El equipo local ejecuta Next.js con SQLite. El despliegue de Next.js en Vercel usará PostgreSQL para consolidar las mediciones sincronizadas. La persistencia y la sincronización están pendientes de implementación.
+**Decisión aprobada: Next.js para frontend y backend**, con App Router y TypeScript. El equipo local ejecuta Next.js con SQLite. El despliegue de Next.js en Vercel usará PostgreSQL para consolidar las mediciones sincronizadas. SQLite, la cola y el receptor PostgreSQL están implementados. La instancia en la nube y la prueba integral siguen pendientes.
 
 | Capa | Responsabilidad |
 | --- | --- |
-| Entradas Next.js · `src/app` | Páginas públicas (`/`, `/acerca`, `/recursos`, `/legal`), acceso (`/login`), rutas de `(panel)` (`/dashboard`, `/usuarios`, `/usuarios/nuevo`, más rutas reservadas `/reportes` y `/configuracion`) y adaptadores HTTP (`GET /api/health` y propuesto `POST /api/v1/measurements`). |
+| Entradas Next.js · `src/frontend/src/app` y `src/backend/src/app` | Páginas públicas (`/`, `/acerca`, `/recursos`, `/legal`), acceso (`/login`), rutas de `(panel)` (`/dashboard`, `/usuarios`, `/usuarios/nuevo`, más rutas reservadas `/reportes` y `/configuracion`) y adaptadores HTTP (`GET /api/health` y `POST /api/v1/measurements`). |
 | Presentación y módulos frontend · `src/frontend` | `presentation/` (portada), `components/` (layout y UI), `features/` (`auth`, `usuarios`, `dashboard`, `reportes`) y `lib/api.ts` para login, tablero, captura e historial, avisos y administración de usuarios. |
 | Aplicación frontend | Coordina filtros, formularios y actualización de datos cuando las vistas incorporen interacción. |
-| Aplicación backend · `src/backend/application` | Casos de uso de mediciones, consulta y seguimiento. El formulario, el simulador y el ESP32 reutilizan el registro de mediciones. |
+| Aplicación backend · `src/backend/src/backend/application` | Casos de uso de mediciones, consulta y seguimiento. El formulario, el simulador y el ESP32 reutilizan el registro de mediciones. |
 | Dominio backend | Reglas de calidad, comparación y transiciones de avisos. |
 | Infraestructura backend | Repositorio SQLite en el equipo local, repositorio PostgreSQL en la nube, autenticación y configuración. |
 
 ### Operación local y sincronización
 
-El navegador y el ESP32 se conectan al Next.js del equipo local por la red del hábitat durante la demo. La sesión se valida localmente con las cuentas precargadas. Si se corta Internet, el equipo local sigue disponible. Si el navegador pierde el enlace con ese equipo, debe recuperarlo para iniciar sesión o registrar mediciones.
+El navegador accede a Next.js en la red local. Para la demo se propone que el ESP32 envíe pulso por BLE a un puente en el portátil, que entrega las lecturas a la API local. La sesión se valida localmente con las cuentas precargadas. Si se corta Internet, el equipo local sigue disponible. Si el navegador pierde el enlace con ese equipo, debe recuperarlo para iniciar sesión o registrar mediciones.
 
 Guardar cada medición y su entrada pendiente de envío en la misma transacción de SQLite. Usar un ID estable y una restricción de unicidad en PostgreSQL para aceptar reintentos sin duplicar registros. La API de Vercel valida la credencial del equipo local, verifica el alcance autorizado y devuelve una confirmación por registro. Mantener pendiente cada medición hasta recibir su confirmación. Mostrar los rechazos y su motivo para revisión. Incluir un control de reintento manual para la demo.
 
 El MVP sincroniza mediciones nuevas. Los avisos y las acciones se conservan en el entorno donde se generan. La sincronización de cambios en estos registros y la edición desde varios equipos quedan para una fase posterior.
 
-Usar una red local para la prueba con ESP32 y confirmar placa, sensor, receptor y protocolo antes de incorporar el hardware a la demo. La opción propuesta es Wi-Fi con ingesta HTTP y validación de credenciales. En producción, las operaciones remotas usan HTTPS. Proteger cookies, credenciales y datos por rol, y mantener los secretos fuera de Git. La actualización del tablero puede empezar con consultas periódicas. Las reglas de variación se evalúan al aceptar una medición válida. [Next.js, Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)
+Usar una red local para la prueba con ESP32 y confirmar placa, sensor, receptor y protocolo antes de incorporar el hardware a la demo. La integración propuesta utiliza Bluetooth Low Energy entre la placa y el portátil, y HTTP entre el puente y la API local. Falta probar el hardware y cerrar el contrato GATT. En producción, las operaciones remotas usan HTTPS. Proteger cookies, credenciales y datos por rol, y mantener los secretos fuera de Git. La actualización del tablero puede empezar con consultas periódicas. Las reglas de variación se evalúan al aceptar una medición válida. [Next.js, Route Handlers](https://nextjs.org/docs/app/getting-started/route-handlers)
 
 El despliegue inicial de `main` se realizó mediante Vercel CLI. La portada y `/api/health` están implementados y verificados en el despliegue inicial. El vínculo automático GitHub–Vercel sigue pendiente. Para publicar código desde el proyecto ya vinculado localmente, usar `npx vercel deploy --prod` y verificar las rutas del entorno. [README del repositorio](../README.md)
 
-## 8. Plan de implementación y verificación
+## 8. Verificación
 
-1. **Confirmar parámetros del escenario.** Acordar escala de bienestar, placa y sensor, protocolo y frecuencia de ingesta, vigencia de lecturas, ventana de referencia y regla demostrativa. Validar qué protocolo revisado se puede mostrar, si se incorpora.
-2. **Agregar autenticación, gestión de usuarios, persistencia y captura.** Preparar la cuenta inicial de admin y la misión de demo, implementar `/usuarios` y `/usuarios/nuevo` para crear e inhabilitar cuentas, aplicar permisos por rol y construir la captura manual y simulada. Verificar que el historial conserva la procedencia.
-3. **Completar autoevaluación y respuesta.** Implementar línea base, estado de calidad, explicación del aviso, seguimiento y cierre por el astronauta. Agregar el contexto de iluminación al historial de sueño.
-4. **Integrar y comprobar el ESP32.** Enviar una lectura real, reenviar su identificador para probar deduplicación y cortar la señal para probar vigencia. Mantener el escenario sintético disponible para reproducir el guion.
-5. **Implementar sincronización.** Preparar SQLite, la cola persistente y la API en Vercel con PostgreSQL. Verificar reintentos, permisos y deduplicación.
-6. **Validar local y producción.** Ejecutar lint, verificación de tipos y build. Verificar la app local con Internet desconectado. Desplegar desde `main` y probar portada, salud, acceso protegido y flujo de demo en Vercel con datos ficticios.
+El orden de trabajo, los responsables y las pruebas técnicas están en el [plan de integración](PLAN_BACKEND_MVP.md).
 
 ### Guion de aceptación
 

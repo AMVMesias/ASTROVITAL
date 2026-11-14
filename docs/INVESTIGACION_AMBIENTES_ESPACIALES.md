@@ -125,31 +125,49 @@ Tampoco existe en estas fuentes una función validada que convierta destino + te
 
 El primer lote debería ser pequeño: un período de ISS y uno o varios soles MEDA con buena cobertura. Este informe localiza fuentes y referencias; aún no constituye ese lote descargado. Para Luna, comenzar con un producto térmico regional identificado y la referencia publicada LND, sin fabricar una serie histórica de radiación.
 
-## 7. Perfiles propuestos para el prototipo
+## 7. Catálogo ambiental que usa el backend
 
-Los siguientes son **supuestos explícitos de simulación**, no medidas de estaciones lunares/marcianas ni una recomendación de diseño de soporte vital:
+El archivo es una **base documental de referencias y conectores**, útil para preparar fichas ambientales y perfiles seleccionables. No es un generador de datos, una serie de telemetría, un esquema formal de validación ni un modelo fisiológico. Su campo `verification` declara que no se comprobaron descargas en vivo y que no hay series embebidas. El nombre `verified` no sustituye la validación científica de cada entrada ni las pruebas de cada conector.
 
-| Perfil propuesto | Gravedad representada | Interior sintético inicial | Exterior/contexto |
-| --- | --- | --- | --- |
-| `deep-space-transit-cabin` | Microgravedad; aceleración residual sin valor si no hay modelo | 22 °C, 45% HR, 101.3 kPa, O₂ 20.9%, CO₂ 1000 ppm | Vacío aproximado; referencia RAD de crucero separada |
-| `iss-cabin` | Microgravedad | Mismos valores para guion; sustituibles por reproducción EDA | Órbita terrestre; ciclo operativo interior separado de amaneceres orbitales |
-| `lunar-surface-habitat` | Aproximadamente 1.62 m/s² | Mismos valores, etiquetados como diseño ficticio | Suelo lunar según localización/hora; referencia LND exterior |
-| `mars-surface-habitat` | 3.73 m/s² | Mismos valores, etiquetados como diseño ficticio | Meteorología MEDA seleccionada; referencia RAD exterior |
+Se comprobó localmente que el JSON se puede parsear, contiene cuatro escenarios, 30 entradas ambientales, 15 fuentes y ocho conectores; todas las referencias de fuentes y escenarios usadas por variables, listas de fuentes y conectores existen. Nueve entradas ambientales tienen valor `null`. Esta comprobación es estructural; no vuelve a verificar las cifras contra las publicaciones enlazadas.
 
-Usar valores interiores iguales al inicio permite demostrar que **el soporte vital controla el ambiente respirado**, aunque el destino cambie. Es una decisión de la demo. No asignar la radiación exterior al interior sin un modelo de transporte/blindaje o una medida pertinente. Si falta, mostrar «sin datos».
+| Escenario | Qué permite mostrar ahora | Qué no entrega |
+| --- | --- | --- |
+| `deep_space_transit` | Rangos radiológicos publicados de Orion/Artemis I y explicación de contexto | Crucero interplanetario observado, microclima de cabina o dosis personal |
+| `iss_leo` | Referencias de comparación de radiación de un período y fuentes EDA/RadLab | Temperatura, humedad, CO₂ o presión medidos en un instante concreto |
+| `moon_surface` | Gravedad, referencias térmicas/exosféricas y radiación instrumental LND | Interior de base/traje, dosis personal o serie horaria |
+| `mars_surface` | Gravedad, referencias atmosféricas, viento y radiación RAD | Estado actual en Jezero, interior de base/traje o datos biométricos |
 
-EVA debe ser un modo/perfil adicional con versión del traje, actividad, presión/composición y control térmico propios. La referencia EMU ayuda a explicar el concepto, pero no define un traje de Marte.
+### Criterios para interpretar e importar datos
 
-Guiones sintéticos propuestos:
+1. **Ámbito por variable.** `scope` describe exteriores lunares/marcianos, aunque el archivo también incluye ISS y nave. Los campos `setting` son descriptivos; normalizarlos. Separar ubicación del instrumento, objeto medido y contexto de exposición: Orion/ISS interior, superficie/aire/exosfera exterior e instrumento radiológico no son intercambiables.
+2. **Representatividad del tránsito.** El ID `deep_space_transit` se puede conservar por compatibilidad, pero su evidencia Orion corresponde a una misión lunar de referencia. No presentarla como una medición de viaje a Marte; conservar misión y alcance en la ficha.
+3. **Versionado.** `schema_version: 1.1.0` identifica formato y `prepared_on` fecha de preparación; faltan versión inmutable de contenido/perfil y checksum. Una edición de valores debe crear una nueva revisión, sin sobrescribir la citada por mediciones antiguas.
+4. **Tipos y unidades.** `value` admite escalar, rango y `null`. Ocho entradas carecen de campo `unit`, aunque algunas sugieren unidad en su nombre. Normalizar con un mapeo explícito, no por heurística. Conservar también dato/unidad originales; validar números finitos y `min ≤ max`.
+5. **Ausencia.** `null` es desconocido. No usar cero, media del rango o ruido aleatorio para rellenarlo. Motivo de ausencia y procedencia son parte del DTO.
+6. **Referencias frente a observaciones.** Los campos requeridos para registros importados no describen las referencias actuales: no inventar `observed_at` usando `prepared_on`. Una referencia puede tener período no especificado; una observación exige fecha original, instrumento, sitio y calidad verificables.
+7. **Conectores.** Los ocho están marcados `tested_live: false`. Revisar endpoints y documentos de producto antes de activarlos; confirmar unidades que EDA deja pendientes. La consulta RadLab incluye un filtro `absorbed_dose_rate>2`: no usar ese ejemplo como serie completa ni para calcular promedios representativos sin justificar el sesgo de selección.
+8. **Radiación.** Mantener componente GCR/total/neutro, tasa/acumulado, material detector y blindaje contextual. No sumar componente neutra al total que ya la incluye, ni convertir Gy a Sv con una constante arbitraria. No asignar tasas instrumentales como exposición personal.
+9. **Salud y traje.** Conservar las restricciones ya incluidas. `quantitative_physiological_effect`, `personal_dose` y medidas internas son `null`; no crear funciones que los rellenen desde gravedad, CO₂ o temperatura exterior. DONKI describe eventos, no dosis local; OLTARIS requiere un modelo adicional y queda fuera de la entrega mínima.
 
-1. **Nominal:** siete días de cabina estable y lecturas personales de referencia. Sus valores y variabilidad son sintéticos.
-2. **Iluminación y sueño:** cambio de iluminación nocturna acompañado por menor sueño declarado. Mostrar coincidencia temporal, sin afirmar que una serie causó la otra. Lux no describe por sí solo el estímulo circadiano espectral.
-3. **CO₂:** elevar sintéticamente la concentración hasta sostener una ppCO₂ media horaria superior a la referencia V2 6004. Mostrar ventana, cobertura y revisión del ambiente; no generar automáticamente cefalea como dato real.
-4. **Retorno de EVA:** entrada sintética de polvo y anotación opcional de irritación. Respetar fracción de tamaño y duración antes de comparar con una referencia.
-5. **Fallo de sensor:** dato ausente, congelado o imposible. Conservar último valor y antigüedad; no rellenar como si fuera medición.
-6. **Cambio de perfil:** cabina → EVA → cabina. Conservar cada contexto histórico y evitar comparar pulso en reposo con esfuerzo EVA como si fueran equivalentes.
+### Modelo de integración
 
-Para exposición acumulada, integrar la tasa solo durante intervalos cubiertos y comparables. Separar dosis absorbida (Gy) de dosis equivalente/efectiva (Sv); no convertirlas con un factor arbitrario ni mezclar materiales detectores.
+Crear cuatro recursos distintos, con nombres de tablas definitivos a decidir en migraciones:
+
+| Recurso | Contenido | Uso |
+| --- | --- | --- |
+| Catálogo documental | Fuentes y referencias escalares/rangos, evidencia, contexto, revisión y checksum | Fichas consultables offline |
+| Perfil y asignación | Escenario, versión, ámbito, misión/módulo, actividad e intervalo efectivo por astronauta | Contexto histórico de captura |
+| Observación ambiental | Fecha original, variable, unidad, instrumento, ubicación, calidad, producto y transformaciones | Historial ambiental real o reproducción histórica |
+| Medición personal | Dueño, indicador, origen y contexto ambiental referenciado | Captura, evaluación personal y sincronización del MVP |
+
+El adaptador de infraestructura carga el JSON, valida estructura y referencias, y lo transforma al contrato del dominio. El caso de uso consulta ese contrato; no depende de nombres de propiedades como `exterior_viking1_diurnal_air_temperature_range`. Mantener el archivo original y su checksum permite auditar la transformación.
+
+Una semilla idempotente inserta escenarios/referencias por ID y revisión. Si encuentra mismo ID/revisión con contenido distinto, falla explícitamente. La nube recibe el mismo catálogo versionado antes de aceptar mediciones que lo referencian; no sincronizar automáticamente fuentes/observaciones por la cola personal existente.
+
+La selección debe conservar intervalos efectivos sin solapamientos por astronauta y contexto de actividad. Un registro de ayer consulta la asignación de ayer, no la actual; si falta, informar el error o pedir contexto explícito validado. No impedir una medición por ausencia de telemetría cuando sí existe un perfil válido.
+
+Fuente del catálogo: [space_environment_surface_EVA_verified.json](../data/space_environment_surface_EVA_verified.json). El cargador y las asignaciones históricas están implementados. El selector en el tablero y las importaciones EDA/MEDA quedan pendientes.
 
 ## 8. Datos mínimos para implementarlo
 
@@ -163,13 +181,3 @@ Propuesta de contrato, pendiente de coordinar con los dos responsables:
 - **Exposición personal:** astronauta, intervalo, cabina/traje, actividad, contexto y referencia a telemetría; no asumir presencia por coincidencia de misión.
 
 Guardar `null` más un motivo para desconocidos; nunca sustituir ausencia por cero. Los valores de referencia publicados no deben presentarse como telemetría en vivo. Una reproducción histórica conserva sus fechas originales además del reloj de reproducción.
-
-## 9. Aplicación al reparto del proyecto
-
-**Persona 1:** persistir ID/versión ambiental y contexto con cada medición; conservar unidades, fechas y procedencia; separar origen manual, físico y sintético; mantener autenticación, historial y cola.
-
-**Persona 2:** preparar catálogo de cuatro destinos y modos cabina/EVA, importadores de datos seleccionados, consulta temporal ambiental y reglas versionadas. Los riesgos ambientales necesitan su propio tipo de aviso: no confundirlos con desviaciones fisiológicas o calidad de sensor.
-
-Antes de implementar el catálogo, actualizar el reparto: el plan anterior menciona tres perfiles y el JSON todavía no existe. Esta investigación propone cuatro destinos con ámbitos separados, por lo que no debe incorporarse silenciosamente como si fuera el mismo contrato.
-
-Orden de incorporación recomendado: (1) unidades/ámbitos/procedencia; (2) cabina sintética claramente etiquetada; (3) reproducción ambiental ISS y Marte con archivos originales conservados; (4) contexto térmico lunar; (5) exposición, polvo y radiación con sus restricciones. Mantener sueño, bienestar y pulso como indicadores del MVP; incorporar nuevos indicadores solo si existe fuente o sensor adecuado.
