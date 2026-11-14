@@ -1,4 +1,5 @@
 "use client";
+import { ThemeToggle } from "../../../frontend/components/ui/ThemeToggle";
 import { useLanguage } from "../../../frontend/providers/LanguageProvider";
 import { LanguageSelect } from "../../../frontend/components/ui/LanguageSelect";
 import Image from "next/image";
@@ -46,7 +47,10 @@ export default function Login() {
       </section>
       <section className="auth-card-area" aria-labelledby="auth-title">
         <div className="auth-card-stack">
-          <LanguageSelect />
+          <div className="appearance-controls">
+            <LanguageSelect />
+            <ThemeToggle />
+          </div>
           <Link href="/" className="auth-home-link">
             <span aria-hidden="true">←</span>
             {t("Volver a la página de inicio")}
