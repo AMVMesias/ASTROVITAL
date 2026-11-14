@@ -83,6 +83,12 @@ El dispositivo y su dueño deben estar habilitados; el dueño debe ser astronaut
 
 Para demo definir `DEMO_USERNAME` de un astronauta existente y `DEMO_RUN_ID`; ejecutar `npm run demo:simulate`. Genera 33 lecturas de sueño/bienestar/pulso en 12 días, con un día sin muestras y variación deliberada. Pasan por el mismo registro transaccional, conservan origen `simulated` y escenario. No derivan cifras fisiológicas del catálogo. Repetir el mismo DEMO_RUN_ID se rechaza; usar otro sin borrar datos. No hay endpoint público de simulación.
 
+## Puente Bluetooth pendiente
+
+Firmware prepara un servicio Bluetooth Low Energy (BLE) para notificar el pulso del AD8232. En el sketch revisado, el estado ECG puede indicar detección antes de que exista un BPM calculado. La validez del contacto y de la estimación debe quedar resuelta en el firmware antes de publicar el pulso. La primera entrega persiste `heart_rate` en `bpm`. El CSV de 250 Hz se conserva para depuración. Respiración y SpO₂ requieren una ampliación del contrato de ingesta.
+
+La Persona 1 recibe la notificación en el portátil y transforma la estimación nueva al formato HTTP anterior. Aprovisiona el dispositivo y usa su credencial en el puente. Ante un reintento, reenvía el mismo `readingId` y `capturedAt`. El estado de pérdida de señal se trata como calidad o desconexión, con la última lectura y su antigüedad visibles. La Persona 2 usa la hora de captura para asociar el entorno y evaluar la medición persistida. [Responsabilidades, contrato y prueba conjunta](PLAN_BACKEND_MVP.md)
+
 ## Contratos con persona 2
 
 `EnvironmentProvider.resolve(astronautId,capturedAt)` devuelve escenario, perfil/versión inmutable, ámbito, ID de asignación y disponibilidad de telemetría para la fecha original. `null` produce `409 ENVIRONMENT_MISSING`; perfil sin telemetría permite captura. La deduplicación ESP32 ocurre antes de consultar nuevamente el entorno.
