@@ -1,3 +1,5 @@
+import { onboardingBody } from "./fixtures/auth";
+import { POST as completeOnboarding } from "../src/backend/src/app/api/v1/auth/onboarding/route";
 import { GET as environment, POST as select } from "../src/backend/src/app/api/v1/me/environment/route";
 import { POST as signal } from "../src/backend/src/app/api/v1/devices/status/route";
 import { sameOrigin } from "../src/backend/src/backend/transport/http";
@@ -63,7 +65,12 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     const user=(await create.json()).user;
     assert.equal(user.passwordHash,undefined);
     const astroLogin=await login(request("/api/v1/auth/login","POST",{username:user.username,password}));
-    const astroCookie=astroLogin.headers.get("set-cookie")!.split(";")[0];
+    const initialCookie=astroLogin.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await astroLogin.json()).user.requiresOnboarding,true);
+    assert.equal((await history(request("/api/v1/me/measurements","GET",undefined,initialCookie))).status,403);
+    assert.equal((await completeOnboarding(request("/api/v1/auth/onboarding","POST",onboardingBody(password+"-changed"),initialCookie))).status,200);
+    const configuredLogin=await login(request("/api/v1/auth/login","POST",{username:user.username,password:password+"-changed"}));
+    const astroCookie=configuredLogin.headers.get("set-cookie")!.split(";")[0];
     assert.equal((await users(request("/api/v1/users","GET",undefined,astroCookie))).status,403);
     assert.equal((await history(request("/api/v1/me/measurements","GET",undefined,adminCookie))).status,403);
     const catalog=await environment(request("/api/v1/me/environment","GET",undefined,astroCookie));

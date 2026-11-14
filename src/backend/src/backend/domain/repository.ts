@@ -14,6 +14,7 @@ export interface Repository {
   blockedUntil(username: string): string | null;
   loginFailure(username: string): void;
   clearFailures(username: string): void;
+  resetRecovery(userId: string, clearAnswers: boolean): void;
   device(id: string): (Device & { credentialHash: string }) | null;
   devices(astronautId: string): Device[];
   touchDevice(id: string, at: string): void;

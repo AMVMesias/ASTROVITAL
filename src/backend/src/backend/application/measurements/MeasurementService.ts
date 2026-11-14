@@ -18,7 +18,7 @@ export class MeasurementService {
       const device = this.repo.device(id);
       if (!device?.enabled || digest(credential) !== device.credentialHash) throw new AppError(401, "DEVICE_UNAUTHORIZED", "Dispositivo o credencial no válidos.");
       const user = this.repo.users().find(user => user.astronautId === device.astronautId);
-      if (!user?.enabled || user.role !== "astronauta") throw new AppError(403, "DEVICE_OWNER_UNAVAILABLE", "La cuenta vinculada no está habilitada como astronauta.");
+      if (!user?.enabled || user.requiresOnboarding || user.role !== "astronauta") throw new AppError(403, "DEVICE_OWNER_UNAVAILABLE", "La cuenta vinculada no está habilitada como astronauta.");
       const result = this.capture(user.astronautId!, user.missionId!, user.moduleId!, input, "device", null, id);
       this.repo.touchDevice(id, new Date().toISOString());
       this.repo.signalStatus(id,"valid",result.measurement.capturedAt,new Date().toISOString());
@@ -30,7 +30,7 @@ export class MeasurementService {
       const device=this.repo.device(id);
       if(!device?.enabled || digest(credential)!==device.credentialHash) throw new AppError(401,"DEVICE_UNAUTHORIZED","Dispositivo o credencial no válidos.");
       const user=this.repo.users().find(user=>user.astronautId===device.astronautId);
-      if(!user?.enabled || user.role!=="astronauta") throw new AppError(403,"DEVICE_OWNER_UNAVAILABLE","Cuenta vinculada no disponible.");
+      if(!user?.enabled || user.requiresOnboarding || user.role!=="astronauta") throw new AppError(403,"DEVICE_OWNER_UNAVAILABLE","Cuenta vinculada no disponible.");
       const input=object(value);only(input,["status","observedAt"]);
       const status=text(input,"status");
       if(!["no_contact","no_signal","insufficient","disconnected"].includes(status)) throw new AppError(400,"VALIDATION","Estado de señal inválido.");
@@ -44,7 +44,7 @@ export class MeasurementService {
   /** Solo comando local de demo; no se publica como endpoint. */
   simulated(astronautId: string, input: unknown, scenario: string) {
     return this.repo.atomic(() => {
-      const user = this.repo.users().find(user => user.astronautId === astronautId && user.role === "astronauta" && user.enabled);
+      const user = this.repo.users().find(user => user.astronautId === astronautId && user.role === "astronauta" && user.enabled && !user.requiresOnboarding);
       if (!user) throw new AppError(404, "NOT_FOUND", "Astronauta de demo no disponible.");
       return this.capture(astronautId, user.missionId!, user.moduleId!, input, "simulated", user.id, undefined, scenario);
     });

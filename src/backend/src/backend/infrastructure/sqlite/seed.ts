@@ -15,7 +15,7 @@ export function seed(repo: SqliteRepository, adminUsername: string, adminPasswor
     repo.run("INSERT INTO modules VALUES('demo-module','demo-mission','Módulo de demostración') ON CONFLICT DO NOTHING");
     for (const [id, config] of Object.entries(indicatorConfig)) repo.run("INSERT INTO indicators VALUES(?,'demo-format-1',?) ON CONFLICT DO NOTHING", id, JSON.stringify(config));
     if (!repo.accountByUsername(adminUsername)) {
-      const account: Account = { id: randomUUID(), username: adminUsername, name: "Administrador inicial", passwordHash: hashPassword(adminPassword), role: "admin", enabled: true, astronautId: null, missionId: null, moduleId: null, createdAt: new Date().toISOString() };
+      const account: Account = { id: randomUUID(), username: adminUsername, name: "Administrador inicial", passwordHash: hashPassword(adminPassword), role: "admin", enabled: true, requiresOnboarding: false, astronautId: null, missionId: null, moduleId: null, createdAt: new Date().toISOString() };
       repo.saveAccount(account);
       repo.audit(account.id, account.id, "initial_admin_provisioned");
     }

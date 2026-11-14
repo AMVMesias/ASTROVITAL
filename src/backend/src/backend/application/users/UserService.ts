@@ -34,13 +34,17 @@ export class UserService {
         id: existing?.id ?? randomUUID(), username,
         name: "name" in input || !existing ? text(input, "name", 1, 120) : existing.name,
         role: role as Role, enabled, createdAt: existing?.createdAt ?? new Date().toISOString(),
+        requiresOnboarding: !existing || "password" in input ? true : existing.requiresOnboarding,
         passwordHash: "password" in input || !existing ? hashPassword(password(input)) : existing.passwordHash,
         astronautId: existing?.astronautId ?? (role === "astronauta" ? randomUUID() : null),
         missionId: existing?.missionId ?? (role === "astronauta" ? "demo-mission" : null),
         moduleId: existing?.moduleId ?? (role === "astronauta" ? "demo-module" : null),
       };
       this.repo.saveAccount(user);
-      if (existing && (role !== existing.role || !enabled || "password" in input)) this.repo.revokeUserSessions(user.id);
+      if (existing && (role !== existing.role || !enabled || "password" in input)) {
+        this.repo.revokeUserSessions(user.id);
+        this.repo.resetRecovery(user.id,"password" in input);
+      }
       this.repo.audit(author.id, user.id, existing ? "account_updated" : "account_created");
       return publicUser(user);
     });

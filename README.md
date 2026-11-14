@@ -43,3 +43,7 @@ Consulta la [especificación del MVP](docs/ESPECIFICACION_MVP_NASA_HEALTH.md), e
 ## Puente de Persona 1
 
 Captura USB Serial del sketch AD8232 y transporte BLE configurable, con cola durable hacia la API local y estados de pérdida de señal. Ver [instalación, contrato y pruebas](docs/PUENTE_ESP32.md). El firmware aportado todavía no implementa BLE; la prueba física requiere placa y UUID confirmados. No se modificó el frontend en esta entrega.
+
+## Primer acceso y recuperación en backend
+
+Disponibles el catálogo de preguntas, configuración inicial transaccional, desafío con tres intentos persistentes y cambio de contraseña con token temporal de un solo uso. Las cuentas nuevas tienen sesión restringida hasta completar el primer acceso. Ver [contratos y ejemplos](docs/PRIMER_ACCESO_Y_RECUPERACION.md). La interfaz aún conserva su demo local y requiere integración.

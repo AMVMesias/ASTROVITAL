@@ -11,7 +11,7 @@ const selectAccount = `SELECT u.*, a.id AS astronaut_id, a.mission_id, a.module_
 function account(row: Row | undefined): Account | null {
   if (!row) return null;
   return { id: String(row.id), username: String(row.username), name: String(row.name), role: row.role as Role,
-    enabled: row.enabled === 1, createdAt: String(row.created_at), passwordHash: String(row.password_hash),
+    enabled: row.enabled === 1, requiresOnboarding: row.requires_onboarding === 1, createdAt: String(row.created_at), passwordHash: String(row.password_hash),
     astronautId: row.astronaut_id === null ? null : String(row.astronaut_id),
     missionId: row.mission_id === null ? null : String(row.mission_id), moduleId: row.module_id === null ? null : String(row.module_id) };
 }
@@ -42,9 +42,9 @@ export class SqliteRepository implements Repository {
   accountByUsername(username: string) { return account(this.get(`${selectAccount} WHERE u.username=?`, username)); }
   users() { return this.all(`${selectAccount} ORDER BY u.created_at,u.id`).map(row => administrative(account(row)!)); }
   saveAccount(user: Account) {
-    this.run(`INSERT INTO users VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET username=excluded.username,
-      name=excluded.name,password_hash=excluded.password_hash,role=excluded.role,enabled=excluded.enabled`,
-    user.id, user.username, user.name, user.passwordHash, user.role, Number(user.enabled), user.createdAt);
+    this.run(`INSERT INTO users(id,username,name,password_hash,role,enabled,created_at,requires_onboarding) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET username=excluded.username,
+      name=excluded.name,password_hash=excluded.password_hash,role=excluded.role,enabled=excluded.enabled,requires_onboarding=excluded.requires_onboarding`,
+    user.id, user.username, user.name, user.passwordHash, user.role, Number(user.enabled), user.createdAt, Number(user.requiresOnboarding));
     if (user.astronautId) {
       this.run("INSERT INTO astronauts VALUES(?,?,?,?) ON CONFLICT(user_id) DO NOTHING", user.astronautId, user.id, user.missionId, user.moduleId);
       this.run(`INSERT INTO astronaut_environment_assignments(mission_id,astronaut_id,effective_from,revision,scenario_id)
@@ -69,6 +69,12 @@ export class SqliteRepository implements Repository {
     username, new Date(Date.now() + 60_000).toISOString(), new Date().toISOString(), new Date().toISOString(), new Date(Date.now() + 900_000).toISOString());
   }
   clearFailures(username: string) { this.run("DELETE FROM login_attempts WHERE username=?", username); }
+  resetRecovery(userId: string, clearAnswers: boolean) {
+    this.run("DELETE FROM recovery_challenges WHERE subject=?",`user:${userId}`);
+    this.run("DELETE FROM password_reset_grants WHERE user_id=?",userId);
+    this.run("DELETE FROM recovery_attempts WHERE subject=?",`user:${userId}`);
+    if(clearAnswers) this.run("DELETE FROM security_answers WHERE user_id=?",userId);
+  }
   device(id: string) {
     const row = this.get("SELECT * FROM devices WHERE id=?", id);
     return row ? { id: String(row.id), astronautId: String(row.astronaut_id), credentialHash: String(row.credential_hash), enabled: row.enabled === 1, lastCommunicationAt: row.last_communication_at ? String(row.last_communication_at) : null } : null;

@@ -1,3 +1,4 @@
+import { onboard } from "./fixtures/auth";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync,rmSync } from "node:fs";
@@ -14,7 +15,8 @@ function fixture(path=":memory:") {
   const repo=new SqliteRepository(path);seed(repo,"admin",password);
   const app=createServices(repo);
   const admin=app.auth.session(app.auth.login({username:"admin",password}).token);
-  const user=app.users.save(admin,{username:"astro",name:"Astronauta",role:"astronauta",password});
+  const user=app.users.save(admin,{username:"astro",name:"Astronauta",role:"astronauta",password:"initial-"+password});
+  onboard(app,"astro","initial-"+password,password);
   const session=app.auth.session(app.auth.login({username:"astro",password}).token);
   repo.run("UPDATE astronaut_environment_assignments SET effective_from='2026-01-01T00:00:00.000Z' WHERE astronaut_id=?",user.astronautId);
   return {...app,admin,user,session};
@@ -24,14 +26,16 @@ test("actualiza una base v1 existente sin perder cuentas, lecturas o pendientes"
   const f=fixture(path);
   const saved=f.measurements.manual(f.session,{indicator:"sleep",value:7,unit:"h",capturedAt:"2026-01-01T08:00:00Z"}).measurement;
   // Reconstrucción de la estructura previa en una base temporal, conservando datos v1.
-  f.repo.db.exec(`DROP TABLE assessment_jobs; DROP TABLE device_status; DROP TABLE local_settings;
+  f.repo.db.exec(`DROP TABLE password_reset_grants; DROP TABLE recovery_challenges; DROP TABLE recovery_attempts; DROP TABLE security_answers;
+    ALTER TABLE users DROP COLUMN requires_onboarding;
+    DROP TABLE assessment_jobs; DROP TABLE device_status; DROP TABLE local_settings;
     DROP TABLE astronaut_alert_actions; DROP TABLE astronaut_alerts;
     DROP TABLE astronaut_environment_assignments; DROP TABLE environment_profiles; DROP TABLE environment_catalog_revisions;
     DELETE FROM schema_migrations WHERE id!='001_person1_local';`);
   f.repo.close();
   const reopened=new SqliteRepository(path);
   try {
-    assert.equal(reopened.all("SELECT * FROM schema_migrations").length,4);
+    assert.equal(reopened.all("SELECT * FROM schema_migrations").length,5);
     assert.equal(reopened.pending(100)[0].id,saved.id);
     assert.equal(reopened.get("SELECT status FROM assessment_jobs WHERE id=?",saved.id)?.status,"pending");
     assert.equal(reopened.account(f.user.id)?.username,"astro");

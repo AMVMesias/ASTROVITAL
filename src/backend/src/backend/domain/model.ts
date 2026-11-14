@@ -9,6 +9,7 @@ export interface User {
   name: string;
   role: Role;
   enabled: boolean;
+  requiresOnboarding: boolean;
   astronautId: string | null;
   missionId: string | null;
   moduleId: string | null;

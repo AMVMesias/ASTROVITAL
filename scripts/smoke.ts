@@ -42,13 +42,40 @@ async function main() {
     assert.equal((await fetch(`${root}/api/v1/users`,{headers:{cookie}})).status,200);
     assert.equal((await fetch(`${root}/api/v1/me/measurements`,{headers:{cookie}})).status,403);
     assert.equal((await fetch(`${root}/api/v1/users`)).status,401);
+    const creation=await fetch(`${root}/api/v1/users`,{method:"POST",headers:{cookie,"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"recovery-smoke",name:"Recovery Smoke",role:"astronauta",password})});
+    assert.equal(creation.status,201);
+    const onboardLogin=await fetch(`${root}/api/v1/auth/login`,{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"recovery-smoke",password})});
+    const restrictedCookie=onboardLogin.headers.get("set-cookie")!.split(";")[0];
+    assert.equal((await onboardLogin.json()).user.requiresOnboarding,true);
+    const answers=[{questionId:"first-pet",answer:"gato"},{questionId:"childhood-city",answer:"Quito"},{questionId:"first-school",answer:"escuela"}];
+    const configuredPassword=password+"-configured";
+    const onboarding=await fetch(`${root}/api/v1/auth/onboarding`,{method:"POST",headers:{cookie:restrictedCookie,"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({newPassword:configuredPassword,confirmation:configuredPassword,answers})});
+    assert.equal(onboarding.status,200);
+    const challengeResponse=await fetch(`${root}/api/v1/auth/recovery/start`,{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"recovery-smoke"})});
+    assert.equal(challengeResponse.status,200);
+    const challenge=await challengeResponse.json();
+    const verification=await fetch(`${root}/api/v1/auth/recovery/verify`,{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({challengeId:challenge.challengeId,answer:answers.find(answer=>answer.questionId===challenge.question.id)!.answer})});
+    assert.equal(verification.status,200);
+    const grant=await verification.json(),recoveredPassword=password+"-recovered";
+    const resetBody=JSON.stringify({resetToken:grant.resetToken,newPassword:recoveredPassword,confirmation:recoveredPassword});
+    const resetOptions={method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:resetBody};
+    assert.equal((await fetch(`${root}/api/v1/auth/recovery/reset`,resetOptions)).status,200);
+    assert.equal((await fetch(`${root}/api/v1/auth/recovery/reset`,resetOptions)).status,401);
+    const recoveredLogin=await fetch(`${root}/api/v1/auth/login`,{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"recovery-smoke",password:recoveredPassword})});
+    assert.equal(recoveredLogin.status,200);
+    assert.equal((await recoveredLogin.json()).user.requiresOnboarding,false);
+    console.log("Primer acceso y recuperación verificados por HTTP en producción; autorización de un solo uso.");
     if(process.env.BRIDGE_TEST_PYTHON) {
       const create=await fetch(`${root}/api/v1/users`,{method:"POST",headers:{cookie,"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"bridge-astro",name:"Bridge Test",role:"astronauta",password})});
       assert.equal(create.status,201);
       const deviceToken=randomBytes(32).toString("hex");
       const local=new SqliteRepository(path);provisionDevice(local,"bridge-astro","esp32-test",deviceToken);local.close();
       const auth=await fetch(`${root}/api/v1/auth/login`,{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"bridge-astro",password})});
-      const astroCookie=auth.headers.get("set-cookie")!.split(";")[0];
+      const initialCookie=auth.headers.get("set-cookie")!.split(";")[0];
+      const setup=await fetch(`${root}/api/v1/auth/onboarding`,{method:"POST",headers:{cookie:initialCookie,"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({newPassword:password+"-changed",confirmation:password+"-changed",answers:[{questionId:"first-pet",answer:"gato"},{questionId:"childhood-city",answer:"Quito"},{questionId:"first-school",answer:"escuela"}]})});
+      assert.equal(setup.status,200);
+      const configured=await fetch(`${root}/api/v1/auth/login`,{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1"},body:JSON.stringify({username:"bridge-astro",password:password+"-changed"})});
+      const astroCookie=configured.headers.get("set-cookie")!.split(";")[0];
       const python=process.env.BRIDGE_TEST_PYTHON;
       const emitter=spawn(python,["-u","-c",`import os,pty,time
 master,slave=pty.openpty()

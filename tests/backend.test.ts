@@ -1,3 +1,4 @@
+import { onboard,onboardingBody } from "./fixtures/auth";
 import { PreparationEnvironmentProvider } from "../src/backend/src/backend/application/environment/PreparationEnvironmentProvider";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -21,8 +22,10 @@ function fixture(path = ":memory:") {
   const services = createServices(repo,new PreparationEnvironmentProvider());
   const adminLogin = services.auth.login({ username: "admin", password: credential });
   const admin = services.auth.session(adminLogin.token);
-  const a = services.users.save(admin,{ username: "astro-a", name: "Astronauta A", role: "astronauta", password: credential });
-  const b = services.users.save(admin,{ username: "astro-b", name: "Astronauta B", role: "astronauta", password: credential });
+  const a = services.users.save(admin,{ username: "astro-a", name: "Astronauta A", role: "astronauta", password: "initial-"+credential });
+  const b = services.users.save(admin,{ username: "astro-b", name: "Astronauta B", role: "astronauta", password: "initial-"+credential });
+  onboard(services,a.username,"initial-"+credential,credential);
+  onboard(services,b.username,"initial-"+credential,credential);
   const loginA = services.auth.login({ username: a.username, password: credential });
   const loginB = services.auth.login({ username: b.username, password: credential });
   return { ...services, admin, a, b, loginA, loginB, sessionA: services.auth.session(loginA.token), sessionB: services.auth.session(loginB.token) };
@@ -33,7 +36,7 @@ test("semillas y migraciones repetibles; contraseñas/tokens no se guardan en cl
   try {
     seed(f.repo,"admin",credential);
     assert.equal(f.repo.users().length,3);
-    assert.equal(f.repo.all("SELECT * FROM schema_migrations").length,4);
+    assert.equal(f.repo.all("SELECT * FROM schema_migrations").length,5);
     assert.notEqual(f.repo.account(f.admin.id)!.passwordHash,credential);
     assert.equal(f.repo.session(f.loginA.token),null);
     assert.equal(JSON.stringify(f.users.list(f.admin)).includes("passwordHash"),false);
@@ -73,7 +76,10 @@ test("inhabilitar y cambiar credencial revocan sesiones previas y bloquean nuevo
     assert.throws(()=>f.auth.session(f.loginA.token),errorCode("UNAUTHENTICATED"));
     assert.throws(()=>f.auth.login({username:f.a.username,password:credential}),errorCode("INVALID_CREDENTIALS"));
     f.users.save(f.admin,{enabled:true,password:"new-password-strong-123"},f.a.id);
-    const fresh=f.auth.session(f.auth.login({username:f.a.username,password:"new-password-strong-123"}).token);
+    const pending=f.auth.session(f.auth.login({username:f.a.username,password:"new-password-strong-123"}).token);
+    assert.throws(()=>f.measurements.history(pending,new URLSearchParams()),errorCode("ONBOARDING_REQUIRED"));
+    f.recovery.completeOnboarding(pending,onboardingBody("new-password-final-123"));
+    const fresh=f.auth.session(f.auth.login({username:f.a.username,password:"new-password-final-123"}).token);
     assert.equal(f.measurements.history(fresh,new URLSearchParams()).length,1);
     assert.throws(()=>f.auth.session(f.loginA.token),errorCode("UNAUTHENTICATED"));
   } finally { f.repo.close(); }

@@ -43,7 +43,7 @@ Las mutaciones de sesión requieren `Origin` del mismo origen o `X-Nasa-Request:
 | `POST /api/v1/measurements` | Credencial de dispositivo; pulso del astronauta vinculado |
 | `POST /api/v1/sync/measurements` | Credencial del equipo local; confirma mediciones de la misión autorizada en PostgreSQL |
 
-El admin no consulta ni captura salud; el astronauta no administra cuentas. Los casos de uso vuelven a comprobar la sesión y el rol. Los DTO administrativos excluyen hashes, tokens, mediciones y avisos. Cambio de rol/contraseña o inhabilitación revoca sesiones dentro de la misma transacción. Se conserva perfil, historial y autoría administrativa, sin guardar secretos en auditoría. No se permite retirar el último admin habilitado.
+El admin no consulta ni captura salud; el astronauta no administra cuentas. Los casos de uso vuelven a comprobar la sesión y el rol. Los DTO administrativos excluyen hashes, tokens, mediciones y avisos. Cambio de rol/contraseña o inhabilitación revoca sesiones y autorizaciones de recuperación dentro de la misma transacción. Cambiar una contraseña desde administración exige primer acceso y reemplazar las preguntas. Se conserva perfil, historial y autoría administrativa, sin guardar secretos en auditoría. No se permite retirar el último admin habilitado.
 
 Usuarios: se normalizan a minúsculas; 3–64 caracteres ASCII entre letras, números, punto, guion y guion bajo. Contraseñas: scrypt con sal aleatoria. Sesiones: tokens aleatorios de 256 bits, solo SHA-256 en base. Cinco fallos de login durante una ventana de un minuto bloquean el identificador 15 minutos; mensaje genérico para cuenta inexistente, credencial errónea e inhabilitación.
 
@@ -119,4 +119,7 @@ npm run test:production
 
 Typecheck incluye scripts/pruebas. Las pruebas usan SQLite real temporal: permisos, revocación, validación, deduplicación, rollback, contexto histórico, reapertura, cola, HTTP y contrato OpenAPI. La prueba de producción levanta Next.js con base temporal y verifica salud, Swagger/assets, login y permisos por HTTP; no toca datos reales. El receptor PostgreSQL y el ESP32 físico requieren validación conjunta posterior.
 
-La integración con el frontend y el flujo propuesto de primer acceso/recuperación por preguntas no forman parte de esta entrega del plan activo de captura; no se modificaron pantallas.
+El backend de primer acceso y recuperación por preguntas ya está implementado; ver [PRIMER_ACCESO_Y_RECUPERACION.md](PRIMER_ACCESO_Y_RECUPERACION.md). La integración con el frontend sigue pendiente; no se modificaron pantallas.
+
+
+Las cuentas nuevas creadas por el admin tienen `user.requiresOnboarding=true`. Deben completar `POST /api/v1/auth/onboarding` antes de capturar datos o usar sus permisos normales. El admin semilla y las cuentas existentes conservan acceso; no se generan preguntas o respuestas por defecto. Los comandos de simulación/dispositivo respetan el estado del dueño y no sustituyen el primer acceso.

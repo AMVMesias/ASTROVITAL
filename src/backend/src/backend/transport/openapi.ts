@@ -5,7 +5,7 @@ const nullableString = { type: "string", nullable: true };
 const jsonContent = (schema: unknown) => ({ "application/json": { schema } });
 const response = (description: string, schema: unknown) => ({ description, content: jsonContent(schema) });
 const body = (schema: unknown) => ({ required: true, content: jsonContent(schema) });
-const errors = Object.fromEntries([400,401,403,404,409,413,415,429,500,503].map(status => [status, response(`Error ${status}: ver error.code y error.fields.`, ref("Error"))]));
+const errors = Object.fromEntries([400,401,403,404,409,410,413,415,429,500,503].map(status => [status, response(`Error ${status}: ver error.code y error.fields.`, ref("Error"))]));
 const security = [{ sessionCookie: [] }];
 const operation = (summary: string, tag: string, schema: unknown, options: Record<string, unknown> = {}) => ({ summary, tags: [tag], security, responses: { "200": response("Operación completada", schema), ...errors }, ...options });
 const userEnvelope = { type: "object", properties: { user: ref("User") }, required: ["user"] };
@@ -15,12 +15,27 @@ const measurementInput = {
   description: "Sueño 0–24 h; bienestar entero 1–5. Límites de formato demo-format-1, no clínicos. Fecha UTC con Z, hasta 60 s de tolerancia futura. No se admite dueño ni origen del cliente.",
 };
 const userWrite = { type: "object", additionalProperties: false, properties: { username: { type: "string", minLength: 3, maxLength: 64, pattern: "^[a-zA-Z0-9._-]+$" }, name: { type: "string", minLength: 1, maxLength: 120 }, role: { type: "string", enum: ["admin","astronauta"] }, enabled: { type: "boolean", default: true }, password: { type: "string", format: "password", minLength: 12, maxLength: 128, writeOnly: true } } };
+
+const recoveryPassword = {
+  newPassword:{type:"string",format:"password",writeOnly:true,minLength:12,maxLength:128},
+  confirmation:{type:"string",format:"password",writeOnly:true,minLength:12,maxLength:128},
+};
+const recoveryResult={type:"object",properties:{status:string,requiresLogin:{type:"boolean"}}};
 export const openapi = {
   openapi: "3.0.3",
   info: { title: "NASA Health · API", version: "1.0.0", description: "Backend persona 1. SQLite local con Next.js/Node 22.13+. Login mediante cookie HttpOnly, revocación y separación de roles. Primero db:seed; sin credenciales por defecto. Swagger funciona sin CDN. Las mutaciones de sesión requieren Origin del mismo origen o X-Nasa-Request: 1 para clientes CLI. Los datos de salud son personales; admin no tiene acceso. Ambiente preparation-1 provisional, sin telemetría. El receptor de sincronización usa PostgreSQL y una credencial de equipo por misión." },
   servers: [{ url: "/", description: "Mismo equipo local" }],
   tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización"].map(name => ({ name })),
   paths: {
+    "/api/v1/auth/security-questions": {get:operation("Consultar catálogo de preguntas", "Acceso", {type:"object",properties:{questions:{type:"array",items:ref("SecurityQuestion")}}},{security:[]})},
+    "/api/v1/auth/onboarding": {
+      get:operation("Consultar primer acceso y preguntas propias sin respuestas", "Acceso", {type:"object",properties:{requiresOnboarding:{type:"boolean"},securityQuestionsConfigured:{type:"boolean"},questions:{type:"array",items:ref("SecurityQuestion")},recoveryLocked:{type:"boolean"}}}),
+      post:operation("Completar primer acceso y revocar sesiones", "Acceso", recoveryResult, {description:"Admite sesión restringida. Guarda contraseña distinta de la inicial y exactamente tres respuestas hasheadas. Las cuentas existentes sin preguntas pueden configurarlas una vez. Después requiere login nuevo.",requestBody:body({type:"object",additionalProperties:false,required:["newPassword","confirmation","answers"],properties:{...recoveryPassword,answers:{type:"array",minItems:3,maxItems:3,items:{type:"object",additionalProperties:false,required:["questionId","answer"],properties:{questionId:string,answer:{type:"string",writeOnly:true,minLength:1,maxLength:200}}}}}})}),
+    },
+    "/api/v1/auth/recovery/start": {post:operation("Solicitar o reutilizar desafío de recuperación", "Acceso", ref("RecoveryChallenge"), {security:[],description:"Pregunta elegida por el servidor, fija durante 10 minutos. Solicitar otro desafío no reinicia los tres intentos. Cuentas inexistentes o sin configuración reciben desafíos que no autorizan cambios.",requestBody:body({type:"object",additionalProperties:false,required:["username"],properties:{username:{type:"string",maxLength:64}}})})},
+    "/api/v1/auth/recovery/verify": {post:operation("Verificar respuesta y emitir autorización de 5 minutos", "Acceso", {type:"object",properties:{resetToken:string,expiresAt:timestamp}}, {security:[],description:"Máximo tres respuestas incorrectas por cuenta, persistidas entre desafíos y reinicios. El token se devuelve una vez y se almacena solo como hash. El desafío ya verificado no se puede reutilizar.",requestBody:body({type:"object",additionalProperties:false,required:["challengeId","answer"],properties:{challengeId:{type:"string",minLength:64,maxLength:64},answer:{type:"string",format:"password",writeOnly:true,minLength:1,maxLength:200}}})})},
+    "/api/v1/auth/recovery/reset": {post:operation("Cambiar contraseña con autorización de un solo uso", "Acceso", recoveryResult, {security:[],description:"No acepta cambios sin token válido. Revoca todas las sesiones y autorizaciones de recuperación. No inicia sesión automáticamente.",requestBody:body({type:"object",additionalProperties:false,required:["resetToken","newPassword","confirmation"],properties:{resetToken:{type:"string",format:"password",writeOnly:true,minLength:64,maxLength:64},...recoveryPassword}})})},
+    "/api/v1/users/{id}/recovery/unlock": {parameters:[{name:"id",in:"path",required:true,schema:string}],post:operation("Desbloquear recuperación y revocar desafíos (admin)", "Usuarios", {type:"object",properties:{status:{type:"string",enum:["unlocked"]}}},{description:"Conserva preguntas y contraseña. Para reemplazar credencial y preguntas, usar PATCH de usuario con password: fuerza primer acceso y elimina respuestas previas."})},
     "/api/v1/me/environment": {
       get: operation("Catálogo documental y asignación propia (astronauta)", "Mediciones", {type:"object",properties:{revision:string,profiles:{type:"array",items:{type:"object"}},sources:{type:"object"},active:{type:"object",nullable:true},telemetryAvailable:{type:"boolean"}}}),
       post: operation("Seleccionar escenario desde ahora (astronauta)", "Mediciones", {type:"object",properties:{assignment:{type:"object"}}}, {requestBody:body({type:"object",additionalProperties:false,required:["scenarioId","revision"],properties:{scenarioId:{type:"string",enum:["deep_space_transit","iss_leo","moon_surface","mars_surface"]},revision:string}})}),
@@ -46,7 +61,7 @@ export const openapi = {
         },
       },
     ) },
-    "/api/v1/auth/login": { post: operation("Iniciar sesión de cuenta habilitada", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }, { security: [], requestBody: body({ type: "object", additionalProperties: false, required: ["username","password"], properties: { username: string, password: { type: "string", format: "password", maxLength: 128 } } }) }) },
+    "/api/v1/auth/login": { post: operation("Iniciar sesión; user.requiresOnboarding indica acceso restringido", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }, { security: [], requestBody: body({ type: "object", additionalProperties: false, required: ["username","password"], properties: { username: string, password: { type: "string", format: "password", maxLength: 128 } } }) }) },
     "/api/v1/auth/session": { get: operation("Consultar identidad y vigencia", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }) },
     "/api/v1/auth/logout": { post: operation("Revocar la sesión actual", "Acceso", { type: "object", properties: { status: string } }) },
     "/api/v1/users": {
@@ -55,7 +70,7 @@ export const openapi = {
     },
     "/api/v1/users/{id}": { parameters: [{ name: "id", in: "path", required: true, schema: string }],
       get: operation("Consultar cuenta sin datos de salud (admin)", "Usuarios", userEnvelope),
-      patch: operation("Editar, cambiar credencial/rol o habilitación (admin)", "Usuarios", userEnvelope, { description: "Cambio de rol/contraseña o inhabilitación revoca sesiones. Conserva autoría e historial. No permite retirar el último admin habilitado.", requestBody: body(userWrite) }),
+      patch: operation("Editar, cambiar credencial/rol o habilitación (admin)", "Usuarios", userEnvelope, { description: "Cambio de rol/contraseña o inhabilitación revoca sesiones y autorizaciones de recuperación. Cambiar contraseña también elimina preguntas y exige primer acceso. Conserva autoría e historial. No permite retirar el último admin habilitado.", requestBody: body(userWrite) }),
     },
     "/api/v1/me/measurements": {
       get: operation("Historial propio (astronauta)", "Mediciones", { type: "object", properties: { measurements: { type: "array", items: ref("Measurement") } } }, { parameters: [
@@ -78,6 +93,8 @@ export const openapi = {
   components: {
     securitySchemes: { syncBearer: { type: "http", scheme: "bearer", description: "Credencial del equipo local autorizada para una misión." }, sessionCookie: { type: "apiKey", in: "cookie", name: "nasa_session", description: "Se establece al ejecutar login en este navegador. No se copia manualmente en Swagger." }, deviceBearer: { type: "http", scheme: "bearer", description: "Credencial del dispositivo aprovisionada por comando local." } },
     schemas: {
+      SecurityQuestion:{type:"object",properties:{id:string,label:string}},
+      RecoveryChallenge:{type:"object",properties:{challengeId:string,question:ref("SecurityQuestion"),expiresAt:timestamp,attemptsRemaining:{type:"integer",minimum:0,maximum:3}}},
       Assessment: {type:"object",properties:{status:{type:"string",enum:["insufficient","invalid","stale","stable","deviation"]},ruleVersion:string,evidence:{type:"array",items:string},reference:{type:"object",properties:{mean:{type:"number"},count:{type:"integer"},from:timestamp,to:timestamp}}}},
       SyncMeasurement: {
         allOf: [
@@ -97,7 +114,7 @@ export const openapi = {
         ],
       } } } },
       Error: { type: "object", required: ["error"], properties: { error: { type: "object", required: ["code","message"], properties: { code: string, message: string, fields: { type: "object", additionalProperties: string } } } } },
-      User: { type: "object", properties: { id: string, username: string, name: string, role: { type: "string", enum: ["astronauta","admin"] }, enabled: { type: "boolean" }, astronautId: nullableString, missionId: nullableString, moduleId: nullableString, createdAt: timestamp } },
+      User: { type: "object", properties: { id: string, username: string, name: string, role: { type: "string", enum: ["astronauta","admin"] }, enabled: { type: "boolean" }, requiresOnboarding:{type:"boolean",description:"Si es true, solo admite sesión, logout y primer acceso."}, astronautId: nullableString, missionId: nullableString, moduleId: nullableString, createdAt: timestamp } },
       Environment: { type: "object", properties: { scenarioId: string, profileId: string, profileVersion: string, assignmentId: string, scope: { type: "string", enum: ["cabin","exterior"] }, telemetryAvailable: { type: "boolean" } } },
       Measurement: { type: "object", properties: { id: string, astronautId: string, missionId: string, moduleId: string, indicator: { type: "string", enum: ["sleep","wellbeing","heart_rate"] }, value: { type: "number" }, unit: string, origin: { type: "string", enum: ["manual","device","simulated"] }, quality: { type: "string", enum: ["valid"] }, capturedAt: timestamp, receivedAt: timestamp, authorId: nullableString, deviceId: nullableString, readingId: nullableString, activity: { type: "string", enum: ["rest","exercise","eva"] }, note: string, scenario: nullableString, environment: ref("Environment") } },
       Device: { type: "object", properties: { id: string, astronautId: string, enabled: { type: "boolean" }, lastCommunicationAt: { ...timestamp, nullable: true },signal:{type:"object",nullable:true,properties:{status:{type:"string",enum:["valid","no_contact","no_signal","insufficient","disconnected"]},observedAt:timestamp}} } },

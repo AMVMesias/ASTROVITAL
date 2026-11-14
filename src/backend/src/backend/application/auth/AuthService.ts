@@ -5,7 +5,7 @@ import { object, only, text } from "../../domain/validation";
 
 const dummyHash = hashPassword("invalid-account-placeholder");
 export function publicUser(user: User): User {
-  return { id: user.id, username: user.username, name: user.name, role: user.role, enabled: user.enabled, astronautId: user.astronautId, missionId: user.missionId, moduleId: user.moduleId, createdAt: user.createdAt };
+  return { id: user.id, username: user.username, name: user.name, role: user.role, enabled: user.enabled, requiresOnboarding: user.requiresOnboarding, astronautId: user.astronautId, missionId: user.missionId, moduleId: user.moduleId, createdAt: user.createdAt };
 }
 export class AuthService {
   constructor(private repo: Repository, private durationSeconds = 8 * 3600) {}
@@ -31,13 +31,14 @@ export class AuthService {
   }
   session(raw: string | undefined): Session {
     if (!raw || !/^[a-f0-9]{64}$/.test(raw)) throw new AppError(401, "UNAUTHENTICATED", "Inicia sesión para continuar.");
-    return this.requireSession(digest(raw));
+    return this.requireSession(digest(raw), undefined, true);
   }
-  requireSession(id: string, role?: Role): Session {
+  requireSession(id: string, role?: Role, allowOnboarding = false): Session {
     const record = this.repo.session(id);
     const user = record ? this.repo.account(record.userId) : null;
     if (!record || record.expiresAt <= new Date().toISOString() || !user?.enabled) throw new AppError(401, "UNAUTHENTICATED", "La sesión venció o fue revocada.");
     if (role && user.role !== role) throw new AppError(403, "FORBIDDEN", "No tienes permiso para esta operación.");
+    if (user.requiresOnboarding && !allowOnboarding) throw new AppError(403, "ONBOARDING_REQUIRED", "Completa el primer acceso antes de continuar.");
     return { ...publicUser(user), sessionId: id, expiresAt: record.expiresAt };
   }
   logout(session: Session) { this.repo.revokeSession(session.sessionId); }

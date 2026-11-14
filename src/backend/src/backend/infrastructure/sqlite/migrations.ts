@@ -38,6 +38,16 @@ const modules = [
     CREATE TABLE device_status(device_id TEXT PRIMARY KEY REFERENCES devices(id), status TEXT NOT NULL,
       observed_at TEXT NOT NULL, received_at TEXT NOT NULL);
   `); } },
+  { id: "005_auth_recovery", apply(db: DatabaseSync) { db.exec(`
+    ALTER TABLE users ADD COLUMN requires_onboarding INTEGER NOT NULL DEFAULT 0 CHECK(requires_onboarding IN (0,1));
+    CREATE TABLE security_answers(user_id TEXT NOT NULL REFERENCES users(id), question_id TEXT NOT NULL,
+      answer_hash TEXT NOT NULL, PRIMARY KEY(user_id,question_id));
+    CREATE TABLE recovery_attempts(subject TEXT PRIMARY KEY, failures INTEGER NOT NULL DEFAULT 0 CHECK(failures>=0));
+    CREATE TABLE recovery_challenges(id TEXT PRIMARY KEY, subject TEXT NOT NULL UNIQUE, user_id TEXT REFERENCES users(id),
+      question_id TEXT NOT NULL, expires_at TEXT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0 CHECK(consumed IN (0,1)));
+    CREATE TABLE password_reset_grants(token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id),
+      expires_at TEXT NOT NULL);
+  `); } },
 ];
 
 export function migrate(db: DatabaseSync) {
