@@ -5,7 +5,7 @@ import { Footer } from "../../frontend/components/layout/Footer";
 export default function Page() {
   const { t } = useLanguage();
   return (
-    <>
+    <div className="public-page">
       <Header />
       <main className="interior">
         <h1>{t("Acerca del proyecto")}</h1>
@@ -24,6 +24,6 @@ export default function Page() {
         <p>{t("Proyecto desarrollado para NASA Space Apps Challenge 2026.")}</p>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

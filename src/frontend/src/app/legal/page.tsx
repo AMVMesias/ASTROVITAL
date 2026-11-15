@@ -5,7 +5,7 @@ import { Footer } from "../../frontend/components/layout/Footer";
 export default function Page() {
   const { t } = useLanguage();
   return (
-    <>
+    <div className="public-page">
       <Header />
       <main className="interior">
         <h1>{t("Información legal")}</h1>
@@ -29,6 +29,6 @@ export default function Page() {
         </p>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

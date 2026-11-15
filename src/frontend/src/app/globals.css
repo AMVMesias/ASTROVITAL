@@ -1286,3 +1286,8 @@ button:disabled { opacity: .55; cursor: wait; }
 .ble-readings { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: .75rem; }
 .ble-readings div { padding: .75rem; border: 1px solid #71869a; border-radius: .5rem; }
 .ble-readings dd { margin: .25rem 0 0; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+
+/* Keep the footer at the bottom on short informational pages. */
+.public-page { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+.public-page > main { flex: 1 0 auto; }
+.public-page > .site-footer { flex-shrink: 0; }
