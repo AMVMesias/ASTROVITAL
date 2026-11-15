@@ -14,6 +14,12 @@ La conexión se conserva al navegar entre páginas del panel del astronauta; se 
 
 La actividad se puede cambiar durante la captura sin reconectar. Cada nueva lectura guarda la actividad seleccionada al recibirla. Las lecturas anteriores y los paquetes pendientes o reintentados conservan su actividad original. La selección también se conserva al navegar por el panel. Los ajustes del enlace BLE permanecen bloqueados mientras está conectado.
 
+## Lectura actual y pérdida de señal
+
+El resumen consulta por separado la última medición válida y la última instantánea de telemetría. Al recibir sin contacto, sin señal o desconexión, oculta el pulso principal con `—` y muestra el estado recibido. La última medición válida permanece identificada como histórica, con valor y fecha; no se inventa una medición de cero. SpO₂ y respiración tampoco se muestran como actuales si su instantánea caducó. La vigencia de telemetría la envía la API desde la regla de demostración existente.
+
+El reloj visual se actualiza cada segundo; los datos se consultan cada 15 segundos y tras confirmaciones de captura, como máximo una consulta por evento cada cinco segundos. Las respuestas antiguas no reemplazan una solicitud iniciada después. Esto no constituye un flujo de tiempo real ni certifica que el sensor esté colocado: se respetan los estados que envía el firmware.
+
 ## Protocolo y límites
 
 CSV-11: ecg,bpm_ecg,estado_ecg_x50,resp_mg,rpm,estado_resp_x50,spo2,bpm_oxi,estado_oxi_x50,ir,rojo. Rechazar columnas vacías, valores no finitos, estados desconocidos y fragmentos/paquetes incompatibles. Buffer máximo: 16384 bytes. El modo de dos copias exige que cada pareja de notificaciones sea idéntica; activarlo únicamente si el firmware/enlace realmente duplica los fragmentos.

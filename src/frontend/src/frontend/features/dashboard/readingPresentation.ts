@@ -30,7 +30,7 @@ export function readingContext(
     : "unknown";
 }
 export function readingFreshness(
-  reading: Reading,
+  reading: Pick<Reading,"capturedAt"|"maxAgeSeconds">,
   now: number,
 ): "fresh" | "stale" | "unknown" {
   const captured = Date.parse(reading.capturedAt);
@@ -42,6 +42,24 @@ export function readingFreshness(
   )
     return "unknown";
   return now - captured > reading.maxAgeSeconds! * 1000 ? "stale" : "fresh";
+}
+
+export type SensorSnapshot = {
+  deviceId: string; capturedAt: string; maxAgeSeconds?: number;
+  sensors: { ecg?: {state:number; bpm:number|null}; oximeter: {spo2:number|null}; respiration:{rpm:number|null} };
+};
+export function currentPulseStatus(reading:Reading|undefined, signal:{status:string;observedAt:string}|null|undefined, snapshot:SensorSnapshot|undefined, now:number) {
+  const time=reading ? Date.parse(reading.capturedAt) : -Infinity;
+  if(signal && Date.parse(signal.observedAt)>=time && signal.status==="disconnected") return "disconnected";
+  if(snapshot && Date.parse(snapshot.capturedAt)>=time && readingFreshness(snapshot,now)==="fresh") {
+    if(snapshot.sensors.ecg?.state===0) return "no_contact";
+    if(snapshot.sensors.ecg?.state===1) return "no_signal";
+    if(snapshot.sensors.ecg?.bpm===null) return "insufficient";
+  }
+  if(signal && Date.parse(signal.observedAt)>=time && ["no_contact","no_signal","insufficient"].includes(signal.status)) return signal.status;
+  if(!reading) return "missing";
+  if(reading.quality!=="valid") return "invalid";
+  return readingFreshness(reading,now)==="fresh" ? "live" : "stale";
 }
 export function readingAssessment(
   reading: Reading,

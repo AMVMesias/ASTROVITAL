@@ -1,4 +1,5 @@
 import { AppError, type Session } from "../../domain/model";
+import { demoRules } from "../assessment/AssessmentService";
 import { object, only, text, date } from "../../domain/validation";
 import { authorizeDevice } from "./deviceAccess";
 import type { PostgresRepository } from "../../infrastructure/postgres/app/PostgresRepository";
@@ -42,7 +43,7 @@ export class TelemetryService {
     const samples=(await (await this.repo.all("SELECT * FROM sensor_telemetry WHERE astronaut_id=? AND (CAST(? AS TEXT) IS NULL OR captured_at>=?) AND (CAST(? AS TEXT) IS NULL OR captured_at<=?) ORDER BY captured_at DESC,device_id,reading_id DESC LIMIT ? OFFSET ?",user.astronautId!,from,from,to,to,limit,offset)).map(row=>{
       const payload=JSON.parse(String(row.payload)) as {readingId:string;capturedAt:string;fields:Fields};
       const f=payload.fields;
-      return {...payload,deviceId:row.device_id,receivedAt:row.received_at,clock:"host_received_csv_snapshot",ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(payload.capturedAt))/1000)),
+      return {...payload,deviceId:row.device_id,receivedAt:row.received_at,clock:"host_received_csv_snapshot",maxAgeSeconds:demoRules.heart_rate.maxAgeMs/1000,ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(payload.capturedAt))/1000)),
         ...(field?{fields:{[field]:f[field as keyof Fields]}}:{}),
         sensors:{ecg:{state:f.estado_ecg_x50/50,bpm:f.estado_ecg_x50===100&&f.bpm_ecg>0&&f.bpm_ecg<=300?f.bpm_ecg:null},
           respiration:{state:f.estado_resp_x50/50,rpm:f.estado_resp_x50===100&&f.rpm>0&&f.rpm<=60?f.rpm:null},

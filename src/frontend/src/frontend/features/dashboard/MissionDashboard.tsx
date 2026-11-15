@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
 import { AdminIcon } from "../../components/ui/AdminIcon";
@@ -8,6 +8,8 @@ import {
   readingAssessment,
   readingContext,
   readingFreshness,
+  currentPulseStatus,
+  type SensorSnapshot,
   type Reading,
   type Assessment,
 } from "./readingPresentation";
@@ -31,24 +33,18 @@ type Alert = {
   reason: Assessment["status"];
   evidence: Assessment;
 };
-type Telemetry = {
-  capturedAt: string;
-  deviceId: string;
-  sensors: {
-    oximeter: { spo2: number | null };
-    respiration: { rpm: number | null };
-  };
-};
+type Telemetry = SensorSnapshot;
 type DashboardData = {
   summary: Summary;
   alerts: Alert[];
   history: Reading[] | null;
   telemetry: Telemetry[] | null;
+  latestTelemetry: Telemetry | undefined;
 };
 async function loadDashboard(): Promise<DashboardData> {
   const from = new Date(Date.now() - 86400000).toISOString();
   const options = { cache: "no-store" } as const;
-  const [summary, notices, history, telemetry] = await Promise.all([
+  const [summary, notices, history, telemetry, latestTelemetry] = await Promise.all([
     api<Summary>("/v1/me/measurements/latest", options),
     api<{ alerts: Alert[] }>("/v1/me/alerts", options),
     api<{ measurements: Reading[] }>(
@@ -59,12 +55,14 @@ async function loadDashboard(): Promise<DashboardData> {
       `/v1/me/telemetry?from=${encodeURIComponent(from)}&limit=200`,
       options,
     ).catch(() => null),
+    api<{samples:Telemetry[]}>("/v1/me/telemetry/latest",options).catch(()=>null),
   ]);
   return {
     summary,
     alerts: notices.alerts,
     history: history?.measurements ?? null,
     telemetry: telemetry?.samples ?? null,
+    latestTelemetry: latestTelemetry?.samples[0],
   };
 }
 export function MissionDashboard() {
@@ -74,14 +72,18 @@ export function MissionDashboard() {
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const requestSequence=useRef(0);
   async function refresh() {
+    const sequence=++requestSequence.current;
     setPending(true);
     try {
-      setData(await loadDashboard());
+      const result=await loadDashboard();
+      if(sequence!==requestSequence.current)return;
+      setData(result);
       setNow(Date.now());
       setError(false);
     } catch {
-      setError(true);
+      if(sequence===requestSequence.current)setError(true);
     } finally {
       setPending(false);
     }
@@ -89,15 +91,16 @@ export function MissionDashboard() {
   useEffect(() => {
     let active = true;
     async function load() {
+      const sequence=++requestSequence.current;
       try {
         const result = await loadDashboard();
-        if (active) {
+        if (active && sequence===requestSequence.current) {
           setData(result);
           setError(false);
           setNow(Date.now());
         }
       } catch {
-        if (active) setError(true);
+        if (active && sequence===requestSequence.current) setError(true);
       }
     }
     void load();
@@ -108,6 +111,7 @@ export function MissionDashboard() {
       void load();
     };
     window.addEventListener("astrovital:measurement", onCapture);
+    const clock=setInterval(()=>setNow(Date.now()),1000);
     const timer = setInterval(() => {
       if (active) {
         setNow(Date.now());
@@ -117,6 +121,7 @@ export function MissionDashboard() {
     return () => {
       active = false;
       clearInterval(timer);
+      clearInterval(clock);
       window.removeEventListener("astrovital:measurement", onCapture);
     };
   }, []);
@@ -166,16 +171,21 @@ export function MissionDashboard() {
         : context !== "rest"
           ? "insufficient"
           : (heartAssessment?.status ?? "insufficient");
+  const selectedDeviceId=data?.latestTelemetry && (!heart || Date.parse(data.latestTelemetry.capturedAt)>=Date.parse(heart.capturedAt)) ? data.latestTelemetry.deviceId : heart?.deviceId;
   const device =
-    data?.summary.devices?.find((d) => d.id === heart?.deviceId) ??
+    data?.summary.devices?.find((d) => d.id === selectedDeviceId) ??
     data?.summary.devices?.[0];
   const telemetry =
     data?.telemetry?.filter(
-      (t) => !heart?.deviceId || t.deviceId === heart.deviceId,
+      (t) => !selectedDeviceId || t.deviceId === selectedDeviceId,
     ) ?? [];
-  const latestTelemetry = [...telemetry].sort(
-    (a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt),
-  )[0];
+  const recentSnapshot=data?.latestTelemetry;
+  const latestTelemetry=recentSnapshot?.deviceId===selectedDeviceId ? recentSnapshot : undefined;
+  const telemetryDisconnected=device?.signal?.status==="disconnected" && latestTelemetry && Date.parse(device.signal.observedAt)>=Date.parse(latestTelemetry.capturedAt);
+  const telemetryFresh=latestTelemetry && !telemetryDisconnected && readingFreshness(latestTelemetry,now)==="fresh";
+  const matchingHeart=heart?.origin!=="device" || heart.deviceId===selectedDeviceId ? heart : undefined;
+  const pulseStatus=currentPulseStatus(matchingHeart,device?.signal,latestTelemetry,now);
+  const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin señal",insufficient:"Sin pulso válido",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No signal",insufficient:"No valid pulse",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
   const activeAlerts = data?.alerts.filter((a) => a.status !== "closed") ?? [];
   const series: TrendSeries[] = [
     {
@@ -293,17 +303,17 @@ export function MissionDashboard() {
                   {es ? "Frecuencia cardíaca" : "Heart rate"}
                 </h3>
                 <p className={styles.value}>
-                  {heart ? heart.value : "—"}
+                  {pulseStatus==="live" ? heart?.value : "—"}
                   <span>lpm</span>
                 </p>
                 <span
                   className={
-                    heartState === "stable"
+                    pulseStatus==="live" && heartState === "stable"
                       ? styles.goodBadge
                       : styles.neutralBadge
                   }
                 >
-                  {heart
+                  {pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
                     ? states[heartState]
                     : es
                       ? "Sin lectura"
@@ -312,7 +322,7 @@ export function MissionDashboard() {
                 <p className={styles.timestamp}>
                   {heart ? (
                     <time dateTime={heart.capturedAt}>
-                      {formatTime(heart.capturedAt)}
+                      {es ? "Última válida: " : "Last valid: "}{heart.value} lpm · {formatTime(heart.capturedAt)}
                     </time>
                   ) : es ? (
                     "Sin mediciones registradas"
@@ -345,11 +355,11 @@ export function MissionDashboard() {
                     {item.name}
                   </h3>
                   <p className={styles.value}>
-                    {item.value ?? "—"}
+                    {telemetryFresh ? item.value ?? "—" : "—"}
                     <span>{item.unit}</span>
                   </p>
                   <span className={styles.neutralBadge}>
-                    {item.value == null
+                    {telemetryDisconnected ? (es ? "Desconectado" : "Disconnected") : latestTelemetry && !telemetryFresh ? (es ? "Lectura desactualizada" : "Stale reading") : item.value == null
                       ? es
                         ? "Sin lectura válida"
                         : "No valid reading"
@@ -358,7 +368,7 @@ export function MissionDashboard() {
                         : "Unassessed telemetry"}
                   </span>
                   <p className={styles.timestamp}>
-                    {latestTelemetry && item.value != null ? (
+                    {latestTelemetry ? (
                       <time dateTime={latestTelemetry.capturedAt}>
                         {formatTime(latestTelemetry.capturedAt)}
                       </time>
@@ -374,7 +384,7 @@ export function MissionDashboard() {
             <div className={styles.heartContext}>
               <dl>
                 <div>
-                  <dt>{es ? "Actividad" : "Activity"}</dt>
+                  <dt>{es ? "Actividad de última medición" : "Last measurement activity"}</dt>
                   <dd>{contexts[context]}</dd>
                 </div>
                 <div>
@@ -392,7 +402,7 @@ export function MissionDashboard() {
                   </dd>
                 </div>
                 <div>
-                  <dt>{es ? "Origen · Calidad" : "Source · Quality"}</dt>
+                  <dt>{es ? "Origen · Calidad de última medición" : "Last measurement source · Quality"}</dt>
                   <dd>
                     {heart
                       ? `${heart.origin === "device" ? "ESP32" : heart.origin === "simulated" ? (es ? "Simulado" : "Simulated") : "Manual"} · ${heart.quality === "valid" ? (es ? "Válida" : "Valid") : es ? "Inválida" : "Invalid"}`
@@ -402,7 +412,7 @@ export function MissionDashboard() {
                 <div>
                   <dt>{es ? "Vigencia" : "Freshness"}</dt>
                   <dd>
-                    {freshness === "fresh"
+                    {pulseStatus!=="live" ? pulseLabels[pulseStatus] : freshness === "fresh"
                       ? es
                         ? "Lectura vigente"
                         : "Fresh reading"
@@ -419,8 +429,8 @@ export function MissionDashboard() {
               {heart && context !== "rest" && (
                 <p>
                   {es
-                    ? "Esta lectura actual no está confirmada como frecuencia cardíaca en reposo."
-                    : "This current reading is not confirmed as a resting heart rate."}
+                    ? "La última medición no está confirmada como frecuencia cardíaca en reposo."
+                    : "The last measurement is not confirmed as a resting heart rate."}
                 </p>
               )}
             </div>
@@ -433,19 +443,19 @@ export function MissionDashboard() {
               </h2>
             </div>
             <div
-              className={`${styles.evaluationBox} ${heartState === "stable" ? styles.stable : ""}`}
+              className={`${styles.evaluationBox} ${pulseStatus==="live" && heartState === "stable" ? styles.stable : ""}`}
             >
-              <AdminIcon name={heartState === "stable" ? "check" : "pulse"} />
+              <AdminIcon name={pulseStatus==="live" && heartState === "stable" ? "check" : "pulse"} />
               <div>
                 <h3>
-                  {heart
+                  {pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
                     ? states[heartState]
                     : es
                       ? "Esperando lecturas"
                       : "Awaiting readings"}
                 </h3>
                 <p>
-                  {heartState === "stable"
+                  {pulseStatus!=="live" ? (es ? "No hay pulso actual válido para evaluar. Revisa los sensores y la conexión." : "No valid current pulse to assess. Check the sensors and connection.") : heartState === "stable"
                     ? es
                       ? "Sin desviación detectada en la frecuencia cardíaca en reposo respecto a tu referencia personal."
                       : "No resting heart-rate deviation detected against your personal reference."
