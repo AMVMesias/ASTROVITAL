@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { localServices } from "../composition/local";
+import { services, withServices } from "../composition/services";
 import { AppError, type Role } from "../domain/model";
 
 export const SESSION_COOKIE = "nasa_session";
 export function respond(value: unknown, status = 200) { return NextResponse.json(value, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } }); }
 export async function handle(work: () => Response | Promise<Response>) {
-  try { return await work(); }
+  try { return await withServices(async () => await work()); }
   catch (error) {
     if (error instanceof AppError) return respond({ error: { code: error.code, message: error.message, fields: error.fields } }, error.status);
     console.error("NASA Health: operación no completada", error instanceof Error ? error.name : "UnknownError");
@@ -35,10 +35,10 @@ export async function json(request: Request) {
   try { return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown; }
   catch { throw new AppError(400, "INVALID_JSON", "JSON inválido."); }
 }
-export function requestSession(request: NextRequest, role?: Role) {
-  const app = localServices();
-  const session = app.auth.session(request.cookies.get(SESSION_COOKIE)?.value);
-  return role ? app.auth.requireSession(session.sessionId, role) : session;
+export async function requestSession(request: NextRequest, role?: Role) {
+  const app = services();
+  const session = (await app.auth.session(request.cookies.get(SESSION_COOKIE)?.value));
+  return role ? (await app.auth.requireSession(session.sessionId, role)) : session;
 }
 export function cookieOptions() {
   return { httpOnly: true, sameSite: "strict" as const, secure: process.env.COOKIE_SECURE === "true" || !!process.env.VERCEL, path: "/" };

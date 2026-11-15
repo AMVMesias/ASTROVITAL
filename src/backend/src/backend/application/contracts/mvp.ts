@@ -11,5 +11,5 @@ export type EnvironmentAssignment = {
 
 // Propuesta para el adaptador de captura. Las claves provienen de la sesión o del dispositivo autorizado.
 export interface EnvironmentAtCapture {
-  findAt(missionId: string, astronautId: string, capturedAt: string): EnvironmentAssignment | undefined;
+  findAt(missionId: string, astronautId: string, capturedAt: string): Promise<EnvironmentAssignment | undefined>;
 }

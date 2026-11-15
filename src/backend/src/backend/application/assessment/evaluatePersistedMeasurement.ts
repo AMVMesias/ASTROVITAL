@@ -35,5 +35,5 @@ export async function evaluatePersistedMeasurement(
       })
     : [];
   const assessment = assessMeasurements(measurement, past, rule, now);
-  return { assessment, alert: recordAssessment(alerts, measurement, assessment, now) };
+  return { assessment, alert: (await recordAssessment(alerts, measurement, assessment, now)) };
 }

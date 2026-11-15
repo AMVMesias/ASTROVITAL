@@ -27,7 +27,7 @@ export interface EnvironmentContext {
 }
 /** Persona 2 implementa este puerto. Debe resolver el intervalo histórico, no el perfil actual. */
 export interface EnvironmentProvider {
-  resolve(astronautId: string, capturedAt: string): EnvironmentContext | null;
+  resolve(astronautId: string, capturedAt: string): Promise<EnvironmentContext | null>;
 }
 export interface Measurement {
   id: string;
@@ -55,14 +55,6 @@ export interface Device {
   enabled: boolean;
   lastCommunicationAt: string | null;
   signal?: { status:string; observedAt:string } | null;
-}
-export interface QueueRecord {
-  id: string;
-  payload: Measurement;
-  status: "pending" | "confirmed" | "rejected";
-  attempts: number;
-  reason: string | null;
-  confirmedAt: string | null;
 }
 export interface MeasurementQuery { indicator?: Indicator; from?: string; to?: string; limit: number; offset: number }
 export class AppError extends Error {

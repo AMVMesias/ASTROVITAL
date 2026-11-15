@@ -56,6 +56,7 @@ export function MissionDashboard() {
   const [data, setData] = useState<DashboardData>();
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
+  const [saved,setSaved]=useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
@@ -92,7 +93,20 @@ export function MissionDashboard() {
   return (
     <main className="interior">
       <h1>{es ? "Panel del astronauta" : "Astronaut dashboard"}</h1>
-      {error && <p role="alert">{es ? "No se pudo cargar o guardar. Comprueba tu sesión de astronauta y el servidor local." : "Could not load or save. Check your astronaut session and local server."}</p>}
+      {error && <p role="alert">{es ? "No se pudo cargar o guardar. Comprueba tu sesión de astronauta y el conexión a Internet." : "Could not load or save. Check your astronaut session and Internet connection."}</p>}
+      <section>
+        <h2>{es ? "Registrar medición" : "Record measurement"}</h2>
+        <form className="data-form" onSubmit={async event=>{
+          event.preventDefault();const form=event.currentTarget,fields=new FormData(form);setPending(true);setError(false);setSaved(false);
+          const indicator=String(fields.get("indicator"));
+          try { await api("/v1/me/measurements",writeRequest("POST",{indicator,value:Number(fields.get("value")),unit:indicator==="sleep"?"h":"score_1_5",capturedAt:new Date().toISOString(),activity:"rest",note:String(fields.get("note")??"")}));setData(await loadDashboard());form.reset();setSaved(true);}
+          catch {setError(true);}finally{setPending(false);}
+        }}>
+          <label>{es ? "Indicador" : "Indicator"}<select name="indicator"><option value="sleep">{es ? "Sueño (horas, 0–24)" : "Sleep (hours, 0–24)"}</option><option value="wellbeing">{es ? "Bienestar (entero, 1–5)" : "Well-being (integer, 1–5)"}</option></select></label>
+          <label>{es ? "Valor" : "Value"}<input name="value" type="number" required min="0" max="24" step="0.1"/></label>
+          <label>{es ? "Nota" : "Note"}<input name="note" maxLength={1000}/></label><button disabled={pending}>{es ? "Guardar medición" : "Save measurement"}</button>
+        </form>{saved&&<p role="status">{es ? "Medición guardada." : "Measurement saved."}</p>}
+      </section>
       <button disabled={pending} onClick={() => void update()}>{es ? "Actualizar" : "Refresh"}</button>
       {!data && !error && <p role="status">{es ? "Cargando…" : "Loading…"}</p>}
       {data && <>

@@ -62,7 +62,7 @@ Respuesta con `challengeId`, `question: {id,label}`, `expiresAt` y `attemptsRema
 {"challengeId":"ID_DEVUELTO_POR_START","answer":"Respuesta del usuario"}
 ```
 
-Una respuesta incorrecta devuelve `400 RECOVERY_INVALID`. La tercera devuelve `429 RECOVERY_LOCKED`. El contador se conserva por cuenta en SQLite, independientemente de recargar, cerrar el navegador, reiniciar el servidor, cambiar el nombre de usuario o renovar un desafío vencido. Vencimiento de desafío: `410 CHALLENGE_EXPIRED`; permite solicitar otro, conservando los intentos consumidos. Una entrada mal formada se rechaza antes de la comparación.
+Una respuesta incorrecta devuelve `400 RECOVERY_INVALID`. La tercera devuelve `429 RECOVERY_LOCKED`. El contador se conserva por cuenta en PostgreSQL de Supabase, independientemente de recargar, cerrar el navegador, reiniciar el servidor, cambiar el nombre de usuario o renovar un desafío vencido. Vencimiento de desafío: `410 CHALLENGE_EXPIRED`; permite solicitar otro, conservando los intentos consumidos. Una entrada mal formada se rechaza antes de la comparación.
 
 El bloqueo afecta a recuperación; no inhabilita la cuenta ni bloquea el login con contraseña válida. Solo el admin puede desbloquear tras agotar intentos. El servidor confirma la escritura del contador antes de devolver el error, de forma que una transacción revertida no permita intentos ilimitados.
 

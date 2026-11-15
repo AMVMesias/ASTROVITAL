@@ -24,8 +24,8 @@ const recoveryPassword = {
 const recoveryResult={type:"object",properties:{status:string,requiresLogin:{type:"boolean"}}};
 export const openapi = {
   openapi: "3.0.3",
-  info: { title: "NASA Health · API", version: "1.0.0", description: "Backend persona 1. SQLite local con Next.js/Node 22.13+. Login mediante cookie HttpOnly, revocación y separación de roles. Primero db:seed; sin credenciales por defecto. Swagger funciona sin CDN. Las mutaciones de sesión requieren Origin del mismo origen o X-Nasa-Request: 1 para clientes CLI. Los datos de salud son personales; admin no tiene acceso. Perfiles ambientales históricos sin telemetría ambiental en vivo. Telemetría fisiológica ESP32 de once campos mediante /api/v1/me/telemetry. El receptor de sincronización usa PostgreSQL y una credencial de equipo por misión." },
-  servers: [{ url: "/", description: "Mismo equipo local" }],
+  info: { title: "NASA Health · API", version: "1.0.0", description: "AstroVital: API Next.js con PostgreSQL en Supabase. Sesiones HttpOnly, roles admin y astronauta, primer acceso, recuperación, mediciones y evaluación. Requiere conexión a Internet. Las mutaciones requieren un origen autorizado o X-Nasa-Request: 1. No hay credenciales predeterminadas." },
+  servers: [{ url: "/", description: "Mismo dominio mediante proxy" }],
   tags: ["Acceso","Usuarios","Mediciones","Dispositivos","Disponibilidad","Sincronización","Avisos"].map(name => ({ name })),
   paths: {
     "/api/v1/devices/telemetry": {post:operation("Guardar los once campos crudos y estados del ESP32", "Dispositivos", {type:"object",properties:{status:string,readingId:string,duplicate:{type:"boolean"}}}, {security:[{deviceBearer:[]}],parameters:[{name:"X-Device-Id",in:"header",required:true,schema:string}],requestBody:body(ref("TelemetryInput"))})},
@@ -61,23 +61,7 @@ export const openapi = {
       security:[{deviceBearer:[]}],parameters:[{name:"X-Device-Id",in:"header",required:true,schema:string}],
       requestBody:body({type:"object",additionalProperties:false,required:["status","observedAt"],properties:{status:{type:"string",enum:["no_contact","no_signal","insufficient","disconnected"]},observedAt:timestamp}}),
     })},
-    "/api/health": { get: operation("Disponibilidad del servicio (sin comprobar SQLite)","Disponibilidad", { type: "object", properties: { status: { type: "string", enum: ["ok"] } } }, { security: [] }) },
-    "/api/v1/sync/measurements": { post: operation(
-      "Recibir mediciones del equipo local", "Sincronización", ref("SyncReceipts"), {
-        description: "Hasta 50 mediciones y 96 KiB por lote. Cada confirmación identifica la medición. Reenviar un registro idéntico conserva una sola copia. Una misión ajena, un perfil desconocido o un ID con contenido distinto reciben un rechazo individual.",
-        security: [{ syncBearer: [] }],
-        requestBody: body({ type: "object", required: ["measurements"], properties: {
-          measurements: { type: "array", minItems: 1, maxItems: 50, items: ref("SyncMeasurement") },
-        } }),
-        responses: {
-          "200": response("Confirmación individual del lote", ref("SyncReceipts")),
-          "400": response("Lote inválido", ref("SyncError")),
-          "401": response("Credencial incorrecta o ausente", ref("SyncError")),
-          "413": response("Límite de bytes excedido", ref("SyncError")),
-          "503": response("Sincronización no disponible", ref("SyncError")),
-        },
-      },
-    ) },
+    "/api/health": { get: operation("Disponibilidad del servicio (sin comprobar PostgreSQL)","Disponibilidad", { type: "object", properties: { status: { type: "string", enum: ["ok"] } } }, { security: [] }) },
     "/api/v1/auth/login": { post: operation("Iniciar sesión; user.requiresOnboarding indica acceso restringido", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }, { security: [], requestBody: body({ type: "object", additionalProperties: false, required: ["username","password"], properties: { username: string, password: { type: "string", format: "password", maxLength: 128 } } }) }) },
     "/api/v1/auth/session": { get: operation("Consultar identidad y vigencia", "Acceso", { type: "object", properties: { user: ref("User"), expiresAt: timestamp } }) },
     "/api/v1/auth/logout": { post: operation("Revocar la sesión actual", "Acceso", { type: "object", properties: { status: string } }) },
@@ -98,7 +82,7 @@ export const openapi = {
       ] }),
       post: operation("Capturar sueño/bienestar propio (astronauta)", "Mediciones", ref("CaptureResult"), { requestBody: body({ ...measurementInput, example: { indicator: "sleep", value: 7.5, unit: "h", capturedAt: "2026-11-14T08:00:00.000Z", activity: "rest" } }), responses: { "201": response("Medición y pendiente persistidos juntos", ref("CaptureResult")), ...errors } }),
     },
-    "/api/v1/me/measurements/latest": { get: operation("Últimos valores, dispositivos y estado local de cola (astronauta)", "Mediciones", ref("Summary")) },
+    "/api/v1/me/measurements/latest": { get: operation("Últimos valores, dispositivos y evaluación (astronauta)", "Mediciones", ref("Summary")) },
     "/api/v1/me/device": { get: operation("Dispositivos propios y última comunicación (astronauta)", "Dispositivos", { type: "object", properties: { devices: { type: "array", items: ref("Device") } } }) },
     "/api/v1/measurements": { post: operation("Ingesta autenticada ESP32, deduplicada por dispositivo/readingId", "Dispositivos", ref("CaptureResult"), {
       security: [{ deviceBearer: [] }], parameters: [{ name: "X-Device-Id", in: "header", required: true, schema: string }],
@@ -108,7 +92,7 @@ export const openapi = {
     }) },
   },
   components: {
-    securitySchemes: { syncBearer: { type: "http", scheme: "bearer", description: "Credencial del equipo local autorizada para una misión." }, sessionCookie: { type: "apiKey", in: "cookie", name: "nasa_session", description: "Se establece al ejecutar login en este navegador. No se copia manualmente en Swagger." }, deviceBearer: { type: "http", scheme: "bearer", description: "Credencial del dispositivo aprovisionada por comando local." } },
+    securitySchemes: { sessionCookie: { type: "apiKey", in: "cookie", name: "nasa_session", description: "Se establece al ejecutar login en este navegador. No se copia manualmente en Swagger." }, deviceBearer: { type: "http", scheme: "bearer", description: "Credencial del dispositivo aprovisionada por comando administrativo." } },
     schemas: {
       TelemetryInput:{type:"object",additionalProperties:false,required:["readingId","capturedAt","fields"],properties:{readingId:string,capturedAt:timestamp,fields:{type:"object",additionalProperties:false,required:telemetryFields,properties:Object.fromEntries(telemetryFields.map(name=>[name,{type:"number"}]))}}},
       TelemetryHistory:{type:"object",description:"Instantáneas a máximo 1 Hz. Señales crudas sin evaluación clínica ni sincronización nube; los valores derivados no disponibles son null. Fecha de recepción del portátil.",properties:{availableFields:{type:"array",items:{type:"string",enum:telemetryFields}},samples:{type:"array",items:{type:"object",properties:{readingId:string,capturedAt:timestamp,fields:{type:"object",properties:Object.fromEntries(telemetryFields.map(name=>[name,{type:"number"}]))},deviceId:string,receivedAt:timestamp,clock:string,ageSeconds:{type:"integer"},sensors:{type:"object"}}}}}},
@@ -136,20 +120,13 @@ export const openapi = {
       AlertDetail: { type: "object", properties: { alert: ref("Alert"), actions: { type: "array", items: {
         type: "object", properties: { authorId: string, type: { type: "string", enum: ["observation","repeat","track","close"] }, note: string, createdAt: timestamp },
       } } } },
-      SyncError: { type: "object", required: ["error"], properties: { error: { type: "string", enum: ["invalid_batch", "unauthorized", "batch_too_large", "sync_unavailable"] } } },
-      SyncReceipts: { type: "object", required: ["receipts"], properties: { receipts: { type: "array", items: {
-        oneOf: [
-          { type: "object", required: ["measurementId", "status"], properties: { measurementId: string, status: { type: "string", enum: ["accepted"] } } },
-          { type: "object", required: ["measurementId", "status", "reason"], properties: { measurementId: string, status: { type: "string", enum: ["rejected"] }, reason: { type: "string", enum: ["conflict", "unknown_environment", "mission_forbidden"] } } },
-        ],
-      } } } },
       Error: { type: "object", required: ["error"], properties: { error: { type: "object", required: ["code","message"], properties: { code: string, message: string, fields: { type: "object", additionalProperties: string } } } } },
       User: { type: "object", properties: { id: string, username: string, name: string, role: { type: "string", enum: ["astronauta","admin"] }, enabled: { type: "boolean" }, requiresOnboarding:{type:"boolean",description:"Si es true, solo admite sesión, logout y primer acceso."}, astronautId: nullableString, missionId: nullableString, moduleId: nullableString, createdAt: timestamp } },
       Environment: { type: "object", properties: { scenarioId: string, profileId: string, profileVersion: string, assignmentId: string, scope: { type: "string", enum: ["cabin","exterior"] }, telemetryAvailable: { type: "boolean" } } },
       Measurement: { type: "object", properties: { id: string, astronautId: string, missionId: string, moduleId: string, indicator: { type: "string", enum: ["sleep","wellbeing","heart_rate"] }, value: { type: "number" }, unit: string, origin: { type: "string", enum: ["manual","device","simulated"] }, quality: { type: "string", enum: ["valid"] }, capturedAt: timestamp, receivedAt: timestamp, authorId: nullableString, deviceId: nullableString, readingId: nullableString, activity: { type: "string", enum: ["rest","exercise","eva"] }, note: string, scenario: nullableString, environment: ref("Environment") } },
       Device: { type: "object", properties: { id: string, astronautId: string, enabled: { type: "boolean" }, lastCommunicationAt: { ...timestamp, nullable: true },signal:{type:"object",nullable:true,properties:{status:{type:"string",enum:["valid","no_contact","no_signal","insufficient","disconnected"]},observedAt:timestamp}} } },
       CaptureResult: { type: "object", required: ["measurement","duplicate"], properties: { measurement: ref("Measurement"), duplicate: { type: "boolean" },evaluation:{type:"object",properties:{status:{type:"string",enum:["done","pending"]},assessment:ref("Assessment"),code:string}} } },
-      Summary: { type: "object", properties: { telemetry:{type:"object",nullable:true,description:"Última instantánea de once campos crudos y estados; no certifica mediciones clínicas."}, latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, queue: { type: "object", properties: { pending: { type: "integer" }, confirmed: { type: "integer" }, rejected: { type: "integer" }, rejections: { type: "array", items: { type: "object", properties: { id: string, reason: nullableString } } } } }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: {type:"array",items:{type:"object",properties:{measurementId:string,indicator:{type:"string",enum:["heart_rate","sleep","wellbeing"]},status:{type:"string",enum:["insufficient","invalid","stale","stable","deviation"]},ruleVersion:string,direction:{type:"string",enum:["above","below"]},recommendation:ref("Recommendation"),evidence:{type:"array",items:string},reference:{type:"object"},assessment:ref("Assessment")}}} } },
+      Summary: { type: "object", properties: { telemetry:{type:"object",nullable:true,description:"Última instantánea de once campos crudos y estados; no certifica mediciones clínicas."}, latest: { type: "array", items: ref("Measurement") }, devices: { type: "array", items: ref("Device") }, environment: { ...ref("Environment"), nullable: true }, indicators: { type: "object", description: "Configuración demo-format-1 de unidades y límites de formato." }, evaluation: {type:"array",items:{type:"object",properties:{measurementId:string,indicator:{type:"string",enum:["heart_rate","sleep","wellbeing"]},status:{type:"string",enum:["insufficient","invalid","stale","stable","deviation"]},ruleVersion:string,direction:{type:"string",enum:["above","below"]},recommendation:ref("Recommendation"),evidence:{type:"array",items:string},reference:{type:"object"},assessment:ref("Assessment")}}} } },
     },
   },
 };

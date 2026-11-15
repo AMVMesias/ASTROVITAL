@@ -1,43 +1,15 @@
-import type { DatabaseSync } from "node:sqlite";
+import type { Database } from "../database";
 import type {
   EnvironmentAssignment,
   EnvironmentAtCapture,
   EnvironmentReference,
-} from "../../application/contracts/mvp";
+} from "../../../application/contracts/mvp";
 import type {
   EnvironmentCatalog,
   EnvironmentProfile,
-} from "../../application/environment/environment";
+} from "../../../application/environment/environment";
 
-// La Persona 1 registra esta migración y provee la conexión compartida de SQLite.
-export function migrateEnvironment(database: DatabaseSync) {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS environment_catalog_revisions (
-      revision TEXT PRIMARY KEY NOT NULL,
-      schema_version TEXT NOT NULL,
-      sources TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS environment_profiles (
-      revision TEXT NOT NULL REFERENCES environment_catalog_revisions (revision),
-      scenario_id TEXT NOT NULL,
-      definition TEXT NOT NULL,
-      PRIMARY KEY (revision, scenario_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS astronaut_environment_assignments (
-      mission_id TEXT NOT NULL,
-      astronaut_id TEXT NOT NULL,
-      effective_from TEXT NOT NULL,
-      revision TEXT NOT NULL,
-      scenario_id TEXT NOT NULL,
-      PRIMARY KEY (mission_id, astronaut_id, effective_from),
-      FOREIGN KEY (revision, scenario_id) REFERENCES environment_profiles (revision, scenario_id)
-    );
-  `);
-}
-
-export function seedEnvironmentCatalog(database: DatabaseSync, catalog: EnvironmentCatalog) {
+export async function seedEnvironmentCatalog(database: Database, catalog: EnvironmentCatalog) {
   const definition = JSON.stringify(catalog.sources);
   const insertCatalog = database.prepare(`
     INSERT INTO environment_catalog_revisions (revision, schema_version, sources) VALUES (?, ?, ?)
@@ -55,23 +27,23 @@ export function seedEnvironmentCatalog(database: DatabaseSync, catalog: Environm
   `);
   const profiles = new Map(catalog.profiles.map((profile) => [profile.id, JSON.stringify(profile)]));
 
-  database.exec("BEGIN IMMEDIATE");
+  (await database.exec("BEGIN"));
   try {
-    insertCatalog.run(catalog.revision, catalog.schemaVersion, definition);
-    const stored = readCatalog.get(catalog.revision);
+    (await insertCatalog.run(catalog.revision, catalog.schemaVersion, definition));
+    const stored = (await readCatalog.get(catalog.revision));
     if (stored?.schema_version !== catalog.schemaVersion || stored.sources !== definition) {
       throw new Error("Conflicto de contenido para la revisión ambiental");
     }
-    for (const [id, profile] of profiles) insertProfile.run(catalog.revision, id, profile);
-    const rows = readProfiles.all(catalog.revision);
+    for (const [id, profile] of profiles) (await insertProfile.run(catalog.revision, id, profile));
+    const rows = (await readProfiles.all(catalog.revision));
     if (rows.length !== profiles.size ||
         rows.some((row) => profiles.get(String(row.scenario_id)) !== row.definition)) {
       throw new Error("Conflicto de perfiles para la revisión ambiental");
     }
 
-    database.exec("COMMIT");
+    (await database.exec("COMMIT"));
   } catch (error) {
-    database.exec("ROLLBACK");
+    (await database.exec("ROLLBACK"));
     throw error;
   }
 }
@@ -87,7 +59,7 @@ function normalizeInstant(value: string) {
   return normalized;
 }
 
-export function createSqliteEnvironmentRepository(database: DatabaseSync) {
+export function createPostgresEnvironmentRepository(database: Database) {
   const list = database.prepare(`
     SELECT definition FROM environment_profiles WHERE revision = ? ORDER BY scenario_id
   `);
@@ -118,16 +90,16 @@ export function createSqliteEnvironmentRepository(database: DatabaseSync) {
   `);
 
   const repository = {
-    list(revision: string): EnvironmentProfile[] {
-      return list.all(revision).map((row) => JSON.parse(String(row.definition)) as EnvironmentProfile);
+    async list(revision: string): Promise<EnvironmentProfile[]> {
+      return (await list.all(revision)).map((row) => JSON.parse(String(row.definition)) as EnvironmentProfile);
     },
-    find(reference: EnvironmentReference): EnvironmentProfile | undefined {
-      const row = find.get(reference.revision, reference.scenarioId);
+    async find(reference: EnvironmentReference): Promise<EnvironmentProfile | undefined> {
+      const row = (await find.get(reference.revision, reference.scenarioId));
       return row ? JSON.parse(String(row.definition)) as EnvironmentProfile : undefined;
     },
-    findAt(missionId: string, astronautId: string, capturedAt: string): EnvironmentAssignment | undefined {
+    async findAt(missionId: string, astronautId: string, capturedAt: string): Promise<EnvironmentAssignment | undefined> {
       const instant = normalizeInstant(capturedAt);
-      const row = findAt.get(missionId, astronautId, instant);
+      const row = (await findAt.get(missionId, astronautId, instant));
       if (!row) return undefined;
 
 
@@ -137,18 +109,18 @@ export function createSqliteEnvironmentRepository(database: DatabaseSync) {
         effectiveTo: row.effective_to === null ? null : String(row.effective_to),
       };
     },
-    assign(missionId: string, astronautId: string, effectiveFrom: string, reference: EnvironmentReference) {
+    async assign(missionId: string, astronautId: string, effectiveFrom: string, reference: EnvironmentReference) {
       const instant = normalizeInstant(effectiveFrom);
-      const change = append.run(
+      const change = (await append.run(
         missionId, astronautId, instant, reference.revision, reference.scenarioId,
         missionId, astronautId, instant,
-      );
+      ));
       return change.changes === 1;
     },
   } satisfies EnvironmentAtCapture & {
-    list(revision: string): EnvironmentProfile[];
-    find(reference: EnvironmentReference): EnvironmentProfile | undefined;
-    assign(missionId: string, astronautId: string, effectiveFrom: string, reference: EnvironmentReference): boolean;
+    list(revision: string): Promise<EnvironmentProfile[]>;
+    find(reference: EnvironmentReference): Promise<EnvironmentProfile | undefined>;
+    assign(missionId: string, astronautId: string, effectiveFrom: string, reference: EnvironmentReference): Promise<boolean>;
   };
 
   return repository;

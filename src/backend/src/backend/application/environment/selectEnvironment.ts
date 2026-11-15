@@ -5,19 +5,19 @@ type VerifiedSession =
   | { role: "astronauta"; astronautId: string; missionId: string };
 
 interface EnvironmentAssignmentWriter {
-  assign(missionId: string, astronautId: string, effectiveFrom: string, reference: EnvironmentReference): boolean;
+  assign(missionId: string, astronautId: string, effectiveFrom: string, reference: EnvironmentReference): Promise<boolean>;
 }
 
 // El adaptador de acceso verifica la sesión antes de invocar este caso de uso.
-export function selectEnvironment(
+export async function selectEnvironment(
   assignments: EnvironmentAssignmentWriter,
   session: VerifiedSession,
   reference: EnvironmentReference,
   now: Date,
-): "selected" | "forbidden" | "not_assigned" {
+): Promise<"selected" | "forbidden" | "not_assigned"> {
   if (session.role !== "astronauta") return "forbidden";
 
-  return assignments.assign(session.missionId, session.astronautId, now.toISOString(), reference)
+  return (await assignments.assign(session.missionId, session.astronautId, now.toISOString(), reference))
     ? "selected"
     : "not_assigned";
 }

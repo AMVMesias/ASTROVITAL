@@ -7,30 +7,30 @@ import { digest } from "../../infrastructure/security/credentials";
 import { AuthService } from "../auth/AuthService";
 
 export class MeasurementService {
-  constructor(private repo: Repository, private auth: AuthService, private environment: EnvironmentProvider, private assess?: (value:Measurement)=>Assessment) {}
-  manual(session: Session, input: unknown) {
-    return this.repo.atomic(() => {
-      const user = this.auth.requireSession(session.sessionId, "astronauta");
-      return this.capture(user.astronautId!, user.missionId!, user.moduleId!, input, "manual", user.id);
-    });
+  constructor(private repo: Repository, private auth: AuthService, private environment: EnvironmentProvider, private assess?: (value:Measurement)=>Promise<Assessment>) {}
+  async manual(session: Session, input: unknown) {
+    return (await this.repo.atomic(async () => {
+      const user = (await this.auth.requireSession(session.sessionId, "astronauta"));
+      return (await this.capture(user.astronautId!, user.missionId!, user.moduleId!, input, "manual", user.id));
+    }));
   }
-  fromDevice(id: string, credential: string, input: unknown) {
-    return this.repo.atomic(() => {
-      const device = this.repo.device(id);
+  async fromDevice(id: string, credential: string, input: unknown) {
+    return (await this.repo.atomic(async () => {
+      const device = (await this.repo.device(id));
       if (!device?.enabled || digest(credential) !== device.credentialHash) throw new AppError(401, "DEVICE_UNAUTHORIZED", "Dispositivo o credencial no válidos.");
-      const user = this.repo.users().find(user => user.astronautId === device.astronautId);
+      const user = (await (await this.repo.users()).find(user => user.astronautId === device.astronautId));
       if (!user?.enabled || user.requiresOnboarding || user.role !== "astronauta") throw new AppError(403, "DEVICE_OWNER_UNAVAILABLE", "La cuenta vinculada no está habilitada como astronauta.");
-      const result = this.capture(user.astronautId!, user.missionId!, user.moduleId!, input, "device", null, id);
-      this.repo.touchDevice(id, new Date().toISOString());
-      this.repo.signalStatus(id,"valid",result.measurement.capturedAt,new Date().toISOString());
+      const result = (await this.capture(user.astronautId!, user.missionId!, user.moduleId!, input, "device", null, id));
+      (await this.repo.touchDevice(id, new Date().toISOString()));
+      (await this.repo.signalStatus(id,"valid",result.measurement.capturedAt,new Date().toISOString()));
       return result;
-    });
+    }));
   }
-  reportStatus(id:string,credential:string,value:unknown) {
-    return this.repo.atomic(()=>{
-      const device=this.repo.device(id);
+  async reportStatus(id:string,credential:string,value:unknown) {
+    return (await this.repo.atomic(async ()=>{
+      const device=(await this.repo.device(id));
       if(!device?.enabled || digest(credential)!==device.credentialHash) throw new AppError(401,"DEVICE_UNAUTHORIZED","Dispositivo o credencial no válidos.");
-      const user=this.repo.users().find(user=>user.astronautId===device.astronautId);
+      const user=(await (await this.repo.users()).find(user=>user.astronautId===device.astronautId));
       if(!user?.enabled || user.requiresOnboarding || user.role!=="astronauta") throw new AppError(403,"DEVICE_OWNER_UNAVAILABLE","Cuenta vinculada no disponible.");
       const input=object(value);only(input,["status","observedAt"]);
       const status=text(input,"status");
@@ -38,19 +38,19 @@ export class MeasurementService {
       const observedAt=date(input.observedAt,"observedAt");
       if(Date.parse(observedAt)>Date.now()+60_000) throw new AppError(400,"VALIDATION","Fecha futura no admitida.");
       const receivedAt=new Date().toISOString();
-      this.repo.signalStatus(id,status,observedAt,receivedAt);this.repo.touchDevice(id,receivedAt);
+      (await this.repo.signalStatus(id,status,observedAt,receivedAt));(await this.repo.touchDevice(id,receivedAt));
       return {status:"recorded"};
-    });
+    }));
   }
   /** Solo comando local de demo; no se publica como endpoint. */
-  simulated(astronautId: string, input: unknown, scenario: string) {
-    return this.repo.atomic(() => {
-      const user = this.repo.users().find(user => user.astronautId === astronautId && user.role === "astronauta" && user.enabled && !user.requiresOnboarding);
+  async simulated(astronautId: string, input: unknown, scenario: string) {
+    return (await this.repo.atomic(async () => {
+      const user = (await (await this.repo.users()).find(user => user.astronautId === astronautId && user.role === "astronauta" && user.enabled && !user.requiresOnboarding));
       if (!user) throw new AppError(404, "NOT_FOUND", "Astronauta de demo no disponible.");
-      return this.capture(astronautId, user.missionId!, user.moduleId!, input, "simulated", user.id, undefined, scenario);
-    });
+      return (await this.capture(astronautId, user.missionId!, user.moduleId!, input, "simulated", user.id, undefined, scenario));
+    }));
   }
-  private capture(astronautId: string, missionId: string, moduleId: string, value: unknown, origin: Origin, authorId: string | null, deviceId?: string, scenario?: string) {
+  private async capture(astronautId: string, missionId: string, moduleId: string, value: unknown, origin: Origin, authorId: string | null, deviceId?: string, scenario?: string) {
     const input = object(value); only(input, ["indicator", "value", "unit", "capturedAt", "activity", "note", ...(deviceId ? ["readingId"] : [])]);
     const indicator = input.indicator as Indicator;
     if (!Object.hasOwn(indicatorConfig, indicator)) throw new AppError(400, "VALIDATION", "Indicador no admitido.");
@@ -67,21 +67,21 @@ export class MeasurementService {
     const fingerprint = digest(JSON.stringify({ indicator, value: input.value, unit: config.unit, capturedAt, activity, note }));
     // Deduplicar antes de consultar un entorno que pudo cambiar desde el primer envío.
     if (deviceId && readingId) {
-      const previous = this.repo.deviceReading(deviceId, readingId);
+      const previous = (await this.repo.deviceReading(deviceId, readingId));
       if (previous) {
         if (previous.fingerprint !== fingerprint) throw new AppError(409, "READING_CONFLICT", "El ID de lectura ya existe con otro contenido.");
         return { measurement: previous.measurement, duplicate: true };
       }
     }
-    const environment = this.environment.resolve(astronautId, capturedAt);
+    const environment = (await this.environment.resolve(astronautId, capturedAt));
     if (!environment) throw new AppError(409, "ENVIRONMENT_MISSING", "No hay perfil ambiental para la fecha de captura.");
     const measurement: Measurement = { id: randomUUID(), astronautId, missionId, moduleId, indicator, value: input.value, unit: config.unit, origin, quality: "valid", capturedAt,
       receivedAt: new Date().toISOString(), authorId, deviceId: deviceId ?? null, readingId, activity, note, scenario: scenario ?? null, environment };
-    this.repo.saveMeasurement(measurement, fingerprint);
+    (await this.repo.saveMeasurement(measurement, fingerprint));
     return { measurement, duplicate: false };
   }
-  history(session: Session, params: URLSearchParams) {
-    const user = this.auth.requireSession(session.sessionId, "astronauta");
+  async history(session: Session, params: URLSearchParams) {
+    const user = (await this.auth.requireSession(session.sessionId, "astronauta"));
     const allowed = ["indicator", "from", "to", "limit", "offset"];
     for (const key of params.keys()) if (!allowed.includes(key)) throw new AppError(400, "VALIDATION", "Filtro no admitido.");
     const indicator = params.get("indicator") ?? undefined;
@@ -91,13 +91,13 @@ export class MeasurementService {
     if (from && to && from > to) throw new AppError(400, "VALIDATION", "El inicio debe preceder al fin.");
     const limit = Number(params.get("limit") ?? 50), offset = Number(params.get("offset") ?? 0);
     if (!Number.isInteger(limit) || limit < 1 || limit > 200 || !Number.isInteger(offset) || offset < 0 || offset > 1_000_000) throw new AppError(400, "VALIDATION", "Paginación inválida.");
-    return this.repo.measurements(user.astronautId!, { indicator: indicator as Indicator | undefined, from, to, limit, offset });
+    return (await this.repo.measurements(user.astronautId!, { indicator: indicator as Indicator | undefined, from, to, limit, offset }));
   }
-  summary(session: Session) {
-    const user = this.auth.requireSession(session.sessionId, "astronauta");
-    const latest=this.repo.latest(user.astronautId!);
-    return { latest: latest.map(value=>({...value,ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(value.capturedAt))/1000))})), devices: this.repo.devices(user.astronautId!), queue: this.repo.queueStatus(user.astronautId!), indicators: indicatorConfig,
-      environment: this.environment.resolve(user.astronautId!, new Date().toISOString()),
-      evaluation: this.assess ? latest.map(value=>{const assessment=this.assess!(value);return {measurementId:value.id,indicator:value.indicator,...assessment,assessment};}) : { status: "not_connected", message: "Evaluación no configurada." } };
+  async summary(session: Session) {
+    const user = (await this.auth.requireSession(session.sessionId, "astronauta"));
+    const latest=(await this.repo.latest(user.astronautId!));
+    return { latest: latest.map(value=>({...value,ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(value.capturedAt))/1000))})), devices: (await this.repo.devices(user.astronautId!)),  indicators: indicatorConfig,
+      environment: (await this.environment.resolve(user.astronautId!, new Date().toISOString())),
+      evaluation: this.assess ? await Promise.all(latest.map(async value=>{const assessment=await this.assess!(value);return {measurementId:value.id,indicator:value.indicator,...assessment,assessment};})) : { status: "not_connected", message: "Evaluación no configurada." } };
   }
 }

@@ -1,19 +1,3 @@
-import { ThemeToggle } from "../../frontend/components/ui/ThemeToggle";
-import Link from "next/link";
 import type { ReactNode } from "react";
-export default function PanelLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <nav className="panel-nav" aria-label="Panel">
-        <Link href="/">AstroVital</Link>
-        <ThemeToggle />
-        {["dashboard", "usuarios", "reportes", "configuracion"].map((route) => (
-          <Link href={`/${route}`} key={route}>
-            {route}
-          </Link>
-        ))}
-      </nav>
-      {children}
-    </>
-  );
-}
+import { SessionPanel } from "../../frontend/components/layout/SessionPanel";
+export default function PanelLayout({children}:{children:ReactNode}) { return <SessionPanel>{children}</SessionPanel>; }

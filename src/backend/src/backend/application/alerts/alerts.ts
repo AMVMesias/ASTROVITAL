@@ -26,22 +26,22 @@ export type AlertSession =
   | ({ role: "astronauta"; userId: string } & AlertOwner);
 
 export interface AlertRepository {
-  insert(alert: Alert): Alert;
-  list(owner: AlertOwner): Alert[];
-  detail(owner: AlertOwner, alertId: string): { alert: Alert; actions: AlertAction[] } | undefined;
-  act(owner: AlertOwner, alertId: string, action: AlertAction): "recorded" | "not_found" | "closed";
+  insert(alert: Alert): Promise<Alert>;
+  list(owner: AlertOwner): Promise<Alert[]>;
+  detail(owner: AlertOwner, alertId: string): Promise<{ alert: Alert; actions: AlertAction[] } | undefined>;
+  act(owner: AlertOwner, alertId: string, action: AlertAction): Promise<"recorded" | "not_found" | "closed">;
 }
 
-export function recordAssessment(
+export async function recordAssessment(
   repository: AlertRepository,
   measurement: PersonalMeasurement,
   assessment: Assessment,
   now: Date,
-): Alert | undefined {
+): Promise<Alert | undefined> {
   const reason = assessment.status;
   if (reason !== "invalid" && reason !== "stale" && reason !== "deviation") return;
 
-  return repository.insert({
+  return (await repository.insert({
     id: JSON.stringify([measurement.missionId, measurement.astronautId, measurement.id, assessment.ruleVersion, reason]),
     measurementId: measurement.id,
     missionId: measurement.missionId,
@@ -51,21 +51,21 @@ export function recordAssessment(
     reason,
     evidence: assessment,
     createdAt: now.toISOString(),
-  });
+  }));
 }
 
 export function createAstronautAlerts(repository: AlertRepository, session: AlertSession) {
   if (session.role !== "astronauta") return undefined;
 
   return {
-    list: () => repository.list(session),
-    detail: (id: string) => repository.detail(session, id),
-    act(id: string, type: AlertAction["type"], note: string | undefined, now: Date) {
+    list: async () => (await repository.list(session)),
+    detail: async (id: string) => (await repository.detail(session, id)),
+    async act(id: string, type: AlertAction["type"], note: string | undefined, now: Date) {
       const normalizedNote = note?.trim();
       if (normalizedNote && normalizedNote.length > 1000) return "invalid_note";
-      return repository.act(session, id, {
+      return (await repository.act(session, id, {
         type, note: normalizedNote || undefined, authorId: session.userId, createdAt: now.toISOString(),
-      });
+      }));
     },
   };
 }

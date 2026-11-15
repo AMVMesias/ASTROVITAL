@@ -8,10 +8,10 @@ export function createMissionEnvironment(
   missionFor: (astronautId: string) => string | undefined,
 ): EnvironmentProvider {
   return {
-    resolve(astronautId, capturedAt): EnvironmentContext | null {
+    async resolve(astronautId, capturedAt): Promise<EnvironmentContext | null> {
       const missionId = missionFor(astronautId);
       if (!missionId) return null;
-      const assignment = assignments.findAt(missionId, astronautId, capturedAt);
+      const assignment = await assignments.findAt(missionId, astronautId, capturedAt);
       const scenarioId = assignment?.reference.scenarioId ?? "iss_leo";
 
       return {

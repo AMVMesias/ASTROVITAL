@@ -1,0 +1,46 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { test } from "node:test";
+import { NextRequest } from "next/server";
+import { databasePool } from "../src/backend/src/backend/infrastructure/postgres/database";
+import { services, withServices } from "../src/backend/src/backend/composition/services";
+import { seed, provisionDevice } from "../src/backend/src/backend/infrastructure/postgres/app/seed";
+import { securityQuestions } from "../src/backend/src/backend/application/auth/securityQuestions";
+import { POST as loginRoute } from "../src/backend/src/app/api/v1/auth/login/route";
+import { GET as sessionRoute } from "../src/backend/src/app/api/v1/auth/session/route";
+import { GET as environmentRoute } from "../src/backend/src/app/api/v1/me/environment/route";
+import { POST as measurementRoute } from "../src/backend/src/app/api/v1/me/measurements/route";
+
+test("Supabase application: authentication, roles, recovery, measurements and HTTP",{skip:!process.env.DATABASE_URL},async t=>{
+ const schema=`test_${randomUUID().replaceAll("-","")}`;
+ assert.match(schema,/^test_[a-f0-9]{32}$/);
+ const pool=databasePool();
+ await pool.query(readFileSync("supabase/migrations/20261115010000_cloud_application.sql","utf8").replace(/\bapp\b/g,schema));
+ process.env.NASA_DATABASE_SCHEMA=schema;
+ const password="Initial-admin-12345",next="Astronaut-password-12345";
+ const body={newPassword:next,confirmation:next,answers:securityQuestions.slice(0,3).map(q=>({questionId:q.id,answer:`Answer ${q.id}`}))};
+ const request=(path:string,method="GET",value?:unknown,cookie?:string)=>new NextRequest(`http://localhost:3001/api/v1/${path}`,{method,headers:{"Content-Type":"application/json","X-Nasa-Request":"1",...(cookie?{cookie}:{})},...(value?{body:JSON.stringify(value)}:{})});
+ try {await withServices(async()=>{
+ const app=services();await seed(app.repo,"admin",password);await seed(app.repo,"admin",password);await app.repo.run("UPDATE users SET requires_onboarding=0 WHERE username=?","admin");
+ await t.test("seed is repeatable and passwords are hashed",async()=>{assert.equal((await app.repo.users()).length,1);assert.notEqual((await app.repo.accountByUsername("admin"))!.passwordHash,password);});
+ await t.test("unknown accounts and wrong passwords are rejected",async()=>{await assert.rejects(app.auth.login({username:"missing",password}),{code:"INVALID_CREDENTIALS"});await assert.rejects(app.auth.login({username:"admin",password:"wrong"}),{code:"INVALID_CREDENTIALS"});});
+ const adminLogin=await app.auth.login({username:"admin",password});const admin=await app.auth.session(adminLogin.token);
+ const astronaut=await app.users.save(admin,{username:"astro",name:"Astronaut",role:"astronauta",password});
+ const initial=await app.auth.login({username:"astro",password});const onboarding=await app.auth.session(initial.token);
+ await t.test("onboarding gates access and duplicate users fail",async()=>{await assert.rejects(app.measurements.summary(onboarding),{code:"ONBOARDING_REQUIRED"});await assert.rejects(app.users.save(admin,{username:"astro",name:"Duplicate",role:"astronauta",password}),{code:"USERNAME_EXISTS"});});
+ await t.test("onboarding persists questions and revokes initial sessions",async()=>{await app.recovery.completeOnboarding(onboarding,body);await assert.rejects(app.auth.session(initial.token),{code:"UNAUTHENTICATED"});});
+ const login=await app.auth.login({username:"astro",password:next});const astro=await app.auth.session(login.token);
+ await t.test("roles isolate accounts and personal health",async()=>{await assert.rejects(app.users.list(astro),{code:"FORBIDDEN"});await assert.rejects(app.measurements.summary(admin),{code:"FORBIDDEN"});await assert.rejects(app.users.save(admin,{enabled:false},admin.id),{code:"LAST_ADMIN"});assert.ok(!(await app.users.list(admin)).some(u=>"passwordHash" in u));});
+ const input={indicator:"sleep",value:7.5,unit:"h",capturedAt:new Date().toISOString()};
+ await t.test("manual measurements and assessment persist in PostgreSQL",async()=>{const saved=await app.measurements.manual(astro,input);assert.equal((await app.assessments.process(saved.measurement.id)).status,"done");assert.equal((await app.measurements.history(astro,new URLSearchParams())).length,1);const summary=await app.measurements.summary(astro);assert.equal(summary.latest[0].value,7.5);assert.ok(Array.isArray(summary.evaluation));await assert.rejects(app.measurements.manual(astro,{...input,value:25}),{code:"VALIDATION"});await assert.rejects(app.measurements.history(astro,new URLSearchParams("limit=0")),{code:"VALIDATION"});});
+ await t.test("database transactions roll back writes",async()=>{const before=(await app.repo.users()).length;await assert.rejects(app.repo.atomic(async()=>{await app.users.save(admin,{username:"rolledback",name:"Rollback",role:"admin",password});throw new Error("rollback");}));assert.equal((await app.repo.users()).length,before);});
+ const deviceToken="device-token-"+randomUUID();await provisionDevice(app.repo,"astro","test-device",deviceToken);
+ await t.test("device credentials, deduplication and conflicts",async()=>{const reading={indicator:"heart_rate",value:70,unit:"bpm",capturedAt:new Date().toISOString(),readingId:"read-1"};await assert.rejects(app.measurements.fromDevice("test-device","wrong",reading),{code:"DEVICE_UNAUTHORIZED"});const a=await app.measurements.fromDevice("test-device",deviceToken,reading),b=await app.measurements.fromDevice("test-device",deviceToken,reading);assert.equal(a.measurement.id,b.measurement.id);assert.equal(b.duplicate,true);await assert.rejects(app.measurements.fromDevice("test-device",deviceToken,{...reading,value:71}),{code:"READING_CONFLICT"});});
+ await t.test("HTTP login, cookie session, environment and capture use real services",async()=>{const response=await loginRoute(request("auth/login","POST",{username:"astro",password:next}));assert.equal(response.status,200);const cookie=response.headers.get("set-cookie")!.split(";")[0];const session=await sessionRoute(request("auth/session","GET",undefined,cookie));assert.equal((await session.json()).user.username,"astro");const catalog=await environmentRoute(request("me/environment","GET",undefined,cookie));assert.equal((await catalog.json()).profiles.length,4);const reading=await measurementRoute(request("me/measurements","POST",input,cookie));assert.equal(reading.status,201,JSON.stringify(await reading.clone().json()));assert.equal((await reading.json()).measurement.value,7.5);});
+ await t.test("recovery verifies persisted answers and grants are single use",async()=>{const challenge=await app.recovery.start({username:"astro"});await assert.rejects(app.recovery.verify({challengeId:challenge.challengeId,answer:"wrong"}),{code:"RECOVERY_INVALID"});const grant=await app.recovery.verify({challengeId:challenge.challengeId,answer:`Answer ${challenge.question.id}`});const newPassword="Recovered-password-12345";await app.recovery.resetPassword({resetToken:grant.resetToken,newPassword,confirmation:newPassword});await assert.rejects(app.recovery.resetPassword({resetToken:grant.resetToken,newPassword,confirmation:newPassword}),{code:"RESET_TOKEN_INVALID"});await assert.rejects(app.auth.session(login.token),{code:"UNAUTHENTICATED"});assert.ok(await app.auth.login({username:"astro",password:newPassword}));});
+ await t.test("disabled users and revoked sessions stay blocked",async()=>{await app.users.save(admin,{enabled:false},astronaut.id);await assert.rejects(app.auth.login({username:"astro",password:"Recovered-password-12345"}),{code:"INVALID_CREDENTIALS"});});
+ await t.test("login throttling is persisted",async()=>{for(let i=0;i<5;i++)await assert.rejects(app.auth.login({username:"bad-account",password}));await assert.rejects(app.auth.login({username:"bad-account",password}),{code:"LOGIN_THROTTLED"});});
+ await t.test("application tables enforce RLS",async()=>{const rows=await pool.query("SELECT relrowsecurity FROM pg_class JOIN pg_namespace n ON n.oid=relnamespace WHERE n.nspname=$1 AND relkind='r'",[schema]);assert.ok(rows.rows.length>10);assert.ok(rows.rows.every(r=>r.relrowsecurity));});
+ });}finally{delete process.env.NASA_DATABASE_SCHEMA;await pool.query(`DROP SCHEMA ${schema} CASCADE`);await pool.end();}
+});

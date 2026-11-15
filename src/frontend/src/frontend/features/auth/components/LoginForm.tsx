@@ -2,19 +2,11 @@
 import { useLanguage } from "../../../providers/LanguageProvider";
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../../components/ui/Icon";
-import type { MessageKey } from "../../../lib/i18n";
+import { useRouter } from "next/navigation";
+import { api, writeRequest, type User } from "../../../lib/api";
 import { SECURITY_QUESTIONS } from "../securityQuestions";
 
-type DemoAnswer = { questionId: string; answer: string };
-type DemoChallenge = {
-  questionId: string;
-  answer: string;
-  failures: number;
-  verified: boolean;
-  example: boolean;
-};
-const normalizeAnswer = (value: string) =>
-  value.trim().normalize("NFKC").toLocaleLowerCase("es");
+type Challenge = { challengeId: string; question: { id: string; label: string }; attemptsRemaining: number; };
 
 type Screen =
   | "login"
@@ -25,7 +17,7 @@ type Screen =
   | "onboarding-password"
   | "onboarding-question"
   | "onboarding-complete";
-const headings: Record<Screen, [MessageKey, MessageKey]> = {
+const headings: Record<Screen, [string, string]> = {
   "onboarding-password": [
     "Primer acceso",
     "Tu cuenta fue creada por el administrador. Antes de continuar, cambia tu contraseña inicial.",
@@ -34,10 +26,7 @@ const headings: Record<Screen, [MessageKey, MessageKey]> = {
     "Protege tu cuenta",
     "Elige tres preguntas diferentes y responde cada una. Al recuperar el acceso se te hará una sola, elegida al azar.",
   ],
-  "onboarding-complete": [
-    "Configuración de ejemplo",
-    "Las tres preguntas de ejemplo están listas para probar la recuperación durante esta sesión. La contraseña real no ha cambiado.",
-  ],
+  "onboarding-complete": ["Cuenta configurada", "Inicia sesión para continuar."],
   login: [
     "Iniciar sesión",
     "Accede a la plataforma para consultar y gestionar la salud de la tripulación.",
@@ -54,23 +43,22 @@ const headings: Record<Screen, [MessageKey, MessageKey]> = {
     "Nueva contraseña",
     "Crea una contraseña de al menos 12 caracteres y confírmala.",
   ],
-  complete: [
-    "Vista previa completada",
-    "Ya recorriste los pasos de recuperación. Tu contraseña no se ha cambiado.",
-  ],
+  complete: ["Contraseña guardada", "Inicia sesión para continuar."],
 };
 export function LoginForm() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
+  const es=locale === "es";
+  const router=useRouter();
+  const [pending,setPending]=useState(false);
+  const passwordDraft=useRef("");
+  const resetToken=useRef("");
   const [screen, setScreen] = useState<Screen>("login");
   const [backward, setBackward] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [notice, setNotice] = useState<MessageKey | "">("");
+  const [notice, setNotice] = useState("");
   const [username, setUsername] = useState("");
   const [selectedQuestions, setSelectedQuestions] = useState(["", "", ""]);
-  const [challenge, setChallenge] = useState<DemoChallenge | null>(null);
-  const demoAccounts = useRef(new Map<string, DemoAnswer[]>());
-  const demoChallenges = useRef(new Map<string, DemoChallenge>());
-  const accountKey = (name: string) => name.trim().toLocaleLowerCase("es");
+  const [challenge, setChallenge] = useState<Challenge | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const initialRender = useRef(true);
   useEffect(() => {
@@ -89,7 +77,7 @@ export function LoginForm() {
   const recovery = ["identify", "question", "password", "complete"].includes(
     screen,
   );
-  const onboarding = screen.startsWith("onboarding");
+
   return (
     <div className="auth-flow-viewport">
       <div
@@ -97,16 +85,9 @@ export function LoginForm() {
         className={`auth-flow-panel ${backward ? "auth-flow-back" : ""}`}
       >
         <h2 id="auth-title" ref={heading} tabIndex={-1}>
-          {t(headings[screen][0])}
+          {screen === "complete" || screen === "onboarding-complete" ? (es ? "Cambio guardado" : "Changes saved") : headings[screen][0]}
         </h2>
-        <p className="auth-description">{t(headings[screen][1])}</p>
-        {(recovery || onboarding) && (
-          <p className="recovery-demo">
-            {t(
-              "Vista previa · La verificación y el cambio real requieren conectar el backend.",
-            )}
-          </p>
-        )}
+        <p className="auth-description">{screen === "complete" || screen === "onboarding-complete" ? (es ? "Tu contraseña se guardó. Inicia sesión para continuar." : "Your password was saved. Sign in to continue.") : headings[screen][1]}</p>
         {recovery && screen !== "complete" && (
           <ol
             className="recovery-progress"
@@ -133,104 +114,35 @@ export function LoginForm() {
         <form
           key={screen}
           className="auth-form"
-          onSubmit={(event) => {
+          onSubmit={async (event) => {
             event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            if (screen === "login") {
-              setUsername(String(data.get("username")).trim());
-              setSelectedQuestions(["", "", ""]);
-              // Demo only: the real login response must indicate first access.
-              navigate("onboarding-password");
-            } else if (screen === "identify") {
-              const name = String(data.get("username")).trim();
-              setUsername(name);
-              const key = accountKey(name);
-              let current = demoChallenges.current.get(key);
-              if (!current) {
-                const saved = demoAccounts.current.get(key);
-                const answers =
-                  saved ??
-                  SECURITY_QUESTIONS.slice(0, 3).map((q) => ({
-                    questionId: q.id,
-                    answer: "demo",
-                  }));
-                const selected =
-                  answers[
-                    crypto.getRandomValues(new Uint32Array(1))[0] %
-                      answers.length
-                  ];
-                current = {
-                  ...selected,
-                  failures: 0,
-                  verified: false,
-                  example: !saved,
-                };
-                demoChallenges.current.set(key, current);
+            if(pending) return;
+            const data=new FormData(event.currentTarget);setPending(true);setNotice("");
+            try {
+              if(screen === "login") {
+                const name=String(data.get("username")).trim();setUsername(name);
+                const {user}=await api<{user:User}>("/v1/auth/login",writeRequest("POST",{username:name,password:String(data.get("password"))}));
+                if(user.requiresOnboarding) navigate("onboarding-password");
+                else {router.replace(user.role === "admin" ? "/usuarios" : "/dashboard");router.refresh();}
+              } else if(screen === "identify") {
+                const name=String(data.get("username")).trim();setUsername(name);
+                setChallenge(await api<Challenge>("/v1/auth/recovery/start",writeRequest("POST",{username:name})));navigate("question");
+              } else if(screen === "question" && challenge) {
+                try {
+                  const result=await api<{resetToken:string}>("/v1/auth/recovery/verify",writeRequest("POST",{challengeId:challenge.challengeId,answer:String(data.get("answer"))}));
+                  resetToken.current=result.resetToken;navigate("password");
+                } catch(error) {setChallenge({...challenge,attemptsRemaining:Math.max(0,challenge.attemptsRemaining-1)});throw error;}
+              } else if(screen === "password" || screen === "onboarding-password") {
+                const next=String(data.get("password"));if(next !== data.get("confirmation")) throw new Error(es ? "Las contraseñas no coinciden." : "Passwords do not match.");
+                if(screen === "onboarding-password") {passwordDraft.current=next;navigate("onboarding-question");}
+                else {await api("/v1/auth/recovery/reset",writeRequest("POST",{resetToken:resetToken.current,newPassword:next,confirmation:next}));resetToken.current="";navigate("complete");}
+              } else if(screen === "onboarding-question") {
+                const answers=selectedQuestions.map((questionId,i)=>({questionId,answer:String(data.get(`securityAnswer${i}`))}));
+                await api("/v1/auth/onboarding",writeRequest("POST",{newPassword:passwordDraft.current,confirmation:passwordDraft.current,answers}));
+                passwordDraft.current="";navigate("onboarding-complete");
               }
-              setChallenge(current);
-              navigate("question");
-            } else if (screen === "question") {
-              if (!challenge || challenge.failures >= 3) return;
-              if (
-                normalizeAnswer(String(data.get("answer"))) !== challenge.answer
-              ) {
-                const updated = {
-                  ...challenge,
-                  failures: challenge.failures + 1,
-                };
-                demoChallenges.current.set(accountKey(username), updated);
-                setChallenge(updated);
-                setNotice(
-                  updated.failures >= 3
-                    ? "Has agotado los 3 intentos. Contacta al administrador para recuperar el acceso."
-                    : "La respuesta no coincide. Inténtalo de nuevo.",
-                );
-                return;
-              }
-              const verified = { ...challenge, verified: true };
-              demoChallenges.current.set(accountKey(username), verified);
-              setChallenge(verified);
-              navigate("password");
-            } else if (
-              screen === "password" ||
-              screen === "onboarding-password"
-            ) {
-              if (
-                screen === "password" &&
-                (!challenge?.verified || challenge.failures >= 3)
-              )
-                return;
-              if (data.get("password") !== data.get("confirmation")) {
-                setNotice("Las contraseñas no coinciden.");
-                return;
-              }
-              navigate(
-                screen === "onboarding-password"
-                  ? "onboarding-question"
-                  : "complete",
-              );
-            } else if (screen === "onboarding-question") {
-              if (
-                new Set(selectedQuestions).size !== 3 ||
-                selectedQuestions.some((id) => !id)
-              ) {
-                setNotice("Elige tres preguntas distintas.");
-                return;
-              }
-              const answers = selectedQuestions.map((questionId, index) => ({
-                questionId,
-                answer: normalizeAnswer(
-                  String(data.get(`securityAnswer${index}`)),
-                ),
-              }));
-              if (answers.some((item) => !item.answer)) {
-                setNotice("Responde las tres preguntas.");
-                return;
-              }
-              demoAccounts.current.set(accountKey(username), answers);
-              demoChallenges.current.delete(accountKey(username));
-              navigate("onboarding-complete");
-            }
+            } catch(error) {setNotice(error instanceof Error ? error.message : (es ? "No se pudo completar la operación." : "Request failed."));}
+            finally {setPending(false);}
           }}
         >
           {(screen === "login" || screen === "identify") && (
@@ -253,7 +165,7 @@ export function LoginForm() {
               <p className="recovery-question">
                 <small>{t("Una de tus tres preguntas")}</small>
                 {t(
-                  SECURITY_QUESTIONS.find((q) => q.id === challenge?.questionId)
+                  SECURITY_QUESTIONS.find((q) => q.id === challenge?.question.id)
                     ?.label ?? "Pregunta de seguridad",
                 )}
               </p>
@@ -267,21 +179,13 @@ export function LoginForm() {
                   placeholder={t("Tu respuesta")}
                   autoComplete="off"
                   maxLength={200}
-                  disabled={!challenge || challenge.failures >= 3}
+                  disabled={!challenge || challenge.attemptsRemaining <= 0}
                 />
               </label>
-              <p className="recovery-hint">
-                {challenge?.example
-                  ? t(
-                      "Cuenta de ejemplo: responde «demo», o configura primero tus tres preguntas desde el primer acceso.",
-                    )
-                  : t(
-                      "Responde con el dato de ejemplo que configuraste en esta sesión.",
-                    )}
-              </p>
+
               <p className="recovery-attempts" role="status">
                 {t("Intentos restantes:")}{" "}
-                {Math.max(0, 3 - (challenge?.failures ?? 0))}
+                {challenge?.attemptsRemaining ?? 0}
                 {t("de 3")}
               </p>
             </>
@@ -337,11 +241,7 @@ export function LoginForm() {
           )}
           {screen === "onboarding-question" && (
             <div className="setup-questions">
-              <p className="recovery-hint">
-                {t(
-                  "Usa respuestas de prueba. Esta demo las conserva solo en memoria hasta recargar la página.",
-                )}
-              </p>
+
               {selectedQuestions.map((selected, index) => (
                 <fieldset key={index} className="setup-question-group">
                   <legend>
@@ -399,7 +299,7 @@ export function LoginForm() {
           )}
           {notice && (
             <p role="alert" className="auth-notice">
-              {t(notice)}
+              {notice}
             </p>
           )}
           {screen !== "complete" && screen !== "onboarding-complete" && (
@@ -407,23 +307,16 @@ export function LoginForm() {
               className="auth-submit"
               type="submit"
               disabled={
-                screen === "question" && (!challenge || challenge.failures >= 3)
+                pending || (screen === "question" && (!challenge || challenge.attemptsRemaining <= 0))
               }
             >
               {screen === "login"
                 ? t("Iniciar sesión")
                 : screen === "password" || screen === "onboarding-question"
-                  ? t("Finalizar vista previa")
+                  ? (es ? "Guardar" : "Save")
                   : t("Continuar")}
               <Icon name="arrow" />
             </button>
-          )}
-          {screen === "complete" && (
-            <p className="auth-notice" role="status">
-              {t(
-                "La integración pendiente deberá validar tu respuesta antes de permitir guardar una nueva contraseña.",
-              )}
-            </p>
           )}
           {screen === "login" ? (
             <button

@@ -156,7 +156,7 @@ Crear cuatro recursos distintos, con nombres de tablas definitivos a decidir en 
 
 | Recurso | Contenido | Uso |
 | --- | --- | --- |
-| Catálogo documental | Fuentes y referencias escalares/rangos, evidencia, contexto, revisión y checksum | Fichas consultables offline |
+| Catálogo documental | Fuentes y referencias escalares/rangos, evidencia, contexto, revisión y checksum | Fichas consultables en la web |
 | Perfil y asignación | Escenario, versión, ámbito, misión/módulo, actividad e intervalo efectivo por astronauta | Contexto histórico de captura |
 | Observación ambiental | Fecha original, variable, unidad, instrumento, ubicación, calidad, producto y transformaciones | Historial ambiental real o reproducción histórica |
 | Medición personal | Dueño, indicador, origen y contexto ambiental referenciado | Captura, evaluación personal y sincronización del MVP |
