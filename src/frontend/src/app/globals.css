@@ -201,14 +201,14 @@ select:focus-visible {
 .home .footer-group a:focus-visible {
   color: #a9cdff;
 }
-.home .social a {
+.home .social .social-icon {
   transition:
     color 180ms ease,
     background-color 180ms ease,
     transform 180ms ease;
 }
-.home .social a:hover,
-.home .social a:focus-visible {
+.home .social .social-icon:hover,
+.home .social .social-icon:focus-visible {
   color: #031c38;
   background-color: white;
   transform: translateY(-2px);
@@ -227,13 +227,13 @@ select:focus-visible {
     animation: none;
   }
   .home .button,
-  .home .social a,
+  .home .social .social-icon,
   .hero-login svg {
     transition: none;
   }
   .home .button:hover,
-  .home .social a:hover,
-  .home .social a:focus-visible,
+  .home .social .social-icon:hover,
+  .home .social .social-icon:focus-visible,
   .hero-login:hover svg,
   .hero-login:focus-visible svg {
     transform: none;
@@ -402,7 +402,7 @@ h1 {
   gap: 17px;
   margin-top: 15px;
 }
-.social a {
+.social .social-icon {
   border: 1.5px solid white;
   width: 40px;
   height: 40px;
@@ -551,7 +551,7 @@ h1 {
     gap: 9px;
     flex-wrap: wrap;
   }
-  .social a {
+  .social .social-icon {
     width: 33px;
     height: 33px;
   }
@@ -705,7 +705,7 @@ h1 {
   gap: 0.9vw;
   margin-top: 0.8vw;
 }
-.home .social a {
+.home .social .social-icon {
   width: calc(var(--space) * 2.4);
   height: calc(var(--space) * 2.4);
   border-radius: 7px;
@@ -860,7 +860,7 @@ h1 {
     flex-wrap: wrap;
     margin-top: 4px;
   }
-  .home .social a {
+  .home .social .social-icon {
     width: 20px;
     height: 20px;
     border-radius: 5px;
@@ -963,7 +963,7 @@ h1 {
   .home .footer-bottom {
     font-size: 9px;
   }
-  .home .social a {
+  .home .social .social-icon {
     width: 22px;
     height: 22px;
   }
@@ -1198,7 +1198,7 @@ h1 {
  .home .footer-group { font-size: 12px; gap: 8px; line-height: 1.4; }
  .home .site-footer h2 { font-size: 12px; }
  .home .social > div { gap: 6px; }
- .home .social a { width: 26px; height: 26px; }
+ .home .social .social-icon { width: 26px; height: 26px; }
  .home .footer-bottom { margin-top: 18px; padding-top: 12px; font-size: 10px; line-height: 1.5; gap: 8px; }
 }
 @media (max-width: 360px) {

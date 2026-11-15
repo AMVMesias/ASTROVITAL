@@ -49,34 +49,17 @@ export function Footer() {
           <h2>{t("Síguenos")}</h2>
           <div>
             {[
-              ["youtube", "YouTube", "https://www.youtube.com/@NASA"],
-              ["x", "X", "https://x.com/NASA"],
-              ["instagram", "Instagram", "https://www.instagram.com/nasa/"],
-              [
-                "linkedin",
-                "LinkedIn",
-                "https://www.linkedin.com/company/nasa/",
-              ],
-            ].map(([icon, label, href]) => (
-              <a
-                key={icon}
-                href={href}
-                aria-label={`${t("NASA en")} ${label}`}
-                target="_blank"
-                rel="noreferrer"
-              >
+              ["youtube", "YouTube"],
+              ["x", "X"],
+              ["instagram", "Instagram"],
+              ["linkedin", "LinkedIn"],
+            ].map(([icon, label]) => (
+              <span key={icon} className="social-icon" role="img" aria-label={label}>
                 <Icon name={icon} />
-              </a>
+              </span>
             ))}
           </div>
         </div>
-      </div>
-      <div className="footer-bottom">
-        <span>NASA Space Apps Challenge 2026</span>
-        <span>
-          {t("Prototipo académico")}
-          <b>·</b> AstroVital v1.0
-        </span>
       </div>
     </footer>
   );
