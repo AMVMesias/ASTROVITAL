@@ -1,3 +1,5 @@
+import { selectRecommendation, type Recommendation } from "./recommendations";
+
 export type PersonalMeasurement = {
   id: string;
   astronautId: string;
@@ -27,6 +29,8 @@ export type Assessment = {
   ruleVersion: string;
   evidence: string[];
   reference?: Reference;
+  direction?: "above" | "below";
+  recommendation?: Recommendation;
 };
 
 export function validateAssessmentRule(rule: AssessmentRule) {
@@ -37,7 +41,7 @@ export function validateAssessmentRule(rule: AssessmentRule) {
   }
 }
 
-export function assessMeasurements(
+function evaluateTrend(
   latest: PersonalMeasurement,
   history: readonly PersonalMeasurement[],
   rule: AssessmentRule,
@@ -88,14 +92,29 @@ export function assessMeasurements(
     mean, count: baseline.length, from: baseline[0].capturedAt, to: baseline[baseline.length - 1].capturedAt,
   };
   const deviations = recent.map((entry) => entry.value - mean);
-  const sustained = recent.every((entry) => entry.quality === "valid" && Number.isFinite(entry.value)) &&
-    (deviations.every((delta) => delta >= absoluteDeviation) ||
-      deviations.every((delta) => delta <= -absoluteDeviation));
+  if (recent.some((entry) => entry.quality !== "valid" || !Number.isFinite(entry.value))) {
+    return { ...result, reference };
+  }
+  const above = deviations.every((delta) => delta >= absoluteDeviation);
+  const below = deviations.every((delta) => delta <= -absoluteDeviation);
+  const direction = above ? "above" : below ? "below" : undefined;
 
   return {
     ...result,
-    status: sustained ? "deviation" : "stable",
+    status: direction ? "deviation" : "stable",
+    ...(direction && { direction }),
     reference,
     evidence: recent.map(({ id }) => id),
   };
+}
+
+export function assessMeasurements(
+  latest: PersonalMeasurement,
+  history: readonly PersonalMeasurement[],
+  rule: AssessmentRule,
+  now: Date,
+): Assessment {
+  const assessment = evaluateTrend(latest, history, rule, now);
+  const recommendation = selectRecommendation(assessment, latest);
+  return recommendation ? { ...assessment, recommendation } : assessment;
 }

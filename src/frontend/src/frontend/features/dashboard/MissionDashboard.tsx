@@ -20,12 +20,15 @@ type Catalog = {
   sources: Record<string, { name: string; url: string }>;
 };
 type Reading = { id: string; value: number; unit: string; capturedAt: string; origin: "manual" | "device" | "simulated" };
+type Recommendation = { message: { es: string; en: string } };
 type Assessment = {
   measurementId: string;
   indicator: "heart_rate" | "sleep" | "wellbeing";
   status: "insufficient" | "invalid" | "stale" | "stable" | "deviation";
   ruleVersion: string;
   evidence: string[];
+  direction?: "above" | "below";
+  recommendation?: Recommendation;
   reference?: { mean: number; count: number };
 };
 type Alert = { id: string; status: "open" | "tracking" | "closed"; reason: Assessment["status"]; evidence: Assessment };
@@ -127,7 +130,9 @@ export function MissionDashboard() {
               <strong>{indicators[result.indicator]}</strong> · {status[result.status]}
               {reading && <> · {reading.value} {reading.unit} · {origins[reading.origin]} · <time dateTime={reading.capturedAt}>{new Date(reading.capturedAt).toLocaleString(locale)}</time></>}
               {result.reference && <> · {es ? "Referencia" : "Baseline"} {result.reference.mean.toFixed(1)} ({result.reference.count})</>}
+              {result.direction && <> · {result.direction === "above" ? (es ? "Por encima de la referencia" : "Above baseline") : (es ? "Por debajo de la referencia" : "Below baseline")}</>}
               {" · "}{result.ruleVersion}
+              {result.recommendation && <p>{result.recommendation.message[es ? "es" : "en"]}</p>}
             </li>;
           })}</ul>
         </section>
@@ -138,6 +143,7 @@ export function MissionDashboard() {
             const path = `${root}/alerts/${encodeURIComponent(alert.id)}`;
             return <li key={alert.id}>
               {status[alert.reason]} · {alert.evidence.ruleVersion} · {alert.status === "closed" ? (es ? "Cerrado" : "Closed") : alert.status === "tracking" ? (es ? "En seguimiento" : "Tracking") : (es ? "Abierto" : "Open")}
+              {alert.evidence.recommendation && <p>{alert.evidence.recommendation.message[es ? "es" : "en"]}</p>}
               {alert.status !== "closed" && <div>
                 <label>{es ? "Observación" : "Observation"}{" "}
                   <input maxLength={1000} value={notes[alert.id] ?? ""} onChange={(event) => {

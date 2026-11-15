@@ -132,10 +132,13 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     const summary=await (await latest(request("/api/v1/me/measurements/latest","GET",undefined,astroCookie))).json();
     const evaluation=summary.evaluation.find((item:{indicator:string})=>item.indicator==="heart_rate");
     assert.equal(evaluation.status,"deviation");
+    assert.equal(evaluation.direction,"above");
+    assert.match(evaluation.recommendation.id,/^pulse-/);
     assert.equal(evaluation.assessment.status,evaluation.status);
     const alertsUrl="/api/v1/me/alerts";
     const alerts=(await (await listAlerts(request(alertsUrl,"GET",undefined,astroCookie))).json()).alerts;
     assert.equal(alerts.length,1);
+    assert.deepEqual(alerts[0].evidence.recommendation,evaluation.recommendation);
     const context={params:Promise.resolve({id:alerts[0].id})};
     assert.equal((await alertDetail(request(alertsUrl,"GET",undefined,adminCookie),context)).status,403);
     const other=app.users.save(app.auth.session(adminCookie.slice("nasa_session=".length)),{username:"other-http",name:"Other",role:"astronauta",password});

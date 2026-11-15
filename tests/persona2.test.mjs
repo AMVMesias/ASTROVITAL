@@ -26,13 +26,16 @@ const astronaut = { role: "astronauta", userId: "u1", astronautId: "a1", mission
 test("assesses compatible history, isolates simulated data and distinguishes stale and invalid", () => {
   const outcome = assessMeasurements(measurement, history, rule, now);
   assert.equal(outcome.status, "deviation");
+  assert.equal(outcome.direction, "above");
   assert.equal(outcome.reference.mean, 60);
   assert.deepEqual(outcome.evidence, ["m3", "m5"]);
   assert.equal(assessMeasurements({ ...measurement, value: 60 }, history, rule, now).status, "stable");
   assert.equal(assessMeasurements(measurement, [], rule, now).status, "insufficient");
   assert.equal(assessMeasurements({ ...measurement, origin: "sensor" }, history, rule, now).status, "insufficient");
   assert.equal(assessMeasurements({ ...measurement, quality: "invalid" }, history, rule, now).status, "invalid");
-  assert.equal(assessMeasurements(measurement, history, rule, new Date("2026-11-14T12:06:00Z")).status, "stale");
+  const stale = assessMeasurements(measurement, history, rule, new Date("2026-11-14T12:06:00Z"));
+  assert.equal(stale.status, "stale");
+  assert.equal(stale.recommendation.action, "repeat_reading");
 });
 
 test("re-evaluation keeps one alert and its owner retains the action history", (context) => {
@@ -79,4 +82,41 @@ test("sync preserves the outbox after lost or malformed receipts and scopes inco
   assert.deepEqual(await receiveMeasurements(receiver, "other", batch), [
     { measurementId: measurement.id, status: "rejected", reason: "mission_forbidden" },
   ]);
+});
+
+test("selects orientation from trend direction, activity and data quality", () => {
+  function evaluate(indicator, activity, baseline, latest, changes = {}) {
+    const sample = { ...measurement, indicator, activity, value: latest, ...changes };
+    const series = [baseline, baseline, baseline, latest].map((value, index) => ({
+      ...history[index], indicator, activity, value,
+    }));
+    return assessMeasurements(sample, series, rule, now);
+  }
+
+  for (const [activity, suffix] of [["rest", "rest"], ["exercise", "exercise"], ["eva", "eva"], [undefined, "unknown-activity"]]) {
+    const result = evaluate("heart_rate", activity, 60, 75);
+    assert.equal(result.direction, "above");
+    assert.equal(result.recommendation.id, `pulse-${suffix}`);
+  }
+  const sleepRule = { ...rule, absoluteDeviation: 1.5 };
+  for (const [value, direction] of [[6.5, "below"], [9.5, "above"]]) {
+    const sleep = { ...measurement, indicator: "sleep", unit: "h", value };
+    const sleepHistory = history.map((reading, index) => ({
+      ...reading, indicator: "sleep", unit: "h", value: index === 3 ? value : 8,
+    }));
+    const result = assessMeasurements(sleep, sleepHistory, sleepRule, now);
+    assert.equal(result.direction, direction);
+    assert.equal(result.recommendation.id, `sleep-${direction}-baseline`);
+  }
+
+  assert.equal(evaluate("wellbeing", "rest", 60, 45).recommendation.id, "wellbeing-change");
+  assert.equal(evaluate("heart_rate", "rest", 60, 75, { quality: "invalid" }).recommendation.action, "repeat_reading");
+  assert.equal(evaluate("heart_rate", "rest", 60, 75, {
+    environment: { ...measurement.environment, scenarioId: "moon_surface" },
+  }).recommendation.action, "collect_history");
+  assert.equal(evaluate("heart_rate", "rest", 60, 65).recommendation, undefined);
+  const withIsolatedPeak = history.map((reading) => ({ ...reading, value: 60 }));
+  const peak = assessMeasurements(measurement, withIsolatedPeak, rule, now);
+  assert.equal(peak.status, "stable");
+  assert.equal(peak.recommendation, undefined);
 });
