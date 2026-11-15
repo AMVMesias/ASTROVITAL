@@ -100,10 +100,6 @@ export function AdminShell({
               {label}
             </Link>
           ))}
-          <div className="admin-sidebar-identity">
-            <AdminIcon name="shield" />
-            <span>{user.name}</span>
-          </div>
           <div className="admin-sidebar-divider" />
           <button onClick={() => void logout()}>
             <AdminIcon name="logout" />

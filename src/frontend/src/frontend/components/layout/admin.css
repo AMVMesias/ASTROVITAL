@@ -139,8 +139,7 @@
   top: 24px;
 }
 .admin-sidebar nav > a,
-.admin-sidebar nav > button,
-.admin-sidebar-identity {
+.admin-sidebar nav > button {
   display: flex;
   align-items: center;
   gap: 18px;
@@ -153,9 +152,6 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-}
-.admin-sidebar-identity {
-  cursor: default;
 }
 .admin-sidebar nav svg {
   width: 26px;
@@ -606,8 +602,7 @@ html[data-theme="dark"] .admin-message.error {
     padding: 26px 14px;
   }
   .admin-sidebar nav > a,
-  .admin-sidebar nav > button,
-  .admin-sidebar-identity {
+  .admin-sidebar nav > button {
     font-size: 15px;
     padding: 16px 12px;
     gap: 12px;

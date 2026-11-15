@@ -1,0 +1,271 @@
+.page {
+  --account-ink: #071d3e;
+  --account-muted: #4d648e;
+  --account-card: #fff;
+  --account-line: #e0e7f3;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+  color: var(--account-ink);
+}
+.standalone {
+  max-width: 1200px;
+  padding: 40px 24px;
+}
+.eyebrow {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--account-muted);
+  margin: 0 0 17px;
+}
+.eyebrow span {
+  width: 48px;
+  height: 4px;
+  border-radius: 3px;
+  background: #0053ed;
+}
+.page h1 {
+  font-size: 50px;
+  letter-spacing: -2px;
+  line-height: 1.08;
+  margin: 0 0 12px;
+}
+.subtitle {
+  color: var(--account-muted);
+  font-size: 21px;
+  line-height: 1.4;
+  margin: 0;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 30px;
+  align-items: start;
+}
+.card {
+  background: var(--account-card);
+  border: 1px solid var(--account-line);
+  border-radius: 22px;
+  padding: 30px;
+  box-shadow: 0 6px 22px #102c620c;
+  min-width: 0;
+}
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--account-line);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  border-radius: 23px;
+  color: #fff;
+  background: linear-gradient(145deg, #176aff, #0039c9);
+  font-size: 32px;
+  font-weight: 700;
+}
+.profile h2 {
+  margin: 8px 0 5px;
+  font-size: 24px;
+  overflow-wrap: anywhere;
+}
+.profile p,
+.securityHeading p {
+  margin: 0;
+  font-size: 15px;
+  color: var(--account-muted);
+}
+.role {
+  font-size: 12px;
+  color: #0045d9;
+  background: #e9efff;
+  padding: 5px 10px;
+  border-radius: 7px;
+}
+.details {
+  margin: 8px 0 0;
+}
+.details > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--account-line);
+}
+.details > div:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.details dt {
+  font-size: 15px;
+  color: var(--account-muted);
+}
+.details dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.securityHeading {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  padding-bottom: 20px;
+}
+.securityHeading h2 {
+  font-size: 22px;
+  margin: 0 0 7px;
+}
+.icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  background: #e9efff;
+  color: #004ced;
+  flex-shrink: 0;
+}
+.icon svg {
+  width: 29px;
+  height: 29px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #087316;
+  background: #e3f7e9;
+  border-radius: 20px;
+  padding: 6px 11px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.warning {
+  color: #8c4515;
+  background: #fff0df;
+}
+.help,
+.message {
+  padding: 17px;
+  border-radius: 13px;
+  background: #eef3ff;
+  color: var(--account-muted);
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 25px 0 0;
+}
+.message {
+  background: #fff0f0;
+  color: #922c2c;
+}
+:global(html[data-theme="dark"]) .page {
+  --account-ink: #e9f1ff;
+  --account-muted: #b3c8e5;
+  --account-card: #102238;
+  --account-line: #29405b;
+}
+:global(html[data-theme="dark"]) .role,
+:global(html[data-theme="dark"]) .icon {
+  background: #1c3864;
+  color: #b5d2ff;
+}
+:global(html[data-theme="dark"]) .help {
+  background: #192e4b;
+}
+:global(html[data-theme="dark"]) .message {
+  background: #44232a;
+  color: #ffd4d4;
+}
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+@media (max-width: 700px) {
+  .page h1 {
+    font-size: 34px;
+    letter-spacing: -1.2px;
+    margin-bottom: 8px;
+  }
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+  }
+  .eyebrow span {
+    width: 30px;
+  }
+  .subtitle {
+    font-size: 14px;
+  }
+  .grid {
+    margin-top: 22px;
+    gap: 16px;
+  }
+  .card {
+    padding: 20px;
+    border-radius: 18px;
+  }
+  .profile {
+    gap: 13px;
+    padding-bottom: 20px;
+  }
+  .avatar {
+    width: 55px;
+    height: 55px;
+    font-size: 24px;
+    border-radius: 17px;
+  }
+  .profile h2 {
+    font-size: 19px;
+  }
+  .profile p,
+  .securityHeading p {
+    font-size: 12px;
+  }
+  .role {
+    font-size: 10px;
+  }
+  .details > div {
+    padding: 16px 0;
+  }
+  .details dt {
+    font-size: 13px;
+  }
+  .details dd {
+    font-size: 14px;
+  }
+  .securityHeading h2 {
+    font-size: 18px;
+  }
+  .icon {
+    width: 42px;
+    height: 42px;
+  }
+  .help {
+    font-size: 12px;
+    padding: 14px;
+    margin-top: 20px;
+  }
+}
