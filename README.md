@@ -8,7 +8,7 @@ Usar Node 22.13+ de la rama 22 y ejecutar npm ci. Copiar src/backend/.env.exampl
 
 ## Producción
 
-Frontend: https://astrovital-health.vercel.app. Backend: https://astrovital-backend.vercel.app/api. Ambos proyectos Vercel están conectados a AMVMesias/ASTROVITAL, rama main. El backend usa src/backend y el frontend src/frontend. Cada push despliega el código; las migraciones de base requieren supabase db push --remote.
+Frontend: https://astrovital-health.vercel.app. El backend usa src/backend y el frontend src/frontend. Cada push despliega el código; las migraciones de base requieren supabase db push --remote.
 
 Consultar docs/DESPLIEGUE_SUPABASE.md para variables, migraciones y primer administrador. npm run db:seed aprovisiona el catálogo y el admin desde variables privadas; no reemplaza cuentas existentes. La cuenta inicial recibe credenciales privadas y debe completar el primer acceso.
 
@@ -19,3 +19,9 @@ npm run lint, npm run typecheck y npm run build. npm test ejecuta la integració
 ## Análisis de sensores y escenario
 
 El dashboard incorpora el DSS de telemetría con selección de ambiente, vigencia y explicación de lecturas. API: GET `/api/v1/me/dss`. Consultar [DSS_TELEMETRIA.md](docs/DSS_TELEMETRIA.md) para reglas demostrativas, procedencia de los resúmenes RadLab y verificación.
+
+## Licencia
+
+El código del proyecto se distribuye bajo la [licencia MIT](LICENSE). Los datos, marcas y recursos de terceros conservan sus propias condiciones de uso.
+
+Repositorio: [AMVMesias/ASTROVITAL](https://github.com/AMVMesias/ASTROVITAL).
