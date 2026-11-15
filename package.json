@@ -17,7 +17,13 @@
     "db:migrate": "supabase db push --remote",
     "db:seed": "node --import tsx scripts/cloud.ts seed",
     "device:provision": "node --import tsx scripts/cloud.ts device",
-    "test:production": "node --import tsx scripts/cloud-smoke.ts"
+    "test:production": "node --import tsx scripts/cloud-smoke.ts",
+    "bridge:ble": "node --import tsx scripts/bridge.ts ble",
+    "bridge:serial": "node --import tsx scripts/bridge.ts serial",
+    "bridge:inspect": "node --import tsx scripts/bridge.ts inspect",
+    "bridge:status": "node --import tsx scripts/bridge.ts status",
+    "bridge:flush": "node --import tsx scripts/bridge.ts flush",
+    "bridge:retry": "node --import tsx scripts/bridge.ts retry"
   },
   "engines": {
     "node": ">=22.13.0 <23"
