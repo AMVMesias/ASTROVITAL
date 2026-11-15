@@ -32,12 +32,19 @@
 \newcommand{\field}[2]{{\tinyhead{#1}}\par{\bfseries\color{navy}#2}}
 \begin{document}
 \thispagestyle{empty}
-% Portada diseñada con composición espacial aprobada por el equipo.
-% Imagen de portada generada con apoyo de IA, utilizando la identidad visual ASTROVITAL.
+% Fotografía de portada suministrada por el equipo.
 \AddToHookNext{shipout/background}{%
 \begin{tikzpicture}[remember picture,overlay]
-\node[anchor=north west,inner sep=0pt] at (current page.north west)
-{\includegraphics[width=\paperwidth,height=157mm]{astrovital_portada.png}};
+\begin{scope}
+\clip (current page.north west) rectangle ([yshift=-157mm]current page.north east);
+\node[anchor=north,inner sep=0pt] at (current page.north)
+{\includegraphics[height=157mm]{astrovital_portada.jpeg}};
+\fill[navy,opacity=.40] (current page.north west) rectangle ([yshift=-157mm]current page.north east);
+\fill[navy,opacity=.78] ([yshift=-105mm]current page.north west) rectangle ([yshift=-157mm]current page.north east);
+\node[anchor=north west,text=white,font=\bfseries\large] at ([xshift=16mm,yshift=-14mm]current page.north west) {ASTROVITAL};
+\node[anchor=north west,text=white,align=left,text width=178mm,font=\bfseries\fontsize{23}{27}\selectfont] at ([xshift=16mm,yshift=-112mm]current page.north west) {Salud conectada para\\misiones más seguras};
+\node[anchor=north west,text=white,align=left,text width=178mm,font=\small] at ([xshift=16mm,yshift=-138mm]current page.north west) {Monitoreo, análisis y seguimiento de la salud en el espacio.};
+\end{scope}
 \end{tikzpicture}%
 }
 \vspace*{149mm}
@@ -58,7 +65,7 @@ En misiones de larga duración, la radiación espacial, los cambios gravitaciona
 \end{tabularx}\par
 \vfill
 {\scriptsize\color{muted}Reto oficial: }\linktxt{Consultar el reto oficial}{https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/}\par
-{\scriptsize\color{muted}Ilustración conceptual de portada generada con inteligencia artificial.}
+{\scriptsize\color{muted}Imagen de portada suministrada por el equipo.}
 \newpage
 \heading{03  Experiencia de uso}{UN SISTEMA, VARIOS MOMENTOS}
 \par\noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries\color{blue}}p{16mm}>{\bfseries\color{navy}}p{41mm}X@{}}
