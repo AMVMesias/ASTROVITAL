@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BleCaptureCard } from "../capture/BleCapture";
 import { api } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
 
@@ -65,7 +66,10 @@ export function MissionDashboard() {
     }).catch(() => {
       if (active) setError(true);
     });
-    return () => { active = false; };
+    let lastRefresh=0;
+    const refresh=()=>{if(Date.now()-lastRefresh<5000)return;lastRefresh=Date.now();void loadDashboard().then(result=>{if(active)setData(result);}).catch(()=>{if(active)setError(true);});};
+    window.addEventListener("astrovital:measurement",refresh);
+    return () => { active = false;window.removeEventListener("astrovital:measurement",refresh); };
   }, []);
 
   async function update(change?: () => Promise<unknown>) {
@@ -94,6 +98,7 @@ export function MissionDashboard() {
     <main className="interior">
       <h1>{es ? "Panel del astronauta" : "Astronaut dashboard"}</h1>
       {error && <p role="alert">{es ? "No se pudo cargar o guardar. Comprueba tu sesión de astronauta y el conexión a Internet." : "Could not load or save. Check your astronaut session and Internet connection."}</p>}
+      <BleCaptureCard />
       <section>
         <h2>{es ? "Registrar medición" : "Record measurement"}</h2>
         <form className="data-form" onSubmit={async event=>{

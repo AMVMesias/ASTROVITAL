@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { BleCaptureProvider } from "../../features/capture/BleCapture";
 import { AdminShell } from "./AdminShell";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -78,7 +79,7 @@ export function SessionPanel({ children }: { children: ReactNode }) {
           Cerrar sesión
         </button>
       </nav>
-      {children}
+      <BleCaptureProvider key={user.id}>{children}</BleCaptureProvider>
     </>
   );
 }

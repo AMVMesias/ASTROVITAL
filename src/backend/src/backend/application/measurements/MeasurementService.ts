@@ -4,6 +4,7 @@ import { AppError, indicatorConfig, type Activity, type EnvironmentProvider, typ
 import type { Repository } from "../../domain/repository";
 import { date, object, only, text } from "../../domain/validation";
 import { digest } from "../../infrastructure/security/credentials";
+import { authorizeDevice } from "./deviceAccess";
 import { AuthService } from "../auth/AuthService";
 
 export class MeasurementService {
@@ -14,24 +15,18 @@ export class MeasurementService {
       return (await this.capture(user.astronautId!, user.missionId!, user.moduleId!, input, "manual", user.id));
     }));
   }
-  async fromDevice(id: string, credential: string, input: unknown) {
+  async fromDevice(id: string, credential: string|Session, input: unknown) {
     return (await this.repo.atomic(async () => {
-      const device = (await this.repo.device(id));
-      if (!device?.enabled || digest(credential) !== device.credentialHash) throw new AppError(401, "DEVICE_UNAUTHORIZED", "Dispositivo o credencial no válidos.");
-      const user = (await (await this.repo.users()).find(user => user.astronautId === device.astronautId));
-      if (!user?.enabled || user.requiresOnboarding || user.role !== "astronauta") throw new AppError(403, "DEVICE_OWNER_UNAVAILABLE", "La cuenta vinculada no está habilitada como astronauta.");
+      const {user}=await authorizeDevice(this.repo,this.auth,id,credential);
       const result = (await this.capture(user.astronautId!, user.missionId!, user.moduleId!, input, "device", null, id));
       (await this.repo.touchDevice(id, new Date().toISOString()));
       (await this.repo.signalStatus(id,"valid",result.measurement.capturedAt,new Date().toISOString()));
       return result;
     }));
   }
-  async reportStatus(id:string,credential:string,value:unknown) {
+  async reportStatus(id:string,credential:string|Session,value:unknown) {
     return (await this.repo.atomic(async ()=>{
-      const device=(await this.repo.device(id));
-      if(!device?.enabled || digest(credential)!==device.credentialHash) throw new AppError(401,"DEVICE_UNAUTHORIZED","Dispositivo o credencial no válidos.");
-      const user=(await (await this.repo.users()).find(user=>user.astronautId===device.astronautId));
-      if(!user?.enabled || user.requiresOnboarding || user.role!=="astronauta") throw new AppError(403,"DEVICE_OWNER_UNAVAILABLE","Cuenta vinculada no disponible.");
+      await authorizeDevice(this.repo,this.auth,id,credential);
       const input=object(value);only(input,["status","observedAt"]);
       const status=text(input,"status");
       if(!["no_contact","no_signal","insufficient","disconnected"].includes(status)) throw new AppError(400,"VALIDATION","Estado de señal inválido.");

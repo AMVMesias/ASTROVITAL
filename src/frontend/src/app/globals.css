@@ -1279,3 +1279,10 @@ button:disabled { opacity: .55; cursor: wait; }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th, .data-table td { padding: .8rem; text-align: left; border-bottom: 1px solid #71869a; }
 .interior section { margin-block: 2rem; }
+.ble-capture { padding: 1.5rem; border: 1px solid #71869a; border-radius: 1rem; }
+.ble-capture fieldset { display: grid; gap: 1rem; border: 0; padding: 0; min-width: 0; }
+.ble-capture details label { margin-top: .8rem; }
+.ble-capture input { min-width: 0; width: 100%; box-sizing: border-box; }
+.ble-readings { display: grid; grid-template-columns: repeat(auto-fit,minmax(145px,1fr)); gap: .75rem; }
+.ble-readings div { padding: .75rem; border: 1px solid #71869a; border-radius: .5rem; }
+.ble-readings dd { margin: .25rem 0 0; font-size: 1.3rem; font-variant-numeric: tabular-nums; }

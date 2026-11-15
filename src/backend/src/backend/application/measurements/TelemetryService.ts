@@ -1,6 +1,6 @@
 import { AppError, type Session } from "../../domain/model";
 import { object, only, text, date } from "../../domain/validation";
-import { digest } from "../../infrastructure/security/credentials";
+import { authorizeDevice } from "./deviceAccess";
 import type { PostgresRepository } from "../../infrastructure/postgres/app/PostgresRepository";
 import type { AuthService } from "../auth/AuthService";
 
@@ -8,12 +8,9 @@ export const telemetryFields = ["ecg","bpm_ecg","estado_ecg_x50","resp_mg","rpm"
 type Fields = Record<typeof telemetryFields[number],number>;
 export class TelemetryService {
   constructor(private repo:PostgresRepository, private auth:AuthService) {}
-  async capture(deviceId:string, credential:string, value:unknown) {
+  async capture(deviceId:string, credential:string|Session, value:unknown) {
     return (await this.repo.atomic(async ()=>{
-      const device=(await this.repo.device(deviceId));
-      if(!device?.enabled || digest(credential)!==device.credentialHash) throw new AppError(401,"DEVICE_UNAUTHORIZED","Credencial del dispositivo inválida.");
-      const owner=(await (await this.repo.users()).find(user=>user.astronautId===device.astronautId));
-      if(!owner?.enabled || owner.role!=="astronauta" || owner.requiresOnboarding) throw new AppError(403,"DEVICE_OWNER_UNAVAILABLE","Cuenta vinculada no disponible.");
+      const {device}=await authorizeDevice(this.repo,this.auth,deviceId,credential);
       const input=object(value);only(input,["readingId","capturedAt","fields"]);
       const readingId=text(input,"readingId",1,128), capturedAt=date(input.capturedAt,"capturedAt");
       if(Date.parse(capturedAt)>Date.now()+60000) throw new AppError(400,"VALIDATION","Fecha futura no admitida.");

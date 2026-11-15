@@ -15,6 +15,7 @@ export function UsersManager({ create = false }: { create?: boolean }) {
   const [search, setSearch] = useState(""),
     [role, setRole] = useState("all"),
     [status, setStatus] = useState("all");
+  const [linking,setLinking]=useState<User|null>(null);
   const formCard = useRef<HTMLElement>(null);
   useEffect(() => {
     if (editing)
@@ -87,6 +88,7 @@ export function UsersManager({ create = false }: { create?: boolean }) {
           ? "Manage platform accounts and access."
           : "Gestiona las cuentas y accesos de la plataforma."}
       </p>
+      {linking&&<section className="admin-form-card"><h2>Vincular ESP32 a {linking.username}</h2><form className="data-form" onSubmit={async event=>{event.preventDefault();const f=new FormData(event.currentTarget);setPending(true);setError("");try{const r=await api<{deviceId:string}>(`/v1/users/${linking.id}/devices`,writeRequest("POST",{deviceId:String(f.get("deviceId")).trim()}));setNotice(`Dispositivo ${r.deviceId} vinculado a ${linking.username}. Ya puede seleccionarlo en su dashboard.`);setLinking(null);}catch(e){setError(e instanceof Error?e.message:"No se pudo vincular.");}finally{setPending(false);}}}><label>ID interno de la placa (no es la dirección MAC)<input name="deviceId" required maxLength={64} pattern="[a-zA-Z0-9._-]+" placeholder="esp32-01"/></label><button disabled={pending}>Vincular</button><button type="button" onClick={()=>setLinking(null)}>Cancelar</button></form></section>}
       {error && (
         <p role="alert" className="admin-message error">
           {error}
@@ -402,6 +404,7 @@ export function UsersManager({ create = false }: { create?: boolean }) {
                           <AdminIcon name="lock" />
                           {en ? "Unlock recovery" : "Desbloquear recuperación"}
                         </button>
+                        {user.role==="astronauta"&&user.enabled&&<button disabled={pending} onClick={()=>setLinking(user)}>Vincular ESP32</button>}
                       </div>
                     </td>
                   </tr>
