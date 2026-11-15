@@ -34,6 +34,7 @@ export const english = {
   Publicaciones: "Publications",
   "Centro de ayuda": "Help center",
   Legal: "Legal",
+  "Licencia y créditos": "License and credits",
   Privacidad: "Privacy",
   "Términos de uso": "Terms of use",
   Accesibilidad: "Accessibility",

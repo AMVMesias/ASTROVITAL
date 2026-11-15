@@ -2,33 +2,27 @@
 import { useLanguage } from "../../frontend/providers/LanguageProvider";
 import { Header } from "../../frontend/components/layout/Header";
 import { Footer } from "../../frontend/components/layout/Footer";
+import styles from "./legal.module.css";
+
+const license = "https://github.com/AMVMesias/ASTROVITAL/blob/main/LICENSE";
 export default function Page() {
-  const { t } = useLanguage();
-  return (
-    <div className="public-page">
-      <Header />
-      <main className="interior">
-        <h1>{t("Información legal")}</h1>
-        <h2 id="privacidad">{t("Privacidad")}</h2>
-        <p>
-          {t(
-            "Este prototipo de interfaz no recopila datos de salud ni almacena credenciales. Las políticas del servicio deberán definirse antes de su uso real.",
-          )}
-        </p>
-        <h2 id="terminos">{t("Términos de uso")}</h2>
-        <p>
-          {t(
-            "Demostración académica. No ofrece diagnóstico médico ni representa un servicio oficial de NASA.",
-          )}
-        </p>
-        <h2 id="accesibilidad">{t("Accesibilidad")}</h2>
-        <p>
-          {t(
-            "La interfaz incluye navegación por teclado, etiquetas de formulario y adaptación a pantallas móviles.",
-          )}
-        </p>
-      </main>
-      <Footer />
+  const { locale } = useLanguage();
+  const es = locale === "es";
+  return <div className="public-page"><Header /><main className={styles.page}>
+    <header className={styles.heading}><p>ASTROVITAL / {es ? "INFORMACIÓN LEGAL" : "LEGAL INFORMATION"}</p><h1>{es ? "Uso, privacidad y créditos." : "Use, privacy and credits."}</h1><span>{es ? "Información del prototipo académico · Actualizada el 15 de noviembre de 2026" : "Academic prototype information · Updated November 15, 2026"}</span>
+      <nav aria-label={es ? "Secciones legales" : "Legal sections"}><a href="#privacidad">{es ? "Privacidad" : "Privacy"}</a><a href="#terminos">{es ? "Condiciones de uso" : "Terms of use"}</a><a href="#licencia">{es ? "Licencia y créditos" : "License and credits"}</a><a href="#accesibilidad">{es ? "Accesibilidad" : "Accessibility"}</a></nav>
+    </header>
+    <div className={styles.content}>
+      <section id="privacidad"><p className={styles.kicker}>01 / {es ? "PRIVACIDAD" : "PRIVACY"}</p><h2>{es ? "Qué datos utiliza AstroVital" : "What data AstroVital uses"}</h2>
+        <p>{es ? "La aplicación guarda datos de cuenta, sesiones, mediciones y telemetría de sensores, actividad y entorno seleccionados, registros de sueño y bienestar, avisos y observaciones de seguimiento. También mantiene registros de seguridad para acceso y recuperación de cuenta." : "The application stores account data, sessions, sensor measurements and telemetry, selected activity and environment, sleep and wellbeing records, alerts and follow-up observations. It also maintains security records for sign-in and account recovery."}</p>
+        <p>{es ? "Estos datos permiten identificar la cuenta, conservar el historial, evaluar lecturas y gestionar el seguimiento. La información se almacena en PostgreSQL mediante Supabase; el frontend y el backend se alojan en Vercel. Se requiere Internet para autenticar y confirmar el guardado." : "This data identifies accounts, preserves history, evaluates readings and manages follow-up. Information is stored in PostgreSQL through Supabase; the frontend and backend are hosted on Vercel. Internet access is required to authenticate and confirm storage."}</p>
+        <h3>{es ? "Sesión y preferencias" : "Session and preferences"}</h3><p>{es ? "Se utiliza una cookie de sesión para mantener el acceso. El idioma y el tema se guardan en el almacenamiento local del navegador. Las contraseñas y respuestas de recuperación se almacenan como hashes, no como texto legible." : "A session cookie maintains access. Language and theme preferences are saved in browser local storage. Passwords and recovery answers are stored as hashes, not readable text."}</p>
+        <h3>{es ? "Acceso y conservación" : "Access and retention"}</h3><p>{es ? "El acceso a las funciones y registros se controla mediante sesión, rol y propietario de los datos. Cerrar sesión no elimina el historial. El prototipo no ofrece un botón de eliminación de cuenta ni un plazo automático de borrado documentado; las solicitudes deben revisarse con el responsable del proyecto." : "Access to features and records is controlled by session, role and data ownership. Signing out does not delete history. The prototype provides no account-deletion button or documented automatic deletion period; requests must be reviewed with the project contact."}</p>
+        <div className={styles.contact}><h3>{es ? "Responsable y contacto del proyecto" : "Project lead and contact"}</h3><p>Mesias Mariscal · {es ? "Líder de AstroVital" : "AstroVital team lead"}<br /><a href="mailto:mesiasmariscal@gmail.com">mesiasmariscal@gmail.com</a></p><p>{es ? "Para consultas sobre tus datos, acceso, corrección o eliminación, escribe a este contacto. No envíes contraseñas ni respuestas de recuperación por correo." : "For questions about your data, access, correction or deletion, email this contact. Do not send passwords or recovery answers by email."}</p></div>
+      </section>
+      <section id="terminos"><p className={styles.kicker}>02 / {es ? "CONDICIONES DE USO" : "TERMS OF USE"}</p><h2>{es ? "Alcance del prototipo" : "Prototype scope"}</h2><p>{es ? "AstroVital es un prototipo académico de apoyo al seguimiento. Sus reglas son demostrativas: los valores y avisos requieren revisión del contexto, la calidad del sensor y la fecha de captura. No ofrece diagnóstico médico ni está certificado para vuelo o actividad extravehicular." : "AstroVital is an academic monitoring-support prototype. Its rules are demonstrative: values and alerts require review of context, sensor quality and capture time. It does not provide medical diagnoses and is not certified for spaceflight or extravehicular activity."}</p><p>{es ? "Utiliza una cuenta autorizada, protege tus credenciales y registra información que tengas permiso para utilizar. La conectividad y los sensores pueden fallar; los envíos pendientes no confirmados pueden perderse al cerrar o recargar la captura." : "Use an authorized account, protect your credentials and record information you have permission to use. Connectivity and sensors can fail; unconfirmed pending submissions can be lost when capture is closed or reloaded."}</p><p>{es ? "El proyecto no es un servicio oficial de NASA ni implica su respaldo. Las referencias históricas ambientales no son mediciones del traje ni estimaciones de dosis personal." : "The project is not an official NASA service and does not imply NASA endorsement. Historical environmental references are not spacesuit measurements or personal dose estimates."}</p></section>
+      <section id="licencia"><p className={styles.kicker}>03 / {es ? "LICENCIA Y CRÉDITOS" : "LICENSE AND CREDITS"}</p><h2>{es ? "Código abierto bajo licencia MIT" : "Open-source code under the MIT license"}</h2><p>Copyright (c) 2026 AstroVital contributors.</p><p>{es ? "La licencia MIT permite utilizar, copiar, modificar y distribuir el software, incluso comercialmente, conservando el aviso de copyright y la licencia. El software se entrega sin garantías, según el texto de la licencia." : "The MIT license permits use, copying, modification and distribution of the software, including commercially, while retaining the copyright and license notices. The software is provided without warranties as stated in the license."}</p><a className={styles.link} href={license} target="_blank" rel="noreferrer">{es ? "Leer la licencia MIT completa" : "Read the full MIT license"} ↗</a><p>{es ? "La licencia del código no concede derechos sobre datos personales, marcas, fotografías ni materiales de terceros. Estos mantienen las condiciones de sus titulares. La fotografía actual de portada fue suministrada por el equipo; debe conservarse su atribución y verificarse su procedencia antes de redistribuirla." : "The code license does not grant rights over personal data, trademarks, photographs or third-party materials. These retain their owners' terms. The current cover photograph was supplied by the team; its attribution must be preserved and its provenance verified before redistribution."}</p><p>{es ? "ChatGPT y Codex de OpenAI apoyaron programación, diseño, pruebas y documentación. La integración, revisión y decisiones finales corresponden al equipo. Las fuentes NASA y su uso están documentados en Recursos." : "OpenAI's ChatGPT and Codex assisted programming, design, testing and documentation. Integration, review and final decisions belong to the team. NASA sources and their usage are documented in Resources."}</p><a className={styles.link} href="/recursos#fuentes">{es ? "Consultar fuentes científicas" : "View scientific sources"} ↗</a></section>
+      <section id="accesibilidad"><p className={styles.kicker}>04 / {es ? "ACCESIBILIDAD" : "ACCESSIBILITY"}</p><h2>{es ? "Funciones disponibles" : "Available features"}</h2><p>{es ? "La interfaz incluye navegación por teclado, foco visible, etiquetas de formulario, adaptación a pantallas móviles, español e inglés y selección de tema claro u oscuro. La captura Bluetooth requiere un navegador y equipo compatibles. No se declara una certificación de accesibilidad." : "The interface includes keyboard navigation, visible focus, form labels, mobile layouts, Spanish and English, and light or dark themes. Bluetooth capture requires compatible hardware and a compatible browser. No accessibility certification is claimed."}</p><p>{es ? "Si encuentras una barrera de uso, comunícala al contacto del proyecto indicando la página, el navegador y el problema observado." : "If you encounter an accessibility barrier, report it to the project contact with the page, browser and observed problem."}</p></section>
     </div>
-  );
+  </main><Footer /></div>;
 }

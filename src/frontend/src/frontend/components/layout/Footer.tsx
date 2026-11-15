@@ -25,6 +25,7 @@ const groups = [
     links: [
       ["Privacidad", "/legal#privacidad"],
       ["Términos de uso", "/legal#terminos"],
+      ["Licencia y créditos", "/legal#licencia"],
       ["Accesibilidad", "/legal#accesibilidad"],
     ],
   },

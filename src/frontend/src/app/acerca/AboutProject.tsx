@@ -34,7 +34,8 @@ export function AboutProject() {
           <p>{es ? "Un prototipo académico que reúne sensores, registros personales y avisos para facilitar el seguimiento de la salud de la tripulación." : "An academic prototype bringing sensors, personal records and alerts together to support crew health monitoring."}</p>
           <div className={styles.actions}>
             <a className={styles.primary} href="#objetivos">{es ? "Conoce los objetivos" : "Our objectives"} <span aria-hidden="true">↓</span></a>
-            <a className={styles.reportLink} href="/project/astrovital-ficha.pdf" target="_blank" rel="noreferrer">{es ? "Ver informe del proyecto" : "Project report (Spanish)"} <span aria-hidden="true">↗</span></a>
+            <a className={styles.reportLink} href="/project/astrovital-ficha.pdf" target="_blank" rel="noreferrer">Informe · Español ↗</a>
+            <a className={styles.reportLink} href="/project/astrovital-ficha-en.pdf" target="_blank" rel="noreferrer">Report · English ↗</a>
           </div>
         </div>
       </section>
@@ -58,6 +59,13 @@ export function AboutProject() {
       <section id="equipo" className={styles.team} aria-labelledby="team-title"><div className={styles.teamInner}>
         <div><p className={styles.kicker}>{es ? "DETRÁS DE ASTROVITAL" : "BEHIND ASTROVITAL"}</p><h2 id="team-title">{es ? "Un proyecto que se construye en equipo." : "A project built together."}</h2></div>
         <div className={styles.teamCopy}><p>{es ? "Desarrollo de software, integración de sensores, investigación y diseño se unen en este prototipo para NASA Space Apps Challenge 2026." : "Software development, sensor integration, research and design come together in this prototype for NASA Space Apps Challenge 2026."}</p>
+          <ul className={styles.members}>
+            <li><strong>Mesias Mariscal</strong> · {es ? "Líder" : "Team lead"}</li>
+            <li>Denise Rea</li>
+            <li>José Joaquín Silva Escobar</li>
+            <li>Gabriel José Freitas</li>
+            <li>Leonel Alejandro Tipan Quinto</li>
+          </ul>
           <p className={styles.aiNote}>{es ? "ChatGPT y Codex apoyaron el desarrollo y la documentación, con revisión y decisiones finales del equipo." : "ChatGPT and Codex assisted development and documentation, with review and final decisions by the team."}</p>
           <a href={repository} target="_blank" rel="noreferrer">{es ? "Conoce el código en GitHub" : "Explore the code on GitHub"} ↗</a>
         </div>

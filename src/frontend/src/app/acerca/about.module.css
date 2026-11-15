@@ -32,6 +32,7 @@
 .teamInner h2 { max-width:400px; }
 .teamCopy p { color:var(--muted); font-size:14px; line-height:1.9; }
 .teamCopy .aiNote { font-size:11px; margin-top:15px; }
+.members { padding-left:18px; color:var(--muted); font-size:13px; line-height:1.9; margin:18px 0; }
 .teamCopy a { display:inline-block; color:var(--accent); font-size:12px; font-weight:700; margin-top:22px; }
 .closing { width:min(1180px,88%); margin:auto; display:flex; align-items:center; justify-content:space-between; gap:30px; padding:55px 0; }
 .closing h2 { font-size:26px; }
