@@ -6,11 +6,11 @@ export const english = {
   Recursos: "Resources",
   "Iniciar sesión": "Sign in",
   Idioma: "Language",
-  "NASA Health, inicio": "NASA Health, home",
+  "AstroVital, inicio": "AstroVital, home",
   "Monitoreo y bienestar de astronautas": "Astronaut health and well-being",
   "en misiones espaciales.": "on space missions.",
-  "La Tierra y su atmósfera azul vistas desde la ventana de una estación espacial":
-    "Earth and its blue atmosphere seen through a space station window",
+  "La Tierra vista desde órbita junto a una nave espacial":
+    "Earth seen from orbit beside a spacecraft",
   "Monitoreo de salud en misiones espaciales":
     "Health monitoring on space missions",
   "Seguimiento y bienestar": "Monitoring and well-being",
@@ -38,8 +38,8 @@ export const english = {
   Síguenos: "Follow us",
   "Prototipo académico": "Academic prototype",
   "NASA en": "NASA on",
-  "NASA Health es un prototipo académico para recopilar, analizar y dar seguimiento a indicadores de salud de astronautas durante misiones espaciales.":
-    "NASA Health is an academic prototype to collect, analyze and track astronaut health indicators during space missions.",
+  "AstroVital es un prototipo académico para recopilar, analizar y dar seguimiento a indicadores de salud de astronautas durante misiones espaciales.":
+    "AstroVital is an academic prototype to collect, analyze and track astronaut health indicators during space missions.",
   "Facilitar el monitoreo de salud, el análisis de indicadores y el seguimiento del bienestar en misiones espaciales.":
     "Support health monitoring, indicator analysis and well-being tracking on space missions.",
   "Proyecto desarrollado para NASA Space Apps Challenge 2026.":
@@ -63,7 +63,7 @@ export const english = {
     "A platform to collect, analyze and track",
   "a indicadores de salud de astronautas.": "astronaut health indicators.",
   "Volver a la página de inicio": "Back to home",
-  "NASA Health, volver al inicio": "NASA Health, back to home",
+  "AstroVital, volver al inicio": "AstroVital, back to home",
   "Primer acceso": "First sign-in",
   "Tu cuenta fue creada por el administrador. Antes de continuar, cambia tu contraseña inicial.":
     "Your account was created by the administrator. Change your initial password before continuing.",

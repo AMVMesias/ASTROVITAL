@@ -825,3 +825,10 @@
  }
  .auth-page .auth-card-stack { margin: 0; }
 }
+.auth-brand img { width: min(100%, 320px); height: auto; }
+html[data-theme="dark"] .auth-brand .brand-logo-standard { display: none; }
+html[data-theme="dark"] .auth-brand .brand-logo-inverse { display: block; }
+@media (max-width: 700px) {
+ .auth-brand img { width: min(100%, 230px); height: auto; }
+ .auth-page .auth-brand img, .auth-card:has(.setup-questions) .auth-brand img { width: min(100%, 210px); height: auto; }
+}

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="280" viewBox="0 0 1100 280" role="img" aria-label="AstroVital — Azul NASA">
+  <title>AstroVital — Azul NASA</title>
+  <g><defs>
+ <linearGradient id="heart" x1="0" x2="0.8" y1="0" y2="1"><stop stop-color="#1171E8"/><stop offset="1" stop-color="#082E68"/></linearGradient>
+ </defs>
+ <ellipse cx="129" cy="142" rx="121" ry="49" transform="rotate(-21 129 142)" fill="none" stroke="#75D5FF" stroke-width="12"/>
+ <path d="M129 77 C102 48 56 51 47 93 C38 137 89 175 129 210 C175 171 217 132 213 94 C208 52 157 49 129 77Z" fill="url(#heart)"/>
+ <path d="M65 129H91L106 110L120 150L137 96L153 137L165 121H191" fill="none" stroke="#E8FAFF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+ <path d="M26 174 Q97 226 228 134" fill="none" stroke="#27AEFA" stroke-width="11" stroke-linecap="round"/>
+ <circle cx="205" cy="154" r="10" fill="#E8FAFF" stroke="#27AEFA" stroke-width="5"/>
+ <path d="M191 45 l4 -12 l4 12 l12 4 l-12 4 l-4 12 l-4 -12 l-12 -4 Z" fill="#48C9FF"/>
+</g>
+  <g font-family="Inter, Arial, Helvetica, sans-serif" font-weight="750" letter-spacing="-3.5" font-size="116">
+   <text x="275" y="172" fill="#F1F7FF">Astro</text>
+   <text x="575" y="172" fill="#0768E2">Vital</text>
+  </g>
+  </svg>

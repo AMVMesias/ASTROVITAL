@@ -13,10 +13,8 @@ export function HomePage() {
       <main className="hero">
         <div className="hero-photo">
           <Image
-            src="/images/earth-window.webp"
-            alt={t(
-              "La Tierra y su atmósfera azul vistas desde la ventana de una estación espacial",
-            )}
+            src="/images/astrovital-earth.webp"
+            alt={t("La Tierra vista desde órbita junto a una nave espacial")}
             fill
             priority
             sizes="(max-width: 700px) 100vw, 65vw"

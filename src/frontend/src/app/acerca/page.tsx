@@ -11,7 +11,7 @@ export default function Page() {
         <h1>{t("Acerca del proyecto")}</h1>
         <p>
           {t(
-            "NASA Health es un prototipo académico para recopilar, analizar y dar seguimiento a indicadores de salud de astronautas durante misiones espaciales.",
+            "AstroVital es un prototipo académico para recopilar, analizar y dar seguimiento a indicadores de salud de astronautas durante misiones espaciales.",
           )}
         </p>
         <h2 id="objetivos">{t("Objetivos")}</h2>

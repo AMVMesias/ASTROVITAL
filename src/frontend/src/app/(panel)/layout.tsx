@@ -5,7 +5,7 @@ export default function PanelLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <nav className="panel-nav" aria-label="Panel">
-        <Link href="/">NASA Health</Link>
+        <Link href="/">AstroVital</Link>
         <ThemeToggle />
         {["dashboard", "usuarios", "reportes", "configuracion"].map((route) => (
           <Link href={`/${route}`} key={route}>

@@ -8,25 +8,33 @@ export function Brand({ footer = false }: { footer?: boolean }) {
     <Link
       href="/"
       className={`brand ${footer ? "brand-footer" : ""}`}
-      aria-label={t("NASA Health, inicio")}
+      aria-label={t("AstroVital, inicio")}
     >
-      <Image
-        src="/images/nasa-logo.svg"
-        alt="NASA"
-        width={80}
-        height={68}
-        priority
-      />
-      <span>
-        NASA Health
-        {footer && (
-          <small>
-            {t("Monitoreo y bienestar de astronautas")}
-            <br />
-            {t("en misiones espaciales.")}
-          </small>
-        )}
+      <span className="brand-mark">
+        <Image
+          className="brand-logo-standard"
+          src="/images/astrovital_logo.svg"
+          alt=""
+          width={1100}
+          height={280}
+          priority
+        />
+        <Image
+          className="brand-logo-inverse"
+          src="/images/astrovital_logo_claro.svg"
+          alt=""
+          width={1100}
+          height={280}
+          priority
+        />
       </span>
+      {footer && (
+        <small>
+          {t("Monitoreo y bienestar de astronautas")}
+          <br />
+          {t("en misiones espaciales.")}
+        </small>
+      )}
     </Link>
   );
 }

@@ -75,7 +75,7 @@ export function Footer() {
         <span>NASA Space Apps Challenge 2026</span>
         <span>
           {t("Prototipo académico")}
-          <b>·</b> NASA Health v1.0
+          <b>·</b> AstroVital v1.0
         </span>
       </div>
     </footer>

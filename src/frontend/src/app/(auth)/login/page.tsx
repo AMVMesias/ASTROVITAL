@@ -14,7 +14,7 @@ export default function Login() {
       <div className="auth-scene" aria-hidden="true">
         <Image
           className="auth-scene-photo"
-          src="/images/login-space-printed.webp"
+          src="/images/astrovital-astronaut.webp"
           alt=""
           fill
           priority
@@ -29,10 +29,10 @@ export default function Login() {
       >
         <path d="M982 0 C909 89 833 227 862 355 C930 583 870 774 662 941 H1671 V0 Z" />
       </svg>
-      <section className="auth-intro" aria-label="NASA Health">
+      <section className="auth-intro" aria-label="AstroVital">
         <p className="auth-eyebrow">
           <span />
-          NASA HEALTH
+          ASTROVITAL
         </p>
         <h1>
           {t("Monitoreo de salud")}
@@ -59,16 +59,24 @@ export default function Login() {
             <Link
               href="/"
               className="auth-brand"
-              aria-label={t("NASA Health, volver al inicio")}
+              aria-label={t("AstroVital, volver al inicio")}
             >
               <Image
-                src="/images/nasa-logo.svg"
-                alt="NASA"
-                width={100}
-                height={84}
+                className="brand-logo-standard"
+                src="/images/astrovital_logo.svg"
+                alt=""
+                width={1100}
+                height={280}
                 priority
               />
-              <span>NASA Health</span>
+              <Image
+                className="brand-logo-inverse"
+                src="/images/astrovital_logo_claro.svg"
+                alt=""
+                width={1100}
+                height={280}
+                priority
+              />
             </Link>
             <LoginForm />
           </div>

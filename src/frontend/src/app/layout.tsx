@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { LanguageProvider } from "../frontend/providers/LanguageProvider";
 
 export const metadata: Metadata = {
-  title: "NASA Health | Bienestar en el espacio",
+  title: "AstroVital | Bienestar en el espacio",
   description:
     "Plataforma de monitoreo y bienestar de astronautas en misiones espaciales. Prototipo académico.",
 };

@@ -1060,7 +1060,7 @@ h1 {
     position: absolute;
     inset: 0;
     z-index: -2;
-    background: url("/images/earth-window.webp") 42% center / cover no-repeat;
+    background: url("/images/astrovital-earth.webp") 42% center / cover no-repeat;
   }
   .home::after {
     content: "";
@@ -1251,3 +1251,21 @@ h1 {
   }
   .site-header nav .active::after { bottom: 0; left: 0; right: 0; }
 }
+/* AstroVital's supplied SVG includes the symbol and the wordmark. */
+.brand .brand-mark { display: block; flex: none; line-height: 0; }
+.brand .brand-mark img, .home .brand .brand-mark img { width: clamp(150px, 15vw, 235px); height: auto; }
+.brand .brand-mark .brand-logo-inverse, .auth-brand .brand-logo-inverse { display: none; }
+.brand-footer { flex-direction: column; gap: 0; }
+.brand-footer small { margin: 0; }
+.brand-footer .brand-mark .brand-logo-standard, .home .brand-footer .brand-mark .brand-logo-standard { display: none; }
+.brand-footer .brand-mark .brand-logo-inverse, .home .brand-footer .brand-mark .brand-logo-inverse { display: block; }
+html[data-theme="dark"] .brand:not(.brand-footer) .brand-logo-standard { display: none; }
+html[data-theme="dark"] .brand:not(.brand-footer) .brand-logo-inverse { display: block; }
+@media (max-width: 700px) {
+ .home .brand .brand-mark img, .brand .brand-mark img { width: 148px; height: auto; }
+ .home .brand-footer .brand-mark img, .brand-footer .brand-mark img { width: 135px; height: auto; }
+ .home .site-header .brand .brand-mark img { width: 138px; height: auto; }
+ .home .site-header .brand .brand-logo-standard { display: none; }
+ .home .site-header .brand .brand-logo-inverse { display: block; }
+}
+@media (max-width: 360px) { .home .site-header .brand .brand-mark img { width: 120px; height: auto; } }
