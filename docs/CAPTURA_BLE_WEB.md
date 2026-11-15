@@ -4,10 +4,10 @@ La recepción ocurre en el navegador de la laptop, con la URL HTTPS de AstroVita
 
 ## Uso
 
-1. El administrador crea la cuenta de astronauta y, en Usuarios, pulsa Vincular ESP32. Asigna un ID interno único, por ejemplo esp32-01. No es una dirección MAC. Una placa ya vinculada a otro astronauta no se reasigna con esta operación. No se rotan las credenciales del bridge Python existente.
+1. Se necesita una cuenta habilitada de astronauta. La captura web no requiere una vinculación previa del administrador, una dirección MAC ni escribir identificadores.
 2. El astronauta completa el primer acceso e inicia sesión en una laptop y navegador compatibles con Web Bluetooth, por ejemplo Chrome/Edge en Windows con Bluetooth habilitado.
-3. En el dashboard selecciona su dispositivo y la actividad. En Configuración BLE comprueba los UUID del servicio y la característica y el número de copias de cada fragmento. Los valores iniciales corresponden al ejemplo documentado del Python; no prueban el firmware cargado en una placa concreta.
-4. Pulsa Conectar ESP32 y autoriza la placa en el selector del navegador. La aplicación solicita acceso al servicio GATT configurado, se suscribe a la característica y reconstruye las líneas terminadas en LF.
+3. En el dashboard selecciona la actividad si la conoce; inicialmente figura como no confirmada. Si ya hay dispositivos vinculados puede seleccionarlos. En Configuración BLE comprueba los UUID del servicio y la característica y el número de copias de cada fragmento. Los valores iniciales corresponden al ejemplo documentado del Python; no prueban el firmware cargado en una placa concreta.
+4. Pulsa Conectar ESP32 y autoriza la placa en el selector del navegador. Si no hay dispositivo seleccionado, después de esa autorización se crea o reutiliza automáticamente un canal de captura propio de la cuenta. La aplicación solicita acceso al servicio GATT configurado, se suscribe a la característica y reconstruye las líneas terminadas en LF.
 5. La tarjeta muestra los once campos crudos, el estado de captura y los envíos confirmados. El resumen y los avisos se refrescan de forma limitada después de las confirmaciones. Usa Desconectar al terminar.
 
 La conexión se conserva al navegar entre páginas del panel del astronauta; se libera al salir del panel o cerrar la sesión. Otra pestaña de AstroVital no debe capturar simultáneamente: se usa Web Locks cuando el navegador lo ofrece. El permiso de Bluetooth es independiente de la sesión de usuario.
@@ -23,6 +23,8 @@ Cada lectura obtiene un ID y una fecha de recepción únicos, conservados en sus
 No se garantiza captura al cerrar/minimizar/suspender el navegador o el equipo. Ante desconexión, el usuario debe revisar la placa y volver a conectar. El estado disconnected se comunica al servidor en mejor esfuerzo. La laptop necesita Internet para autenticar y confirmar los envíos a Supabase.
 
 ## API y seguridad
+
+POST /api/v1/me/device recibe un objeto vacío y crea o reutiliza un canal de captura exclusivo de la cuenta autenticada. No acepta propietario ni identificador enviados por el cliente y no devuelve secretos. Valida origen, rol y primer acceso; nunca reactiva un canal inhabilitado. Este identificador representa el canal web de la cuenta, no la identidad física de la placa. El selector Bluetooth se abre antes de esta petición para conservar el gesto de usuario exigido por el navegador.
 
 POST /api/v1/me/device/capture usa la cookie HttpOnly del astronauta, valida origen, rol, primer acceso y vínculo con un dispositivo habilitado. Recibe deviceId y uno o más componentes telemetry, measurement o signal; measurement y signal son mutuamente excluyentes. Guarda la telemetría y el pulso/estado dentro de una transacción, conserva la deduplicación y procesa la evaluación.
 

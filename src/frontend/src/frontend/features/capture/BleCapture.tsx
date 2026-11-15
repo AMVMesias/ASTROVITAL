@@ -40,12 +40,17 @@ export function BleCaptureProvider({children}:{children:ReactNode}){
   const bluetooth=(navigator as Navigator&{bluetooth?:Bluetooth}).bluetooth;
   if(!window.isSecureContext||!bluetooth){patch({error:"Web Bluetooth no está disponible. Usa HTTPS y un navegador/sistema compatible (por ejemplo Chrome o Edge en Windows)."});return;}
   const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-  if(!options.deviceId||!uuid.test(options.service)||!uuid.test(options.characteristic)){patch({error:"Selecciona tu dispositivo e introduce UUID completos válidos."});return;}
+  if(!uuid.test(options.service)||!uuid.test(options.characteristic)){patch({error:"Introduce UUID completos válidos."});return;}
   const attempt=++generation.current;active.current=true;patch({state:"Seleccionando dispositivo…",error:""});
   try{
    // The chooser must open directly from the user's click, before other awaited work.
    const selected=await bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[options.service]});
    if(!active.current||attempt!==generation.current)return;
+   if(!options.deviceId){
+    const linked=await api<{deviceId:string}>("/v1/me/device",writeRequest("POST",{}));
+    if(!active.current||attempt!==generation.current)return;
+    options={...options,deviceId:linked.deviceId};
+   }
    if(navigator.locks)await new Promise<void>((resolve,reject)=>{void navigator.locks.request("astrovital-ble-capture",{ifAvailable:true},async lock=>{
     if(!lock){reject(new Error("Otra pestaña de AstroVital ya está capturando. Desconéctala primero."));return;}
     resolve();await new Promise<void>(done=>{release.current=done;});
@@ -81,15 +86,15 @@ export function BleCaptureCard(){
  <p role="status">{view.state}{view.name?` · ${view.name}`:""}</p>
  <p>Conecta la placa desde esta laptop. Mantén la página abierta y el equipo activo durante la captura.</p>
  {(loadError||view.error)&&<p role="alert">{loadError||view.error}</p>}
- {!devices.length&&!loadError&&<p>No tienes dispositivos habilitados. Pide al administrador que vincule el ESP32 a tu cuenta.</p>}
- <form className="data-form" onSubmit={event=>{event.preventDefault();const f=new FormData(event.currentTarget);void capture.connect({deviceId:String(f.get("deviceId")),service:String(f.get("service")).trim(),characteristic:String(f.get("characteristic")).trim(),copies:Number(f.get("copies")) as 1|2,activity:String(f.get("activity")) as Options["activity"]});}}>
- <fieldset disabled={busy}><label>Dispositivo vinculado<select name="deviceId" required>{devices.map(d=><option key={d.id}>{d.id}</option>)}</select></label>
+ {!devices.length&&!loadError&&<p>Pulsa Conectar ESP32 y selecciona tu placa. El vínculo con tu cuenta se crea automáticamente.</p>}
+ <form className="data-form" onSubmit={event=>{event.preventDefault();const f=new FormData(event.currentTarget);void capture.connect({deviceId:String(f.get("deviceId")??""),service:String(f.get("service")).trim(),characteristic:String(f.get("characteristic")).trim(),copies:Number(f.get("copies")) as 1|2,activity:String(f.get("activity")) as Options["activity"]});}}>
+ <fieldset disabled={busy}>{devices.length>0&&<label>Dispositivo vinculado<select name="deviceId">{devices.map(d=><option key={d.id}>{d.id}</option>)}</select></label>}
  <label>Actividad confirmada<select name="activity" defaultValue="unknown"><option value="unknown">No confirmada</option><option value="rest">Reposo confirmado</option><option value="exercise">Ejercicio</option><option value="eva">EVA</option></select></label>
  <details><summary>Configuración BLE (la misma que Python)</summary><p>Formato CSV de once columnas, terminado en salto de línea.</p>
  <label>UUID del servicio<input name="service" required defaultValue="6e400001-b5a3-f393-e0a9-e50e24dcca9e"/></label>
  <label>UUID de la característica<input name="characteristic" required defaultValue="6e400003-b5a3-f393-e0a9-e50e24dcca9e"/></label>
  <label>Copias de cada fragmento<select name="copies"><option value="1">Una (normal)</option><option value="2">Dos (solo si la placa duplica cada fragmento)</option></select></label></details>
- </fieldset><div><button disabled={busy||!devices.length}>Conectar ESP32</button> <button type="button" disabled={!busy} onClick={capture.disconnect}>Desconectar</button></div>
+ </fieldset><div><button disabled={busy}>Conectar ESP32</button> <button type="button" disabled={!busy} onClick={capture.disconnect}>Desconectar</button></div>
  </form>
  <p>Recibidas: {view.received} · Confirmadas en Supabase: {view.confirmed} · Pendientes: {view.pending} · Sin confirmar: {view.dropped}</p>
  <p>Se guarda como máximo una instantánea por segundo. Los pendientes solo viven en memoria y se pierden al cerrar la captura.</p>

@@ -9,6 +9,7 @@ import { seed, provisionDevice } from "../src/backend/src/backend/infrastructure
 import { securityQuestions } from "../src/backend/src/backend/application/auth/securityQuestions";
 import { POST as linkDeviceRoute } from "../src/backend/src/app/api/v1/users/[id]/devices/route";
 import { POST as captureRoute } from "../src/backend/src/app/api/v1/me/device/capture/route";
+import { POST as selfLinkRoute } from "../src/backend/src/app/api/v1/me/device/route";
 import { POST as loginRoute } from "../src/backend/src/app/api/v1/auth/login/route";
 import { GET as sessionRoute } from "../src/backend/src/app/api/v1/auth/session/route";
 import { GET as environmentRoute } from "../src/backend/src/app/api/v1/me/environment/route";
@@ -52,6 +53,21 @@ test("Supabase application: authentication, roles, recovery, measurements and HT
  await t.test("manual measurements and assessment persist in PostgreSQL",async()=>{const saved=await app.measurements.manual(astro,input);assert.equal((await app.assessments.process(saved.measurement.id)).status,"done");assert.equal((await app.measurements.history(astro,new URLSearchParams())).length,1);const summary=await app.measurements.summary(astro);assert.equal(summary.latest[0].value,7.5);assert.ok(Array.isArray(summary.evaluation));await assert.rejects(app.measurements.manual(astro,{...input,value:25}),{code:"VALIDATION"});await assert.rejects(app.measurements.history(astro,new URLSearchParams("limit=0")),{code:"VALIDATION"});});
  await t.test("database transactions roll back writes",async()=>{const before=(await app.repo.users()).length;await assert.rejects(app.repo.atomic(async()=>{await app.users.save(admin,{username:"rolledback",name:"Rollback",role:"admin",password});throw new Error("rollback");}));assert.equal((await app.repo.users()).length,before);});
  const deviceToken="device-token-"+randomUUID();await provisionDevice(app.repo,"astro","test-device",deviceToken);
+ await t.test("astronaut self-link needs no MAC, stays private and cannot bypass disablement",async()=>{
+ const cookie=`nasa_session=${login.token}`;
+ assert.equal((await selfLinkRoute(request("me/device","POST",{}))).status,401);
+ assert.equal((await selfLinkRoute(request("me/device","POST",{},`nasa_session=${adminLogin.token}`))).status,403);
+ assert.equal((await selfLinkRoute(request("me/device","POST",{astronautId:admin.id},cookie))).status,400);
+ const first=await selfLinkRoute(request("me/device","POST",{},cookie));assert.equal(first.status,200);
+ const linked=await first.json();assert.deepEqual(Object.keys(linked).sort(),["deviceId","status"]);
+ const device=(await app.repo.device(linked.deviceId))!;assert.equal(device.astronautId,astro.astronautId);
+ const again=await selfLinkRoute(request("me/device","POST",{},cookie));assert.deepEqual(await again.json(),linked);
+ assert.equal((await app.repo.device(linked.deviceId))!.credentialHash,device.credentialHash);
+ const captured=await captureRoute(request("me/device/capture","POST",{deviceId:linked.deviceId,measurement:{readingId:"self:1",indicator:"heart_rate",value:72,unit:"bpm",capturedAt:new Date().toISOString()}},cookie));assert.equal(captured.status,200);
+ await app.repo.run("UPDATE devices SET enabled=0 WHERE id=?",linked.deviceId);
+ assert.equal((await selfLinkRoute(request("me/device","POST",{},cookie))).status,409);
+ assert.equal((await app.repo.device(linked.deviceId))!.enabled,false);
+ });
  await t.test("admin can link devices from the web without exposing or rotating device credentials",async()=>{const params={params:Promise.resolve({id:astronaut.id})};const input={deviceId:"test-device"};assert.equal((await linkDeviceRoute(request("users/devices","POST",input,`nasa_session=${login.token}`),params)).status,403);const before=(await app.repo.device("test-device"))!.credentialHash;const res=await linkDeviceRoute(request("users/devices","POST",input,`nasa_session=${adminLogin.token}`),params);assert.equal(res.status,200);assert.deepEqual(await res.json(),{deviceId:"test-device",status:"linked"});assert.equal((await app.repo.device("test-device"))!.credentialHash,before);const created=await linkDeviceRoute(request("users/devices","POST",{deviceId:"browser-only-device"},`nasa_session=${adminLogin.token}`),params);assert.equal(created.status,200);});
  await t.test("device credentials, deduplication and conflicts",async()=>{const reading={indicator:"heart_rate",value:70,unit:"bpm",capturedAt:new Date().toISOString(),readingId:"read-1"};await assert.rejects(app.measurements.fromDevice("test-device","wrong",reading),{code:"DEVICE_UNAUTHORIZED"});const a=await app.measurements.fromDevice("test-device",deviceToken,reading),b=await app.measurements.fromDevice("test-device",deviceToken,reading);assert.equal(a.measurement.id,b.measurement.id);assert.equal(b.duplicate,true);await assert.rejects(app.measurements.fromDevice("test-device",deviceToken,{...reading,value:71}),{code:"READING_CONFLICT"});});
  await t.test("browser BLE capture is authenticated, owner-bound, transactional and idempotent",async()=>{
