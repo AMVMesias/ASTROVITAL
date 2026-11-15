@@ -9,10 +9,10 @@ const day=86400_000;
 export const demoRules: Record<Indicator,AssessmentRule> = {
   sleep:{version:"demo-sleep-1",referenceWindowMs:14*day,maxAgeMs:2*day,minimumSamples:5,consecutiveSamples:3,absoluteDeviation:1.5},
   wellbeing:{version:"demo-wellbeing-1",referenceWindowMs:14*day,maxAgeMs:2*day,minimumSamples:5,consecutiveSamples:3,absoluteDeviation:1},
-  heart_rate:{version:"demo-heart-rate-1",referenceWindowMs:14*day,maxAgeMs:30_000,minimumSamples:5,consecutiveSamples:3,absoluteDeviation:15},
+  heart_rate:{version:"demo-heart-rate-rest-2",referenceWindowMs:14*day,maxAgeMs:30_000,minimumSamples:5,consecutiveSamples:3,absoluteDeviation:15},
 };
 export function personal(measurement:Measurement):PersonalMeasurement {
-  return {...measurement,origin:measurement.origin==="simulated"?"simulado":measurement.origin==="device"?"sensor":"manual",
+  return {...measurement,activity:measurement.indicator === "heart_rate" && measurement.activityConfirmed !== true ? "unknown" : measurement.activity,origin:measurement.origin==="simulated"?"simulado":measurement.origin==="device"?"sensor":"manual",
     environment:{scenarioId:measurement.environment.scenarioId,revision:measurement.environment.profileVersion}};
 }
 export class AssessmentService {

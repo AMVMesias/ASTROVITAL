@@ -1,3 +1,4 @@
+import { demoRules } from "../assessment/AssessmentService";
 import type { Assessment } from "../assessment/assessMeasurements";
 import { randomUUID } from "node:crypto";
 import { AppError, indicatorConfig, type Activity, type EnvironmentProvider, type Indicator, type Measurement, type Origin, type Session } from "../../domain/model";
@@ -60,8 +61,8 @@ export class MeasurementService {
     if (input.unit !== config.unit || typeof input.value !== "number" || !Number.isFinite(input.value) || input.value < config.min || input.value > config.max || (config.integer && !Number.isInteger(input.value))) throw new AppError(400, "VALIDATION", `Usa ${config.unit}, entre ${config.min} y ${config.max}.`, { value: "Valor o unidad fuera del formato de demo." });
     const capturedAt = date(input.capturedAt, "capturedAt");
     if (Date.parse(capturedAt) > Date.now() + 60_000) throw new AppError(400, "VALIDATION", "La fecha no puede estar en el futuro.");
-    const activity = (input.activity ?? "rest") as Activity;
-    if (!["rest", "exercise", "eva"].includes(activity)) throw new AppError(400, "VALIDATION", "Actividad inválida.");
+    const activity = (input.activity === undefined ? "unknown" : input.activity) as Activity;
+    if (!["rest", "exercise", "eva", "unknown"].includes(activity)) throw new AppError(400, "VALIDATION", "Actividad inválida.");
     const note = input.note === undefined ? "" : text(input, "note", 0, 1000);
     const readingId = deviceId ? text(input, "readingId", 1, 128) : null;
     const fingerprint = digest(JSON.stringify({ indicator, value: input.value, unit: config.unit, capturedAt, activity, note }));
@@ -69,14 +70,18 @@ export class MeasurementService {
     if (deviceId && readingId) {
       const previous = (await this.repo.deviceReading(deviceId, readingId));
       if (previous) {
-        if (previous.fingerprint !== fingerprint) throw new AppError(409, "READING_CONFLICT", "El ID de lectura ya existe con otro contenido.");
+        // Older producers omitted activity and the former service fingerprinted it as rest.
+        // Accept only an otherwise identical retry, returning the original payload unchanged.
+        const legacyFingerprint = input.activity === undefined && previous.measurement.activityConfirmed === undefined
+          ? digest(JSON.stringify({ indicator, value: input.value, unit: config.unit, capturedAt, activity: "rest", note })) : null;
+        if (previous.fingerprint !== fingerprint && previous.fingerprint !== legacyFingerprint) throw new AppError(409, "READING_CONFLICT", "El ID de lectura ya existe con otro contenido.");
         return { measurement: previous.measurement, duplicate: true };
       }
     }
     const environment = (await this.environment.resolve(astronautId, capturedAt));
     if (!environment) throw new AppError(409, "ENVIRONMENT_MISSING", "No hay perfil ambiental para la fecha de captura.");
     const measurement: Measurement = { id: randomUUID(), astronautId, missionId, moduleId, indicator, value: input.value, unit: config.unit, origin, quality: "valid", capturedAt,
-      receivedAt: new Date().toISOString(), authorId, deviceId: deviceId ?? null, readingId, activity, note, scenario: scenario ?? null, environment };
+      receivedAt: new Date().toISOString(), authorId, deviceId: deviceId ?? null, readingId, activity, activityConfirmed: activity !== "unknown", note, scenario: scenario ?? null, environment };
     (await this.repo.saveMeasurement(measurement, fingerprint));
     return { measurement, duplicate: false };
   }
@@ -96,7 +101,7 @@ export class MeasurementService {
   async summary(session: Session) {
     const user = (await this.auth.requireSession(session.sessionId, "astronauta"));
     const latest=(await this.repo.latest(user.astronautId!));
-    return { latest: latest.map(value=>({...value,ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(value.capturedAt))/1000))})), devices: (await this.repo.devices(user.astronautId!)),  indicators: indicatorConfig,
+    return { latest: latest.map(value=>({...value,maxAgeSeconds:demoRules[value.indicator].maxAgeMs / 1000,ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(value.capturedAt))/1000))})), devices: (await this.repo.devices(user.astronautId!)),  indicators: indicatorConfig,
       environment: (await this.environment.resolve(user.astronautId!, new Date().toISOString())),
       evaluation: this.assess ? await Promise.all(latest.map(async value=>{const assessment=await this.assess!(value);return {measurementId:value.id,indicator:value.indicator,...assessment,assessment};})) : { status: "not_connected", message: "Evaluación no configurada." } };
   }
