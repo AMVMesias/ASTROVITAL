@@ -5,9 +5,10 @@ Revisión del 15 de noviembre de 2026 basada en la guía local de juzgamiento su
 ## Preparado en el repositorio
 
 - Licencia MIT en `LICENSE`; repositorio y licencia respondieron HTTP 200 sin autenticación.
-- Informe español: `informe/Ficha_Proyecto_ES_EN.pdf` (nombre histórico; contenido en español), 7 páginas.
-- Informe inglés: `informe/Ficha_Proyecto_EN.pdf`, 7 páginas.
-- Cada PDF es una entrega independiente de siete páginas. No unirlos en un PDF de catorce páginas para la entrega de diapositivas limitada a siete; confirmar con la organización cómo cargar ambas versiones.
+- Informe técnico español: `informe/Ficha_Proyecto_ES_EN.pdf` (nombre histórico; contenido en español), 12 páginas.
+- Informe técnico inglés: `informe/Ficha_Proyecto_EN.pdf`, 12 páginas.
+- Son informes técnicos complementarios, no diapositivas del pitch. La guía no aclara explícitamente el límite de un informe complementario: confirmar su categoría de carga con la organización. Una presentación sometida al límite de siete diapositivas debe prepararse como archivo independiente.
+- Las secciones 19–22 describen captura, reglas implementadas, un caso sintético reproducible, seguridad, resultados de pruebas y validaciones pendientes. Las fuentes editables de estos anexos son `informe/Detalle_Tecnico_ES.tex` y `informe/Detalle_Tecnico_EN.tex`.
 - Ambos informes disponibles mediante enlaces públicos desde `/acerca`, sin requerir una sesión del panel.
 - Declaración de ChatGPT y Codex en los informes y en `/legal#licencia`.
 - Fuentes NASA y alcance de uso registrados en `/recursos#fuentes`, con enlaces a los archivos del proyecto.

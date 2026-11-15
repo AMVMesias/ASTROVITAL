@@ -1,0 +1,86 @@
+\newpage
+\heading{19  Acquisition and data contract}{VERIFIABLE IMPLEMENTATION}
+\textbf{Hardware represented in software.} AD8232 for ECG signals and estimated heart rate; MAX30102 for SpO\textsubscript{2} and optical pulse; MPU6050 for motion-based respiration estimates. These names describe the implemented contract, not certified wiring, calibration or actually installed firmware.
+\begin{infobox}
+\textbf{Web path:} ESP32 $\rightarrow$ BLE notifications $\rightarrow$ browser $\rightarrow$ Next.js API $\rightarrow$ PostgreSQL/Supabase.\par
+\textbf{Local alternative:} ESP32 $\rightarrow$ Python/Bleak $\rightarrow$ API. Its SQLite queue retains local retries and does not replace the backend database.
+\end{infobox}
+\textbf{CSV-11 contract.} Each line contains eleven numerical fields in this order:
+\begin{quote}\small\ttfamily ecg, bpm\_ecg, estado\_ecg\_x50, resp\_mg, rpm,\\ estado\_resp\_x50, spo2, bpm\_oxi, estado\_oxi\_x50, ir, rojo\end{quote}
+The browser reconstructs fragments up to a line feed. It rejects empty columns, non-finite numbers, unsupported states, invalid UTF-8 and buffers over 16 KiB. Two-copy mode checks fragment equality and is only enabled when firmware actually duplicates them.
+\heading{19.1  Quality, time and submission}{TRANSPORT LIMITS}
+At most one snapshot is submitted per second. A pulse measurement is derived when ECG state is 100 and the value meets the 1--300 bpm format. Without contact or signal, telemetry and state are preserved without inventing a zero pulse. Format ranges are not physiological normality intervals.
+
+Web capture timestamps use the receiving computer's clock, not a synchronized ADC clock. The web queue holds up to ten pending packets in memory, with one submission at a time and up to three attempts per packet. Retry identifiers are retained; the backend detects duplicates and content conflicts. Closing or reloading can lose unconfirmed pending packets.
+
+The web ECG monitor retains up to ten seconds and 3000 samples before API sampling. The scale uses raw units, not calibrated millivolts. Filtering is visual: it neither determines beats nor changes stored records. Backend snapshots do not reconstruct the high-frequency waveform.
+\vfill
+{\footnotesize\color{muted}Evidence: \path{features/capture/protocol.ts}, \path{BleCapture.tsx}, \path{ecgStream.ts}; \path{docs/CAPTURA_BLE_WEB.md}, \path{docs/PUENTE_ESP32.md}. Frontend paths are relative to \path{src/frontend/src/frontend/}.}
+\newpage
+\heading{20  Assessment method}{TWO COMPLEMENTARY ANALYSES}
+\textbf{Personal baseline.} Measurements are compared for the same person, mission, indicator, unit, activity and environmental revision. Simulated and non-simulated records are separated and duplicate IDs removed. Pulse requires confirmed rest. Future dates, poor quality or expiry prevent a current assessment.
+\par\noindent\begin{tabularx}{\linewidth}{@{}lXXX@{}}
+\toprule Parameter & Resting pulse & Sleep & Wellbeing\\\midrule
+History window & 14 days & 14 days & 14 days\\
+Minimum baseline & 5 samples & 5 samples & 5 samples\\
+Consecutive readings & 3 & 3 & 3\\
+Absolute deviation & 15 bpm & 1.5 h & 1 point\\
+Maximum age & 30 s & 2 days & 2 days\\\bottomrule
+\end{tabularx}\par
+The baseline mean excludes the block of three assessed readings. For each, $\Delta_i=x_i-\bar{x}_{ref}$. Sustained deviation requires all three differences to reach the positive threshold or all three to be at most its negative. An insufficient baseline produces insufficiency, not a claim of stability. Versions: \texttt{demo-heart-rate-rest-2}, \texttt{demo-sleep-1}, \texttt{demo-wellbeing-1}.
+\heading{20.1  Telemetry DSS}{QUALITY BEFORE INTERPRETATION}
+The service retrieves up to 100 snapshots from the active environmental assignment's start through the query clock. The tree separates devices, rejects future timestamps and duplicate IDs, and requires valid firmware states. The trend window is up to 120 seconds; the latest sample expires after 30 seconds. Retaining history does not renew freshness.
+\begin{itemize}
+\item SpO\textsubscript{2} below 90: verification priority. From 90 to below 95: review. Zero without a valid state: unavailable data.
+\item ECG: with at least five recent valid values, compare the median of the two newest with that of the rest. An absolute difference of at least 20 bpm triggers review.
+\item ECG/oximeter difference of at least 20 bpm: check consistency. Optical pulse at the 300 bpm format ceiling or a jump of at least 40 bpm within 10 seconds: check signal quality.
+\item Respiration: report value and variation without a clinical normality classification. Historical radiation does not modify physiological level.
+\end{itemize}
+\begin{infobox}\textbf{Provenance:} demonstration constants in code, not NASA-validated thresholds or results of clinical trials on this assembly. FDA and MedlinePlus are linked for verification guidance, not validation of these parameters.\end{infobox}
+{\footnotesize\color{muted}Evidence: \path{AssessmentService.ts}, \path{assessMeasurements.ts}, \path{telemetryDecisionTree.ts}, \path{TelemetryDecisionService.ts}, in the backend's \path{application/assessment}.}
+\newpage
+\heading{21  Reproducible case and traceability}{SYNTHETIC TEST DATA}
+Example from \path{tests/telemetry-decision-tree.test.ts}, not a human record or evidence of sensor accuracy. Two synthetic snapshots from the same device and scenario, 15 and 30 seconds before the evaluation clock:
+\par\noindent\begin{tabularx}{\linewidth}{@{}lXX@{}}
+\toprule Field & Latest & Previous\\\midrule
+SpO\textsubscript{2} & 80 \% & 78 \%\\
+Optical pulse & 300 bpm & 17 bpm\\
+Oximeter state & 200 & 200\\
+ECG pulse / state & 0 / 50 & 76 / 100\\
+Respiration / state & 0 / 50 & 17 / 100\\\bottomrule
+\end{tabularx}\par
+\begin{enumerate}[leftmargin=5mm,itemsep=5pt]
+\item \textbf{Validation:} the latest reading is fresh. Optical state permits SpO\textsubscript{2} and pulse analysis. Current ECG and respiration are unavailable; their zeros are not human measurements.
+\item \textbf{Assessment:} result \texttt{priority} because SpO\textsubscript{2} is 80 \%. Pulse at 300 bpm: \texttt{review} and \texttt{checkRequired} because it reaches the format ceiling.
+\item \textbf{Actions:} verify oxygenation, cross-check pulse and restore ECG and respiration. Pulse-quality uncertainty does not remove saturation priority.
+\item \textbf{Expiry:} another test with the latest sample aged 31 seconds returns \texttt{insufficient}; current physiological warnings are removed and capture recovery is requested.
+\end{enumerate}
+The telemetry DSS calculates results on query. Persisted personal-measurement alerts follow another path: they retain measurement ID, rule, baseline, direction and historical evidence. They support open, tracking and closed states. Visual grouping does not erase original detections.
+\heading{21.1  Security and privacy}{IMPLEMENTED CONTROLS}
+The API requires a session and role permissions. Ownership is resolved from the account or device association; queries filter by identity and capture validates the authorized origin. Passwords and recovery answers use salted scrypt hashes. The cookie is HttpOnly, strict SameSite and Secure on Vercel.
+
+PostgreSQL/Supabase retains accounts, sessions, measurements, telemetry and follow-up. Language and theme are stored locally. Signing out does not delete history; no automatic deletion or privacy certification is claimed. These controls do not replace a security audit or regulatory assessment.
+\vfill
+{\footnotesize\color{muted}Evidence: \path{application/alerts}, \path{infrastructure/security/credentials.ts}, \path{transport/http.ts}; ingestion and permissions in \path{tests/cloud.test.ts}.}
+\newpage
+\heading{22  Verification and results}{EXECUTION ON NOVEMBER 15, 2026}
+\texttt{npm test} was executed on base \texttt{b2daf00}, before expanding this document: \textbf{59 recorded tests, 58 passed, 0 failed and 1 skipped}. PostgreSQL integration was skipped because \texttt{DATABASE\_URL} was unavailable in that execution; this does not verify a real Supabase connection.
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries}p{35mm}X@{}}
+\toprule Area & Observed coverage\\\midrule
+BLE capture & Fragments, duplicates, eleven fields, UTF-8, overflow, absent contact and states.\\[6pt]
+Personal assessment & Quality, expiry, separate baseline, confirmed rest and isolation of people, environment and simulation.\\[6pt]
+DSS & Future timestamps, environmental intervals, duplicates, devices, priorities, actions and no radiation influence on physiological state.\\[6pt]
+Presentation & Historical versus current pulse, intermittent signal, ECG segments, display filter, alert groups and time axis.\\[6pt]
+DSS service & Mocked dependencies for permissions, historical assignment and disconnection; they do not replace real database integration.\\\bottomrule
+\end{tabularx}\par
+\textbf{Reproduction:} use compatible Node 22, install with \texttt{npm ci} and run \texttt{npm test}. Integration in \path{tests/cloud.test.ts} needs an authorized test database and creates a temporary schema. Do not publish credentials. Build and type checks are software controls, not biomedical trials.
+\heading{22.1  NASA usage and evidence scope}{TRACEABLE REFERENCES}
+The DSS imports \path{data/radlab_reference_summaries.json}. These are supplied summaries: cleaning, source units and percentiles cannot be reproduced without original CSV files. CRaTER is orbital, MSL-RAD measures on Curiosity and EAD-MU01 on Orion; they are not astronaut doses. Planetary fact sheets supply documentary catalog values. MEDA and Diviner are not integrated live streams.
+\heading{22.2  Limitations and next validations}{OUTSTANDING WORK}
+\begin{itemize}
+\item Document board, pins, power, placement and actual firmware version. No unverified wiring schematic is added.
+\item Compare against reference instruments and record error, conditions and sample size. Calibration and clinical validation are not accredited here.
+\item Test prolonged physical capture, motion, reconnection, Internet loss and browsers; record failures and recovery.
+\item Retrieve original CSV files and metadata to reproduce summaries; assess security, privacy and operation before use beyond demonstration.
+\end{itemize}
+{\footnotesize\color{muted}Code and tests: \url{https://github.com/AMVMesias/ASTROVITAL}. Implementation, automated testing and outstanding physical validation are distinguished.}
