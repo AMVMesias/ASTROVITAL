@@ -1,0 +1,211 @@
+% !TeX program = pdflatex
+% Compilar desde la raíz: latexmk -cd -pdf informe/Ficha_Proyecto_ES_EN.tex
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=16mm,top=19mm,bottom=17mm,headheight=24pt]{geometry}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{lmodern}
+  \renewcommand{\familydefault}{\sfdefault}
+\else
+  \usepackage{fontspec}
+  \IfFontExistsTF{DejaVu Sans}{\setmainfont{DejaVu Sans}\setsansfont{DejaVu Sans}}{\setmainfont{Latin Modern Sans}\setsansfont{Latin Modern Sans}}
+\fi
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{graphicx,xcolor,tikz,tabularx,array,booktabs,enumitem,tcolorbox,fancyhdr,hyperref,xurl,microtype,multicol,etoolbox}
+\graphicspath{{informe/}{./}}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,babel}
+\definecolor{navy}{HTML}{091B36}\definecolor{blue}{HTML}{0965EB}\definecolor{cyan}{HTML}{00A9E8}\definecolor{muted}{HTML}{536782}\definecolor{light}{HTML}{F1F6FD}\definecolor{line}{HTML}{DBE5F2}\definecolor{white}{HTML}{FFFFFF}\definecolor{ink}{HTML}{1D2C46}
+\hypersetup{colorlinks=true,urlcolor=blue,linkcolor=blue,pdftitle={ASTROVITAL | Ficha del Proyecto},pdfauthor={ASTROVITAL}}
+\setlength{\parindent}{0pt}\setlength{\parskip}{5.2pt}\linespread{1.04}
+\setlist[itemize]{leftmargin=5mm,itemsep=2.1pt,topsep=3pt,parsep=0pt}
+\pagestyle{fancy}\fancyhf{}\renewcommand{\headrulewidth}{0pt}
+\fancyhead[L]{\includegraphics[width=27mm]{astrovital_logo_claro.png}}\fancyhead[R]{\footnotesize\bfseries\color{muted}FICHA TÉCNICA · ASTROVITAL}
+\fancyfoot[L]{\color{muted}\scriptsize ASTROVITAL \quad | \quad MONITOREO DE SALUD ESPACIAL}
+\fancyfoot[R]{\color{blue}\bfseries\small\thepage}
+\newcommand{\heading}[2]{\par\vspace{8pt}{\large\bfseries\color{navy}#1}\hfill{\footnotesize\bfseries\color{blue}#2}\par\vspace{-1pt}{\color{blue}\rule{\linewidth}{1pt}}\vspace{3pt}}
+\newcommand{\tinyhead}[1]{{\footnotesize\bfseries\color{blue}\MakeUppercase{#1}}}
+\newtcolorbox{infobox}[1][]{colback=light,colframe=line,boxrule=.5pt,arc=1.5mm,left=9pt,right=9pt,top=8pt,bottom=8pt,#1}
+\newtcolorbox{navybox}[1][]{colback=navy,colframe=navy,boxrule=0pt,arc=1.8mm,left=12pt,right=12pt,top=10pt,bottom=10pt,#1}
+\newcommand{\linktxt}[2]{\href{#2}{\textcolor{blue}{\bfseries #1}}}
+\newcommand{\field}[2]{{\tinyhead{#1}}\par{\bfseries\color{navy}#2}}
+\begin{document}
+\thispagestyle{empty}
+% Portada diseñada con composición espacial aprobada por el equipo.
+% Imagen de portada generada con apoyo de IA, utilizando la identidad visual ASTROVITAL.
+\AddToHookNext{shipout/background}{%
+\begin{tikzpicture}[remember picture,overlay]
+\node[anchor=north west,inner sep=0pt] at (current page.north west)
+{\includegraphics[width=\paperwidth,height=157mm]{astrovital_portada.png}};
+\end{tikzpicture}%
+}
+\vspace*{149mm}
+{\color{blue}\rule{\linewidth}{1.2pt}}\vspace{1.5mm}
+{\large\bfseries\color{navy}01  El reto que resolvemos}\hfill{\footnotesize\bfseries\color{blue}PROPÓSITO}\par
+En misiones de larga duración, la radiación espacial, los cambios gravitacionales, el aislamiento y la distancia de la Tierra exigen mayor autonomía para observar el estado de salud. El desafío \textit{Create Health Monitoring Software for Astronauts on Space Missions} propone herramientas visuales para reconocer cambios y actuar con información comprensible.
+\begin{infobox}
+\textbf{Nuestra respuesta:} unificar signos vitales, historial y alertas interpretables en una plataforma que ofrece contexto científico y orientación para la tripulación, como \textbf{apoyo al seguimiento y a las decisiones}, no como diagnóstico clínico automático.
+\end{infobox}
+\vspace{1mm}
+{\color{blue}\rule{\linewidth}{.8pt}}\vspace{1.5mm}
+{\large\bfseries\color{navy}02  Propuesta de valor}\hfill{\footnotesize\bfseries\color{blue}POR QUÉ ASTROVITAL}\par\vspace{2mm}
+\begin{tabularx}{\linewidth}{@{}X@{\hspace{8mm}}X@{}}
+\textbf{\color{blue}Medir}\quad ECG, frecuencia cardiaca, SpO\textsubscript{2} y respiración desde los sensores. &
+\textbf{\color{blue}Comprender}\quad Vigencia de lecturas, gráficos y tendencias de salud.\\[5pt]
+\textbf{\color{blue}Actuar}\quad Avisos interpretables y orientación para comprobar valores. &
+\textbf{\color{blue}Contextualizar}\quad Escenarios de estación, órbita, Luna y Marte con referencias NASA.\\
+\end{tabularx}\par
+\vfill
+{\scriptsize\color{muted}Reto oficial: }\linktxt{Consultar el reto oficial}{https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/}\par
+{\scriptsize\color{muted}Ilustración conceptual de portada generada con inteligencia artificial.}
+\newpage
+\heading{03  Experiencia de uso}{UN SISTEMA, VARIOS MOMENTOS}
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries\color{blue}}p{16mm}>{\bfseries\color{navy}}p{41mm}X@{}}
+01 & Iniciar sesión & Acceso individual al panel y consulta del estado reciente de salud y del dispositivo.\\[7pt]
+02 & Conectar sensores & Vinculación ESP32 por Bluetooth Low Energy, recepción de telemetría y revisión de la validez de las lecturas.\\[7pt]
+03 & Registrar información & Complemento de las lecturas con registro manual, sueño, actividad y bienestar, según disponibilidad de datos.\\[7pt]
+04 & Explorar tendencias & Gráficos e historial para comparar mediciones, cambios temporales y patrones de comportamiento.\\[7pt]
+05 & Evaluar resultados & Motor de reglas que incorpora calidad de señal, vigencia, tendencias y ambiente seleccionado.\\[7pt]
+06 & Consultar avisos & Indicaciones comprensibles, alertas y posibles acciones de verificación antes de continuar el seguimiento.\\
+\end{tabularx}\par
+\heading{04  Módulos del producto}{FUNCIONALIDADES}
+\par\noindent\begin{tabularx}{\linewidth}{@{}X@{\hspace{6mm}}X@{}}
+\begin{infobox}\tinyhead{Panel de salud}\par\textbf{Indicadores en una mirada}\par Tarjetas de pulso, SpO\textsubscript{2} y respiración; estado actual, visualización de señales y vigencia de datos.\end{infobox}&
+\begin{infobox}\tinyhead{Seguimiento histórico}\par\textbf{Cambios visibles}\par Series temporales, historial de mediciones y lectura de tendencias para una evaluación personal.\end{infobox}\\[5pt]
+\begin{infobox}\tinyhead{Ambiente de captura}\par\textbf{Contexto espacial}\par Escenarios de misión y referencias físicas y radiológicas para interpretar condiciones operativas.\end{infobox}&
+\begin{infobox}\tinyhead{Avisos y evaluación}\par\textbf{Información explicable}\par Reglas transparentes, mensajes de atención y sugerencias de revisión de sensores o resultados.\end{infobox}\\
+\end{tabularx}\par
+\heading{05  Criterios de diseño}{CLARIDAD EN MISIONES EXIGENTES}
+La experiencia prioriza jerarquía visual, lectura rápida, navegación responsiva, interfaces en español e inglés y diferenciación entre datos actuales y desactualizados. Un resultado ausente no se presenta como un valor cero; la interfaz comunica explícitamente la calidad de conexión y la disponibilidad de la señal.
+\begin{navybox}
+{\color{white}\bfseries El aporte central de ASTROVITAL}\par{\color{white}No se limita a mostrar números: reúne \textbf{captura física + registros + tendencias + reglas de decisión + contexto espacial} para facilitar el seguimiento autónomo y la comunicación de riesgos.}
+\end{navybox}
+\newpage
+\heading{06  Arquitectura tecnológica}{DE LOS SENSORES A LA DECISIÓN}
+\begin{center}
+\begin{tikzpicture}[node distance=4.5mm,>=Latex,every node/.style={font=\footnotesize},mod/.style={draw=line,fill=light,rounded corners=3pt,text=navy,align=center,text width=45mm,minimum height=15mm},arr/.style={-Latex,thick,draw=blue}]
+\node[mod] (a) {\textbf{ESP32 + sensores}\\ECG, pulso, SpO\textsubscript{2}, respiración};
+\node[mod,right=10mm of a] (b) {\textbf{Frontend Next.js / React}\\Panel, BLE, formularios, gráficos};
+\node[mod,below=8mm of b] (c) {\textbf{Backend Next.js / API}\\Autenticación y validación};
+\node[mod,left=10mm of c] (d) {\textbf{PostgreSQL / Supabase}\\Usuarios, lecturas y avisos};
+\node[mod,below=8mm of c] (e) {\textbf{DSS + contexto NASA}\\Reglas, tendencias y referencias};
+\draw[arr] (a)--node[above]{BLE}(b);\draw[arr] (b)--node[right]{HTTPS}(c);\draw[arr,<->] (c)--(d);\draw[arr,<->] (c)--(e);
+\end{tikzpicture}
+\end{center}
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash\bfseries\color{navy}}p{40mm}X@{}}
+Interfaz web & Frontend independiente en Next.js, React y TypeScript. Pantallas de astronauta, historial, conexión del equipo, registro manual, entorno y alertas.\\[5pt]
+Servicios backend & API REST, manejo de sesión, validación, persistencia y servicio DSS disponible mediante \texttt{GET /api/v1/me/dss}.\\[5pt]
+Persistencia & Base PostgreSQL en Supabase para perfiles, lecturas, avisos y otras entidades de la aplicación.\\[5pt]
+Capa electrónica & Firmware para ESP32 con sensores y transporte BLE; herramientas de puente local y pruebas de compatibilidad.\\[5pt]
+Motor de evaluación & Árbol de decisiones con reglas demostrativas que examinan indicadores, vigencia, calidad de información, contexto y posibles avisos.\\[5pt]
+Despliegue y calidad & Frontend y backend publicados como servicios separados en Vercel; verificaciones de tipos, lint, compilación y pruebas de sensores y evaluación.\\
+\end{tabularx}\par
+\heading{07  Flujo técnico}{TRAZABILIDAD}
+\begin{infobox}
+\textbf{Captura} \(\rightarrow\) \textbf{recepción BLE o registro manual} \(\rightarrow\) \textbf{validación} \(\rightarrow\) \textbf{almacenamiento} \(\rightarrow\) \textbf{análisis DSS} \(\rightarrow\) \textbf{visualización y aviso}.\par
+El DSS contempla lecturas ausentes o desactualizadas y evita presentar una evaluación como concluyente si no existe información suficiente. La referencia radiológica histórica caracteriza el escenario, mientras que los signos vitales del usuario provienen del ESP32 o de sus registros.
+\end{infobox}
+\heading{08  Evolución y potencial}{VALOR PARA EL RETO}
+La solución facilita la integración progresiva de nuevas variables fisiológicas, nuevos sensores y perfiles ambientales. Su arquitectura modular separa la captura, el procesamiento y la presentación, permitiendo mejorar las reglas y añadir mecanismos de verificación sin rehacer toda la experiencia del astronauta.
+\newpage
+\heading{09  Datos científicos NASA}{RADIOLOGÍA ESPACIAL INCORPORADA}
+El módulo ambiental trabaja con resúmenes de series históricas procedentes del \textbf{NASA Open Science Data Repository, RadLab}. Los datos permiten comparar referencias instrumentales de diferentes misiones y explicar cómo cambia la exposición radiológica según el escenario.
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries\color{navy}}p{33mm}p{58mm}>{\raggedleft\arraybackslash}p{23mm}X@{}}
+\toprule Escenario & Misión / instrumento & Registros & Fuente\\\midrule
+Marte, superficie & Curiosity · MSL-RAD & 274.998 & \linktxt{RadLab}{https://visualization.osdr.nasa.gov/radlab/gui/overview/}\\[4pt]
+Órbita lunar & LRO · CRaTER-D1D2 & 71.626 & \linktxt{RadLab}{https://visualization.osdr.nasa.gov/radlab/gui/overview/}\\[4pt]
+Tránsito espacial & Artemis I · Orion EAD-MU01 & 7.303 & \linktxt{RadLab}{https://visualization.osdr.nasa.gov/radlab/gui/overview/}\\\midrule
+\multicolumn{2}{@{}l}{\textbf{Total de observaciones históricas reportadas}} & \textbf{353.927} & \linktxt{API RadLab}{https://visualization.osdr.nasa.gov/radlab/gui/data-api/}\\\bottomrule
+\end{tabularx}\par
+\par{\footnotesize\color{muted}Unidad indicada en el resumen aportado: \(\mu\mathrm{Gy/h}\). Resúmenes documentados en \texttt{data/radlab\_reference\_summaries.json} del repositorio. Son referencias instrumentales, no dosis corporal de los usuarios. Los conteos y percentiles fueron aportados; no se reprodujeron sin los CSV originales.}
+\heading{10  Fuentes NASA para el contexto ambiental}{CATÁLOGO Y REFERENCIAS}
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries\color{navy}}p{43mm}X@{}}
+NASA Earthdata & \linktxt{Earthdata Search}{https://search.earthdata.nasa.gov/}: portal de descubrimiento y consulta de datos de observación terrestre.\\[4pt]
+Landsat & \linktxt{NASA Landsat}{https://landsat.gsfc.nasa.gov/}: programa de observación terrestre y documentación de misión.\\[4pt]
+Perseverance / MEDA & \linktxt{Archivo atmosférico NASA PDS}{https://pdsatmospheres.nmsu.edu/data_and_services/atmospheres_data/PERSEVERANCE/meda.html}: condiciones meteorológicas de Marte.\\[4pt]
+LRO / Diviner & \linktxt{NASA PDS Diviner}{https://pds-geosciences.wustl.edu/missions/lro/diviner.htm}: referencias térmicas de la Luna.\\[4pt]
+NASA Human Research Program & \linktxt{Five Hazards of Human Spaceflight}{https://www.nasa.gov/hrp/hazards/}: factores de riesgo de la exploración humana.\\[4pt]
+NASA-STD-3001 & \linktxt{Human-System Standard, Vol. 2}{https://www.nasa.gov/reference/nasa-std-3001v2/}: requisitos humanos y de salud espacial.\\[4pt]
+NASA HRP, evidencia & \linktxt{Informe sobre sueño}{https://humanresearchroadmap.nasa.gov/Evidence/reports/Sleep.pdf} y \linktxt{repositorio de riesgos}{https://humanresearchroadmap.nasa.gov/}: respaldo conceptual de indicadores y riesgos.\\
+\end{tabularx}\par
+\begin{infobox}
+\textbf{Cómo se aprovechan estas fuentes.} RadLab constituye la referencia cuantitativa radiológica del DSS. MEDA, Diviner y el Human Research Program sirven como referencias ambientales y científicas; Earthdata y Landsat se consignan como portales NASA relacionados con observación y exploración de datos, sin atribuirles una integración operativa no demostrada.
+\end{infobox}
+\heading{11  Interpretación y confiabilidad}{ANÁLISIS EXPLICABLE}
+El árbol de decisiones combina disponibilidad de señales, rangos de referencia, evolución de lecturas y contexto de misión para comunicar observaciones y avisos. La aplicación distingue entre datos actuales, históricos y no válidos, y presenta la interpretación en lenguaje comprensible. El enfoque es de \textbf{monitoreo y orientación}, no de diagnóstico o validación médica para vuelo.
+\newpage
+\heading{12  Declaración de inteligencia artificial}{TRANSPARENCIA DEL PROCESO}
+La inteligencia artificial generativa, \textbf{ChatGPT y Codex de OpenAI}, se empleó como herramienta de asistencia a lo largo del ciclo de desarrollo de ASTROVITAL, incluida la \textbf{generación de código}. Su participación abarcó actividades técnicas, de investigación y comunicación, con integración y decisiones finales a cargo del equipo.
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\bfseries\color{navy}}p{48mm}X@{}}
+Programación y generación de código & Borradores y revisiones de componentes React, lógica TypeScript/JavaScript, servicios backend, interfaces, estructuras de datos y funciones de integración.\\[7pt]
+Arquitectura de software & Apoyo en la definición de capas, comunicación ESP32-BLE-frontend, rutas API, almacenamiento y separación de responsabilidades.\\[7pt]
+Modelo DSS y análisis & Diseño y mejora de reglas de decisión, interpretación de señales, manejo de estados y redacción de explicaciones de riesgos.\\[7pt]
+Depuración y verificación & Análisis de fallos, propuestas de corrección, casos de prueba, razonamiento sobre telemetría y revisión de consistencia.\\[7pt]
+Interfaz y experiencia & Propuestas de distribución visual, jerarquía de indicadores, mensajes de alerta, microtextos e interacciones.\\[7pt]
+Documentación científica & Organización de fuentes NASA, síntesis de documentación, justificación técnica y redacción de materiales del proyecto.\\
+\end{tabularx}\par
+\begin{navybox}
+{\color{white}\textbf{Responsabilidad del equipo.} La IA se utilizó como apoyo al diseño, programación, pruebas y documentación. ASTROVITAL fue integrado y adaptado como prototipo por sus desarrolladores, quienes asumen las decisiones de ingeniería, la revisión del código y la presentación de resultados.}
+\end{navybox}
+\heading{13  Visión del proyecto}{TECNOLOGÍA AL SERVICIO DE LA TRIPULACIÓN}
+ASTROVITAL propone una forma accesible de observar la salud del astronauta, combinar datos personales con la complejidad de los ambientes espaciales y transformar esa información en avisos fáciles de comprender. La experiencia busca fortalecer el autocuidado y la preparación de la tripulación en misiones cada vez más prolongadas.
+\vfill
+{\color{blue}\rule{\linewidth}{1pt}}\vspace{3pt}
+{\small\bfseries\color{navy}ASTROVITAL}\hfill{\footnotesize\color{muted}Ficha técnica del proyecto · 2026}
+
+\newpage
+\heading{14  Acceso directo a recursos y datasets}{ENLACES COMPLETOS Y CLICABLES}
+Los siguientes enlaces permiten acceder directamente a la plataforma ASTROVITAL, al repositorio público y a las fuentes científicas consultadas. Se muestran las direcciones completas para facilitar su verificación y apertura en el navegador.
+\begin{infobox}
+\tinyhead{Producto y código fuente}\par\textbf{Plataforma desplegada}\par\url{https://astrovital-health.vercel.app/login}\par\vspace{3pt}
+\textbf{Repositorio de ASTROVITAL}\par\url{https://github.com/AMVMesias/ASTROVITAL}\par\vspace{3pt}
+\textbf{Licencia MIT en la raíz del repositorio}\par\url{https://github.com/AMVMesias/ASTROVITAL/blob/main/LICENSE}\par\vspace{3pt}
+\textbf{Reto oficial del proyecto}\par\url{https://www.spaceappschallenge.org/2026/challenges/health-monitoring-software/}
+\end{infobox}
+\heading{15  NASA OSDR RadLab}{SERIES HISTÓRICAS DE RADIACIÓN}
+\textbf{Fuente principal de las tres series incorporadas al DSS:} NASA Open Science Data Repository, RadLab. Los instrumentos MSL-RAD (Curiosity), CRaTER (LRO) y EAD-MU01 (Orion / Artemis I) se documentan mediante el mismo portal; no se atribuyen enlaces de descarga filtrada que no estén registrados.
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash\bfseries\color{navy}}p{39mm}X@{}}
+Portal oficial de RadLab & \url{https://visualization.osdr.nasa.gov/radlab/gui/overview/}\\[6pt]
+Gráficas y series temporales & \url{https://visualization.osdr.nasa.gov/radlab/gui/time-series-plots/}\\[6pt]
+Documentación de la API & \url{https://visualization.osdr.nasa.gov/radlab/gui/data-api/}\\
+\end{tabularx}
+\heading{16  Otras fuentes NASA}{ARCHIVOS Y PORTALES CIENTÍFICOS}
+\par\noindent\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash\bfseries\color{navy}}p{40mm}X@{}}
+MEDA / Perseverance & \url{https://pdsatmospheres.nmsu.edu/data_and_services/atmospheres_data/PERSEVERANCE/meda.html}\\[6pt]
+DOI MEDA & \url{https://doi.org/10.17189/1522849}\\[6pt]
+NASA Earthdata Search & \url{https://search.earthdata.nasa.gov/}\\[6pt]
+NASA Landsat & \url{https://landsat.gsfc.nasa.gov/}\\[6pt]
+LRO / Diviner & \url{https://pds-geosciences.wustl.edu/missions/lro/diviner.htm}\\
+\end{tabularx}
+\vfill
+{\footnotesize\color{muted}Los enlaces de RadLab conducen al servicio oficial y a su explorador de series temporales. La selección exacta de filtros de los archivos históricos no está incluida en este documento.}
+\newpage
+\heading{17  Informes NASA sobre salud espacial}{REFERENCIAS COMPLETAS}
+Estas fuentes oficiales fundamentan la explicación de riesgos cardiovasculares, descompresión, lesiones durante actividad extravehicular, capacidad física y sueño. Las URL son clicables y se reproducen completas.
+\renewcommand{\arraystretch}{1.13}
+\begin{infobox}
+\tinyhead{Estándar de salud de referencia}\par
+\textbf{NASA-STD-3001, Volumen 2}\par
+\url{https://www.nasa.gov/reference/nasa-std-3001v2/}
+\end{infobox}
+\vspace{3pt}
+{\small\bfseries\color{navy}Riesgos cardiovasculares}\par
+{\footnotesize\url{https://humanresearchroadmap.nasa.gov/Evidence/reports/Cardio%20Risk%20EB%202022%20FINAL_4-3-2023.pdf}}\par\vspace{6pt}
+{\small\bfseries\color{navy}Lesiones durante actividad extravehicular (EVA)}\par
+{\footnotesize\url{https://humanresearchroadmap.nasa.gov/Evidence/other/EVA%20Injury%20Evidence%20Report%20FINAL_6-14-2023.pdf}}\par\vspace{6pt}
+{\small\bfseries\color{navy}Hipoxia y enfermedad por descompresión}\par
+{\footnotesize\url{https://humanresearchroadmap.nasa.gov/Evidence/other/Evidence%20Report%20Hypoxia%20and%20DCS_FINAL_1-8-2024.pdf}}\par\vspace{6pt}
+{\small\bfseries\color{navy}Capacidad aeróbica y muscular}\par
+{\footnotesize\url{https://humanresearchroadmap.nasa.gov/Evidence/reports/Evidence%20report%20aerobic%20and%20muscle_FINAL%204-3-2024.pdf}}\par\vspace{6pt}
+{\small\bfseries\color{navy}Pérdida de sueño y alteraciones del descanso}\par
+{\footnotesize\url{https://humanresearchroadmap.nasa.gov/Evidence/reports/Sleep.pdf}}\par\vspace{6pt}
+{\small\bfseries\color{navy}Riesgos médicos generales — NASA Human Research Roadmap}\par
+{\footnotesize\url{https://humanresearchroadmap.nasa.gov/Risks/print/?i=95}}\par
+\vfill
+\begin{navybox}
+{\color{white}\bfseries ASTROVITAL: salud conectada para misiones más seguras}\par
+{\color{white}Un sistema de seguimiento que reúne señales biométricas, indicadores históricos y conocimiento espacial en una experiencia comprensible para la tripulación.}
+\end{navybox}
+
+\end{document}
