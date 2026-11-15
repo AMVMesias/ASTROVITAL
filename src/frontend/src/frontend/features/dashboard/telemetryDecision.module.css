@@ -1,0 +1,33 @@
+.panel {
+  margin: 20px 0;
+  padding: clamp(16px, 2.5vw, 28px);
+  background: var(--dashboard-card, #fff);
+  border: 1px solid var(--dashboard-line, #e4ebf9);
+  border-radius: 19px;
+  box-shadow: 0 4px 16px #0053ed0d;
+  overflow-wrap: anywhere;
+}
+.attention { border-color: #b66b18; }
+.heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.heading h2 { margin: 0 0 12px; font-size: clamp(21px, 2.5vw, 28px); }
+.eyebrow { color: #0065d9; font-size: 12px; font-weight: 800; letter-spacing: 2px; margin: 0 0 8px; }
+.heading button, .controls select { font: inherit; padding: 10px 12px; border: 1px solid #b6c8e2; border-radius: 10px; background: var(--dashboard-card, #fff); color: inherit; }
+.heading button { cursor: pointer; }
+.heading button:disabled, .controls select:disabled { opacity: .6; cursor: wait; }
+.controls { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px; }
+.controls label { display: grid; gap: 6px; font-weight: 600; max-width: 100%; }
+.controls select { max-width: 100%; width: 340px; }
+.controls span, .metadata { font-size: 13px; color: var(--dashboard-muted, #536984); }
+.state { margin-top: 18px; padding: 14px; background: var(--dashboard-inset, #f7f9ff); border-radius: 12px; }
+.state p { margin: 8px 0 0; line-height: 1.6; }
+.metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 16px 0; }
+.metrics article { border: 1px solid var(--dashboard-line, #e4ebf9); border-radius: 12px; padding: 14px; }
+.metrics h3 { font-size: 14px; margin: 0 0 10px; }
+.metrics strong { font-size: 20px; }
+.metrics p { font-size: 13px; line-height: 1.5; }
+.panel details { border-top: 1px solid var(--dashboard-line, #e4ebf9); padding-top: 12px; margin-top: 14px; line-height: 1.6; }
+.panel summary { cursor: pointer; font-weight: 600; }
+.panel li { margin-bottom: 8px; line-height: 1.5; }
+.error { color: #9b3426; background: #fff0ed; padding: 12px; border-radius: 10px; }
+@media (max-width: 1000px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .metrics { grid-template-columns: 1fr; } .heading { align-items: stretch; flex-direction: column; } .controls { display: grid; } .controls select { width: 100%; } }

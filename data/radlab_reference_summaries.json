@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0",
+  "generatedFrom": "CSVs NASA RadLab suministrados por el usuario",
+  "scenarios": {
+    "mars_surface": {
+      "mission": "Mars Science Laboratory / Curiosity",
+      "instrument": "MSL-RAD-Surface",
+      "location": "Superficie de Marte",
+      "n": 274998,
+      "invalid_rows": 1,
+      "from": "2015-01-01T00:11:01",
+      "to": "2024-06-03T10:06:06",
+      "p05": 4.9693,
+      "median": 8.2231,
+      "p95": 9.6729,
+      "unit": "µGy/h",
+      "interpretation": "Distribución histórica descriptiva del detector; no dosis personal ni umbral de seguridad."
+    },
+    "moon_surface": {
+      "mission": "LRO",
+      "instrument": "CRaTER-D1D2",
+      "location": "Órbita lunar (NO superficie)",
+      "n": 71626,
+      "invalid_rows": 1,
+      "from": "2009-06-26T20:36:34",
+      "to": "2017-10-06T03:59:59",
+      "p05": 6.2421,
+      "median": 9.4617,
+      "p95": 31.3275,
+      "unit": "µGy/h",
+      "interpretation": "Distribución histórica descriptiva del detector; no dosis personal ni umbral de seguridad."
+    },
+    "deep_space_transit": {
+      "mission": "Artemis I / Orion",
+      "instrument": "Artemis-I-EAD-MU01",
+      "location": "Nave Orion (NO dosis personal)",
+      "n": 7303,
+      "invalid_rows": 1,
+      "from": "2022-11-16T06:50:00",
+      "to": "2022-12-11T15:20:00",
+      "p05": 11.79,
+      "median": 15.255,
+      "p95": 27.6,
+      "unit": "µGy/h",
+      "interpretation": "Distribución histórica descriptiva del detector; no dosis personal ni umbral de seguridad."
+    },
+    "iss_leo": {
+      "mission": "ISS",
+      "instrument": null,
+      "location": "Interior ISS",
+      "n": 0,
+      "unit": "µGy/h",
+      "interpretation": "Sin serie de dosis instrumental ISS importada; no sustituir por otros ambientes."
+    }
+  },
+  "provenance": {
+    "status": "supplied_not_reproduced",
+    "originalCsvsIncluded": false,
+    "description": "Resumen aportado por ASTROVITAL_DSS_V2_PATCH. Los CSV originales, unidades de origen y cálculo de percentiles no se pudieron reproducir con los archivos disponibles.",
+    "totalReportedRecords": 353927
+  }
+}

@@ -15,3 +15,7 @@ Consultar docs/DESPLIEGUE_SUPABASE.md para variables, migraciones y primer admin
 ## Verificación
 
 npm run lint, npm run typecheck y npm run build. npm test ejecuta la integración con PostgreSQL cuando DATABASE_URL está definida; crea un esquema temporal y lo elimina al terminar. npm run test:production verifica HTTPS con API_URL, SMOKE_USERNAME y SMOKE_PASSWORD.
+
+## Análisis de sensores y escenario
+
+El dashboard incorpora el DSS de telemetría con selección de ambiente, vigencia y explicación de lecturas. API: GET `/api/v1/me/dss`. Consultar [DSS_TELEMETRIA.md](docs/DSS_TELEMETRIA.md) para reglas demostrativas, procedencia de los resúmenes RadLab y verificación.

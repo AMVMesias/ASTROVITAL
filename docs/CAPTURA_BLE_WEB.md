@@ -5,7 +5,7 @@ La recepción ocurre en el navegador de la laptop, con la URL HTTPS de AstroVita
 ## Uso
 
 1. Se necesita una cuenta habilitada de astronauta. La captura web no requiere una vinculación previa del administrador, una dirección MAC ni escribir identificadores.
-2. El astronauta completa el primer acceso e inicia sesión en una laptop y navegador compatibles con Web Bluetooth, por ejemplo Chrome/Edge en Windows con Bluetooth habilitado.
+2. El astronauta completa el primer acceso e inicia sesión en una laptop y navegador compatibles con Web Bluetooth, por ejemplo Chrome/Edge en Windows o Chrome/Chromium en Linux con Web Bluetooth habilitado.
 3. Abre **ESP32 Bluetooth** en el menú del astronauta (`/bluetooth`). Selecciona la actividad si la conoce; inicialmente figura como no confirmada. Si ya hay dispositivos vinculados puede seleccionarlos. En Configuración BLE comprueba los UUID del servicio y la característica y el número de copias de cada fragmento. Los valores iniciales corresponden al ejemplo documentado del Python; no prueban el firmware cargado en una placa concreta.
 4. Pulsa Conectar ESP32 y autoriza la placa en el selector del navegador. Si no hay dispositivo seleccionado, después de esa autorización se crea o reutiliza automáticamente un canal de captura propio de la cuenta. La aplicación solicita acceso al servicio GATT configurado, se suscribe a la característica y reconstruye las líneas terminadas en LF.
 5. La tarjeta muestra los once campos crudos, el estado de captura y los envíos confirmados. El resumen y los avisos se refrescan de forma limitada después de las confirmaciones. Usa Desconectar al terminar.
@@ -45,3 +45,15 @@ No se incrustan credenciales de PostgreSQL ni tokens de dispositivo compartidos 
 tests/ble.test.ts prueba fragmentación, varias líneas, duplicados explícitos, desbordamiento, UTF-8 inválido, once campos, pulso válido y estados sin contacto. tests/cloud.test.ts verifica la ingesta autenticada, rechazo de otro propietario, vinculación administrativa, conservación de credenciales anteriores, rollback y deduplicación contra PostgreSQL en un esquema temporal.
 
 Las pruebas automatizadas no sustituyen la prueba física. Antes de usarlo en una demo, confirmar con el ESP32 real los UUID, CSV-11 y duplicados; comprobar la primera lectura, los once valores en Supabase, diez minutos de captura, desconexión/reconexión, cambio de página, expiración de sesión y pérdida de Internet. No se ha realizado esa prueba física desde este entorno.
+
+## Chrome/Chromium en Linux
+
+La [documentación de Chrome](https://developer.chrome.com/docs/capabilities/bluetooth) indica habilitar **Experimental Web Platform features** en `chrome://flags/#enable-experimental-web-platform-features` para Linux y reiniciar el navegador. La aplicación no puede activar esa opción por JavaScript. Abrir AstroVital directamente por HTTPS; una IP de la LAN mediante HTTP no equivale a localhost ni a un contexto seguro.
+
+La tarjeta comprueba origen seguro, API Web Bluetooth, política del documento y disponibilidad del adaptador cuando el navegador expone esa consulta. Muestra instrucciones Linux y separa los errores de carga de la cuenta de los errores Bluetooth. Un error anterior de la API ya no oculta el resultado de pulsar el botón. Si no aparece el selector, revisar primero el mensaje visible y la opción del navegador. No se bloquea Linux si ofrece las capacidades necesarias.
+
+El formulario valida manualmente los UUID, incluso con Configuración BLE plegada: un campo requerido oculto no debe impedir el envío sin explicación. La petición al selector se realiza directamente desde el clic, antes de llamadas a la API, para conservar el gesto de usuario. Los pasos GATT y la activación de notificaciones tienen espera limitada; ante fallo se libera el botón y se puede reintentar. La vinculación a la cuenta también tiene timeout.
+
+Para usar la captura web, detener `npm run bridge:ble` u otros consumidores de la misma placa. Si aparece error GATT, comprobar que Bluetooth esté encendido y que el ESP32 se anuncie. El modo Python sigue disponible como alternativa para sistemas donde el navegador no permita Web Bluetooth. Las correcciones del frontend son locales hasta publicarlas en el despliegue.
+
+La prueba de navegador usa un ESP32 simulado y verifica API ausente, selector cancelado, permiso del clic, UUID inválido dentro de detalles plegados, recepción CSV-11 con confirmación, desconexión y timeout GATT. No sustituye la comprobación física en la laptop y navegador del usuario.

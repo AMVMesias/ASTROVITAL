@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { TelemetryDecisionPanel } from "./TelemetryDecisionPanel";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
@@ -627,6 +628,7 @@ export function MissionDashboard() {
           </div>
         </div>
       )}
+      <TelemetryDecisionPanel />
       <footer className={styles.footer}>
         <p>
           {es

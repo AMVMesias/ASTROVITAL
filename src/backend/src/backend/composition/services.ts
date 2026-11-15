@@ -1,3 +1,4 @@
+import { TelemetryDecisionService } from "../application/assessment/TelemetryDecisionService";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { PostgresRepository } from "../infrastructure/postgres/app/PostgresRepository";
 import { Database, databasePool } from "../infrastructure/postgres/database";
@@ -11,8 +12,9 @@ import { HistoricalEnvironmentProvider } from "../infrastructure/environment/His
 import { createPostgresAlertRepository } from "../infrastructure/postgres/app/alertRepository";
 export function createServices(repo: PostgresRepository) {
  const auth = new AuthService(repo), assessments = new AssessmentService(repo);
+ const telemetry = new TelemetryService(repo,auth);
  return { repo, auth, assessments, users: new UserService(repo, auth), recovery: new RecoveryService(repo,auth),
- telemetry: new TelemetryService(repo,auth), alerts: createPostgresAlertRepository(repo.db),
+ telemetry, dss:new TelemetryDecisionService(repo,auth,telemetry), alerts: createPostgresAlertRepository(repo.db),
  measurements: new MeasurementService(repo,auth,new HistoricalEnvironmentProvider(repo),value=>assessments.preview(value)) };
 }
 const context = new AsyncLocalStorage<ReturnType<typeof createServices>>();

@@ -1,3 +1,4 @@
+import { GET as dssRoute } from "../src/backend/src/app/api/v1/me/dss/route";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -117,6 +118,19 @@ test("Supabase application: authentication, roles, recovery, measurements and HT
  assert.equal(restored.status,200);
  assert.equal((await app.measurements.summary(astro)).latest.find(m=>m.indicator==="heart_rate")?.value,80);
  assert.equal((await app.measurements.summary(astro)).devices.find(d=>d.id==="test-device")?.signal?.status,"valid");
+ });
+ await t.test("DSS is authenticated, owner scoped and respects environment history",async()=>{
+ const path="me/dss",cookie=`nasa_session=${login.token}`;
+ assert.equal((await dssRoute(request(path))).status,401);
+ assert.equal((await dssRoute(request(path,"GET",undefined,`nasa_session=${adminLogin.token}`))).status,403);
+ const at=new Date().toISOString();
+ await app.telemetry.capture("test-device",deviceToken,{readingId:"dss:current",capturedAt:at,fields:{ecg:100,bpm_ecg:72,estado_ecg_x50:100,resp_mg:5,rpm:14,estado_resp_x50:100,spo2:98,bpm_oxi:73,estado_oxi_x50:200,ir:55000,rojo:24000}});
+ const response=await dssRoute(request(path,"GET",undefined,cookie));assert.equal(response.status,200);
+ const result=await response.json();assert.equal(result.scenario.id,"iss_leo");assert.equal(result.telemetry.lastReadingId,"dss:current");
+ assert.equal(result.radiationProvenance.status,"supplied_not_reproduced");assert.equal(result.rules.freshnessSeconds,30);
+ await app.repo.signalStatus("test-device","disconnected",new Date(Date.now()+1).toISOString(),new Date().toISOString());
+ const lost=await (await dssRoute(request(path,"GET",undefined,cookie))).json();assert.equal(lost.state.level,"sensor_issue");
+ assert.ok(lost.telemetry.indicators.every((indicator:{value:number|null})=>indicator.value===null));
  });
  await t.test("HTTP login, cookie session, environment and capture use real services",async()=>{const response=await loginRoute(request("auth/login","POST",{username:"astro",password:next},`nasa_session=${login.token}`));assert.equal(response.status,200);const cookie=response.headers.get("set-cookie")!.split(";")[0];const session=await sessionRoute(request("auth/session","GET",undefined,cookie));assert.equal((await session.json()).user.username,"astro");const catalog=await environmentRoute(request("me/environment","GET",undefined,cookie));assert.equal((await catalog.json()).profiles.length,4);const reading=await measurementRoute(request("me/measurements","POST",input,cookie));assert.equal(reading.status,201,JSON.stringify(await reading.clone().json()));assert.equal((await reading.json()).measurement.value,7.5);});
  await t.test("recovery verifies persisted answers and grants are single use",async()=>{const challenge=await app.recovery.start({username:"astro"});await assert.rejects(app.recovery.verify({challengeId:challenge.challengeId,answer:"wrong"}),{code:"RECOVERY_INVALID"});const grant=await app.recovery.verify({challengeId:challenge.challengeId,answer:`Answer ${challenge.question.id}`});const newPassword="Recovered-password-12345";await app.recovery.resetPassword({resetToken:grant.resetToken,newPassword,confirmation:newPassword});await assert.rejects(app.recovery.resetPassword({resetToken:grant.resetToken,newPassword,confirmation:newPassword}),{code:"RESET_TOKEN_INVALID"});await assert.rejects(app.auth.session(login.token),{code:"UNAUTHENTICATED"});assert.ok(await app.auth.login({username:"astro",password:newPassword}));});
