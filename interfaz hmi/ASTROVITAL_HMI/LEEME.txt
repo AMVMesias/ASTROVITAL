@@ -1,0 +1,131 @@
+NUEVO FILTRADO PARA VISUALIZAR PULSOS
+- ECG en ESP32: rechazo de red a 60 Hz, pasa-altos 0.7 Hz (orden 2)
+  y pasa-bajos Butterworth 8 Hz (orden 4).
+- Los filtros se aplican a cada lectura, con muestreo objetivo de 250 Hz,
+  antes de enviar las 50 tramas/s al HMI. Si cambias PERIODO_US, debes
+  recalcular los coeficientes; el firmware no los ajusta automaticamente.
+- La banda estrecha suaviza ruido y picos; cambia la forma de la onda
+  y añade retardo. Sirve para ver pulsos aproximados, no morfologia clinica.
+- La primera columna CSV y el MODO_DEBUG=4 muestran el ECG filtrado.
+- Umbral inicial de deteccion: 12 cuentas, para compensar la menor amplitud.
+- La curva se muestra incluso sin BPM. Si LO+ o LO- indica desconexion,
+  la frecuencia sigue sin calcularse: revisa los electrodos y sus conexiones.
+- No se alteraron los algoritmos de SpO2/pulso del MAX30102 en esta revision.
+- La imagen comparacion_filtro_ecg.png usa el CSV recibido a 50 Hz:
+  es una vista previa de software; no representa una nueva captura fisica.
+
+PARA USARLO
+1. Carga el .ino incluido en el ESP32 (MODO_DEBUG=0).
+2. Cierra Monitor Serial/Plotter y ejecuta INICIAR_HMI.bat.
+3. Selecciona COM y Conectar. Espera unos segundos de estabilizacion.
+
+ASTROVITAL — HMI USB PARA ESP32
+AD8232 + MPU6050 + MAX30102
+
+ACTUALIZACION: SEÑAL CARDIACA APROXIMADA
+- Incluye el firmware corregido en monitor_ecg_resp_esp32/.
+- Carga ese .ino en el ESP32 y abre este HMI actualizado.
+- Ya no se oculta la curva por falta de BPM o por aviso de electrodos.
+- Se reduce el umbral de deteccion de 160 a 12 cuentas ADC.
+- Detecta picos positivos o negativos y estima BPM con hasta 4 intervalos.
+- El algoritmo busca intervalos de 300 a 2000 ms (aprox. 30-200 BPM).
+  La señal debil o ruidosa puede dar una estimacion equivocada.
+- Electrodos sueltos, ADC saturado o señal sin pulsos dejan los BPM sin valor.
+- No se genera una curva artificial para sustituir la señal del sensor.
+
+PASOS PARA VER LA SEÑAL
+1. Carga monitor_ecg_resp_esp32/monitor_ecg_resp_esp32.ino con MODO_DEBUG=0.
+2. El monitor serial a 115200 debe mostrar una linea CSV de 11 columnas
+   cada 20 ms, incluso si no estan conectados el MPU o el oximetro.
+   La primera columna es la señal filtrada y la segunda los BPM estimados.
+3. Cierra el monitor serial y abre INICIAR_HMI.bat. Elige el mismo puerto COM.
+4. Deja estabilizar el montaje y permanece quieto unos segundos.
+
+DIAGNOSTICO SI AUN FALLA
+- Para ver ADC/ECG/BPM/LO+ y LO- en el Monitor Serial o Serial Plotter,
+  cambia MODO_DEBUG a 4 y vuelve a cargar. Este modo NO alimenta el HMI;
+  para usar el HMI debes regresar MODO_DEBUG a 0 y cargar de nuevo.
+- Si ADC es siempre 0 o siempre 4095, revisa alimentacion, tierra y OUTPUT.
+- Si no aparece ninguna linea, revisa puerto, baudrate, carga del sketch,
+  cable USB de datos y pulsa EN/RESET.
+- Para aislar fallos del bus I2C, usa SOLO_ECG=true y vuelve a cargar.
+  El ECG y la salida CSV siguen activos; MPU y oximetro se omiten.
+
+CABLEADO ESP32 CLASICO (EL MISMO DEL FIRMWARE)
+AD8232 3.3V -> 3.3V; GND -> GND; OUTPUT -> GPIO34;
+LO+ -> GPIO32; LO- -> GPIO33. No alimentar AD8232 a 5V.
+MPU6050 y MAX30102: SDA -> GPIO21; SCL -> GPIO22; GND comun.
+Revisa que el modelo de tu ESP32 tenga esos GPIO y corresponda a tu placa.
+
+INICIO EN WINDOWS
+1. Extrae por completo este ZIP (no ejecutes desde dentro del ZIP).
+2. Necesitas Python 3.9 o superior con Tcl/Tk. Si falta, instala Python
+   desde https://www.python.org/downloads/ y activa Add Python to PATH.
+3. Abre INICIAR_HMI.bat. Instala pyserial si falta (necesita internet
+   solo para esa primera instalacion) y abre la interfaz.
+4. Carga en el ESP32 el codigo integrado monitor_ecg_resp_esp32.ino
+   entregado antes. Debe tener MODO_DEBUG = 0.
+5. Cierra Monitor Serial y Serial Plotter de Arduino IDE.
+6. Conecta el ESP32 por USB, pulsa Actualizar, elige COM y Conectar.
+   Tambien puedes escribir el puerto manualmente.
+7. Coloca el dedo quieto sobre el MAX30102. La primera ventana de calculo
+   necesita aproximadamente 4 segundos; la validez depende de la señal.
+
+INICIO MANUAL
+Desde una terminal dentro de esta carpeta:
+  python -m pip install -r requirements.txt
+  python astro_vital_hmi.py
+En Linux puede hacer falta instalar python3-tk desde el sistema.
+
+PANTALLA
+- Cuatro indicadores: BPM del ECG, SpO2, pulso del oximetro y respiraciones/min.
+- Tres graficas: ECG filtrado, respiracion (mg) e infrarrojo crudo del MAX30102.
+- Estados individuales: electrodos, MPU6050, dedo y validez de SpO2.
+- Ventana de 5, 10, 20 o 30 segundos y escala vertical automatica.
+- Un guion significa que no hay una medicion valida; no se muestra como cero.
+- Si no llegan tramas validas durante 2 s se ocultan los indicadores.
+- Desconectar conserva el historial para exportar y oculta los indicadores.
+- Exportar CSV guarda hasta las ultimas 30 000 tramas (10 min a 50 Hz).
+  El tiempo se toma en el PC al recibir los datos, no en el ADC del ESP32.
+- Demo usa datos simulados, siempre identificados en pantalla y en el CSV,
+  incluso si se exportan despues de pulsar Desconectar. No usa el puerto USB.
+- Una nueva conexion o Demo inicia un historial nuevo. Exporta antes si
+  quieres conservar la sesion anterior.
+
+PROTOCOLO ESPERADO (115200 BAUDIOS)
+Una linea por trama con 11 numeros separados por comas:
+  ecg,bpm_ecg,estado_ecg_x50,resp_mg,rpm,estado_resp_x50,
+  spo2,bpm_oxi,estado_oxi_x50,ir,rojo
+Sin encabezados ni etiquetas de texto. El codigo del ESP32 integrado
+transmite a 50 Hz aunque intenta muestrear ECG a 250 Hz; las graficas del
+HMI muestran los puntos recibidos a 50 Hz, no el registro ADC completo.
+
+Estados ECG y respiracion transmitidos: 0, 50, 100.
+Estados oximetro transmitidos:
+  0   No disponible
+  50  Sin dedo
+  100 Calculando / SpO2 no valida
+  150 SpO2 valida
+  200 SpO2 y pulso validos
+Los BPM del ECG y del oximetro se muestran por separado.
+
+SI NO SE VEN DATOS
+- Error al abrir COM: cierra cualquier otro programa que use ese puerto.
+- Sin puertos: revisa cable USB de datos, controlador y Administrador de dispositivos.
+- Muchas tramas descartadas: usa MODO_DEBUG=0 y el firmware de 11 columnas.
+- Se reinicia al conectar: algunos ESP32 se reinician al abrir el puerto;
+  espera unos segundos. Si no envia, pulsa EN/RESET.
+- Sin dedo o calculando: mira IR/ROJO. El umbral de dedo configurado en
+  el firmware es UMBRAL_DEDO_IR=50000 y puede necesitar ajuste.
+- La respiracion depende del montaje del MPU6050 en el torax y del eje usado;
+  no es una medicion directa del flujo de aire ni una alarma de apnea.
+
+USO
+Prototipo educativo, no destinado a diagnostico clinico.
+Con electrodos sobre una persona, usa aislamiento electrico adecuado entre
+el circuito y el PC; no conectes el montaje a equipos alimentados por red
+sin aislamiento. Las curvas de prueba no validan la exactitud de los sensores.
+
+REFERENCIA DE LA CONEXION SERIAL
+https://pyserial.readthedocs.io/en/latest/shortintro.html
+https://pyserial.readthedocs.io/en/latest/tools.html
