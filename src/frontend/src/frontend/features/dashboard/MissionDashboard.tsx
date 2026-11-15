@@ -17,6 +17,7 @@ import {
 } from "./readingPresentation";
 import { EcgMonitor } from "./EcgMonitor";
 import { sensorHasAlert,type SensorDecision } from "./readingPresentation";
+import {trendWindow} from "./trendWindow";
 import { VitalTrend, type TrendSeries } from "./VitalTrend";
 import styles from "./dashboard.module.css";
 import {groupNotices,noticeTitle,type Notice} from "../alerts/presentation";
@@ -245,6 +246,8 @@ export function MissionDashboard() {
       ),
     },
   ];
+  const trendSpan=trendWindow(series,now).span;
+  const trendRange=trendSpan<3600000?`${Math.ceil(trendSpan/60000)} min`:`${(trendSpan/3600000).toFixed(1)} h`;
   const formatTime = (time: string) => new Date(time).toLocaleString(locale);
   return (
     <main className={styles.page}>
@@ -461,7 +464,7 @@ export function MissionDashboard() {
                 {es ? "Tendencia de signos vitales" : "Vital signs trend"}
               </h2>
               <span className={styles.period}>
-                {es ? "Últimas 24 horas" : "Last 24 hours"}
+                {es ? `Ventana: ${trendRange}` : `Window: ${trendRange}`}
               </span>
             </div>
             {data.history === null && data.telemetry === null ? (
@@ -475,10 +478,91 @@ export function MissionDashboard() {
             )}
             <p className={styles.chartNote}>
               {es
-                ? "Hasta 200 muestras por origen. Unidades por serie; sin interpolar valores ausentes."
-                : "Up to 200 samples per source. Units per series; absent values are not interpolated."}
+                ? "Hasta 200 muestras por origen de las últimas 24 h. Eje temporal ajustado a los datos; unidades por serie."
+                : "Up to 200 samples per source from the last 24 h. Time axis fits the data; units shown per series."}
             </p>
           </section>
+          <div className={styles.bottomCards}>
+            {(["sleep", "wellbeing"] as const).map((indicator) => {
+              const reading = readings.find((r) => r.indicator === indicator);
+              const assessment = reading
+                ? readingAssessment(reading, evaluations)
+                : undefined;
+              return (
+                <section key={indicator} className={`${styles.panel} ${reading&&assessment?.status==="deviation"&&readingFreshness(reading,now)==="fresh"?styles.alertCard:""}`}>
+                  <div className={styles.sectionHeading}>
+                    <h2>
+                      <AdminIcon
+                        name={indicator === "sleep" ? "moon" : "smile"}
+                      />
+                      {indicator === "sleep"
+                        ? es
+                          ? "Sueño"
+                          : "Sleep"
+                        : es
+                          ? "Bienestar"
+                          : "Wellbeing"}
+                    </h2>
+                    <span className={styles.neutralBadge}>
+                      {assessment
+                        ? states[assessment.status]
+                        : es
+                          ? "Sin evaluación"
+                          : "Unassessed"}
+                    </span>
+                  </div>
+                  <p className={styles.value}>
+                    {reading ? reading.value : "—"}
+                    <span>{indicator === "sleep" ? "h" : "/5"}</span>
+                  </p>
+                  <p className={styles.bottomReference}>
+                    {assessment?.reference
+                      ? `${es ? "Ref. personal" : "Personal ref."}: ${assessment.reference.mean.toFixed(1)} ${indicator === "sleep" ? "h" : "/5"}`
+                      : es
+                        ? "Referencia insuficiente"
+                        : "Insufficient baseline"}
+                  </p>
+                  {reading && (
+                    <time
+                      className={styles.timestamp}
+                      dateTime={reading.capturedAt}
+                    >
+                      {formatTime(reading.capturedAt)}
+                    </time>
+                  )}
+                </section>
+              );
+            })}
+            <section className={styles.panel}>
+              <div className={styles.sectionHeading}>
+                <h2>
+                  <AdminIcon name="chip" />
+                  {es ? "Dispositivo (ESP32)" : "Device (ESP32)"}
+                </h2>
+              </div>
+              <span className={styles.neutralBadge}>
+                {device
+                  ? es
+                    ? "Conexión no verificada"
+                    : "Connection unverified"
+                  : es
+                    ? "Sin dispositivo vinculado"
+                    : "No linked device"}
+              </span>
+              <p className={styles.bottomReference}>
+                {es ? "Última comunicación" : "Last communication"}:{" "}
+                {device?.lastCommunicationAt
+                  ? formatTime(device.lastCommunicationAt)
+                  : "—"}
+              </p>
+              {device?.signal && (
+                <p className={styles.timestamp}>
+                  {es ? "Señal" : "Signal"}: {device.signal.status} ·{" "}
+                  {formatTime(device.signal.observedAt)}
+                </p>
+              )}
+            </section>
+          </div>
           </div>
           <div className={styles.dashboardColumn}>
           <section className={`${styles.panel} ${styles.evaluation} ${heartAlert?styles.alertCard:""}`}>
@@ -571,87 +655,7 @@ export function MissionDashboard() {
             )}
           </section>
           </div>
-          <div className={styles.bottomCards}>
-            {(["sleep", "wellbeing"] as const).map((indicator) => {
-              const reading = readings.find((r) => r.indicator === indicator);
-              const assessment = reading
-                ? readingAssessment(reading, evaluations)
-                : undefined;
-              return (
-                <section key={indicator} className={`${styles.panel} ${reading&&assessment?.status==="deviation"&&readingFreshness(reading,now)==="fresh"?styles.alertCard:""}`}>
-                  <div className={styles.sectionHeading}>
-                    <h2>
-                      <AdminIcon
-                        name={indicator === "sleep" ? "moon" : "smile"}
-                      />
-                      {indicator === "sleep"
-                        ? es
-                          ? "Sueño"
-                          : "Sleep"
-                        : es
-                          ? "Bienestar"
-                          : "Wellbeing"}
-                    </h2>
-                    <span className={styles.neutralBadge}>
-                      {assessment
-                        ? states[assessment.status]
-                        : es
-                          ? "Sin evaluación"
-                          : "Unassessed"}
-                    </span>
-                  </div>
-                  <p className={styles.value}>
-                    {reading ? reading.value : "—"}
-                    <span>{indicator === "sleep" ? "h" : "/5"}</span>
-                  </p>
-                  <p className={styles.bottomReference}>
-                    {assessment?.reference
-                      ? `${es ? "Ref. personal" : "Personal ref."}: ${assessment.reference.mean.toFixed(1)} ${indicator === "sleep" ? "h" : "/5"}`
-                      : es
-                        ? "Referencia insuficiente"
-                        : "Insufficient baseline"}
-                  </p>
-                  {reading && (
-                    <time
-                      className={styles.timestamp}
-                      dateTime={reading.capturedAt}
-                    >
-                      {formatTime(reading.capturedAt)}
-                    </time>
-                  )}
-                </section>
-              );
-            })}
-            <section className={styles.panel}>
-              <div className={styles.sectionHeading}>
-                <h2>
-                  <AdminIcon name="chip" />
-                  {es ? "Dispositivo (ESP32)" : "Device (ESP32)"}
-                </h2>
-              </div>
-              <span className={styles.neutralBadge}>
-                {device
-                  ? es
-                    ? "Conexión no verificada"
-                    : "Connection unverified"
-                  : es
-                    ? "Sin dispositivo vinculado"
-                    : "No linked device"}
-              </span>
-              <p className={styles.bottomReference}>
-                {es ? "Última comunicación" : "Last communication"}:{" "}
-                {device?.lastCommunicationAt
-                  ? formatTime(device.lastCommunicationAt)
-                  : "—"}
-              </p>
-              {device?.signal && (
-                <p className={styles.timestamp}>
-                  {es ? "Señal" : "Signal"}: {device.signal.status} ·{" "}
-                  {formatTime(device.signal.observedAt)}
-                </p>
-              )}
-            </section>
-          </div>
+
         </div>
       )}
       <TelemetryDecisionPanel />

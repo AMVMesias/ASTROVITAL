@@ -1,3 +1,4 @@
+import {trendWindow} from "./trendWindow";
 import styles from "./dashboard.module.css";
 export type TrendSeries = {
   name: string;
@@ -14,7 +15,7 @@ export function VitalTrend({
   now: number;
   locale: string;
 }) {
-  const start = now - 86400000;
+  const {start,end,span}=trendWindow(series,now);
   const visible = series.map((s) => ({
     ...s,
     points: s.points
@@ -22,7 +23,7 @@ export function VitalTrend({
         (p) =>
           Number.isFinite(p.value) &&
           Date.parse(p.time) >= start &&
-          Date.parse(p.time) <= now,
+          Date.parse(p.time) <= end,
       )
       .sort((a, b) => Date.parse(a.time) - Date.parse(b.time)),
   }));
@@ -40,7 +41,7 @@ export function VitalTrend({
         20,
     ) * 20;
   const x = (time: string) =>
-    44 + ((Date.parse(time) - start) / 86400000) * 490;
+    44 + ((Date.parse(time) - start) / span) * 490;
   const y = (value: number) => 175 - (value / ceiling) * 150;
   return (
     <div className={styles.chartBody}>
@@ -49,8 +50,8 @@ export function VitalTrend({
         role="img"
         aria-label={
           locale === "es"
-            ? "Tendencia de lecturas reales de las últimas 24 horas; unidades indicadas en cada serie"
-            : "Real readings over the last 24 hours; units shown per series"
+            ? "Tendencia de lecturas reales con escala temporal ajustada a las muestras; unidades indicadas en cada serie"
+            : "Real readings with time scale fitted to the samples; units shown per series"
         }
       >
         {Array.from({ length: 6 }, (_, i) => {
@@ -72,9 +73,10 @@ export function VitalTrend({
         })}
         {Array.from({ length: 5 }, (_, i) => (
           <text key={i} x={44 + i * 122.5} y="198" textAnchor="middle">
-            {new Date(start + i * 21600000).toLocaleTimeString(locale, {
+            {new Date(start + i * span/4).toLocaleTimeString(locale, {
               hour: "2-digit",
               minute: "2-digit",
+              ...(span<300000?{second:"2-digit" as const}:{}),
             })}
           </text>
         ))}
@@ -95,7 +97,7 @@ export function VitalTrend({
                 key={i}
                 cx={x(p.time)}
                 cy={y(p.value)}
-                r="3"
+                r={s.points.length>60?"1.5":"3"}
                 fill="var(--chart-point,#fff)"
                 stroke={s.color}
                 strokeWidth="2"

@@ -519,7 +519,11 @@
   .trend {
     grid-row: 3;
   }
+  .alerts {
+    grid-row: 4;
+  }
   .bottomCards {
+    grid-row: 5;
     grid-template-columns: 1fr 1fr;
   }
   .bottomCards > .panel:last-child {
