@@ -1,9 +1,10 @@
 import { AppError, type Role, type Session, type User } from "../../domain/model";
 import type { Repository } from "../../domain/repository";
-import { digest, hashPassword, token, verifyPassword } from "../../infrastructure/security/credentials";
+import { digest, token, verifyPassword } from "../../infrastructure/security/credentials";
 import { object, only, text } from "../../domain/validation";
 
-const dummyHash = hashPassword("invalid-account-placeholder");
+// Dummy hash is precomputed; unknown users still run the same password verification.
+const dummyHash = "scrypt$0be3253bab2b7464009d1c1bd49fd23b$147cfda2e970c26b5afc86b93de55674cc6e146e088227fba623e3456cf9f55a6c25b92af1dad9a2e565d38e046d726f4cd9296386d4d8d8895ae1a34b566fcd";
 export function publicUser(user: User): User {
   return { id: user.id, username: user.username, name: user.name, role: user.role, enabled: user.enabled, requiresOnboarding: user.requiresOnboarding, astronautId: user.astronautId, missionId: user.missionId, moduleId: user.moduleId, createdAt: user.createdAt };
 }

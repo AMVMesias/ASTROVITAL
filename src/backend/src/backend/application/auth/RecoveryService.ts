@@ -6,7 +6,7 @@ import { digest,hashPassword,token,verifyPassword } from "../../infrastructure/s
 import { AuthService } from "./AuthService";
 import { normalizeAnswer,securityQuestions } from "./securityQuestions";
 
-const dummyAnswer=hashPassword("unavailable-recovery-answer");
+const dummyAnswer="scrypt$97f4727b26440180a2953bf6731748b7$342d0b970a09753dc88ca19cdb8b568be663b078692b0c473c4eebf4f2d55e90931a4a3d0a8eb25d015c343527691c8c3533f532388cb58223b4f44fb05b14fc";
 const invalidAnswer=()=>new AppError(400,"RECOVERY_INVALID","No se pudo verificar la respuesta.");
 const locked=()=>new AppError(429,"RECOVERY_LOCKED","Has agotado los 3 intentos. Contacta al administrador.");
 const invalidGrant=()=>new AppError(401,"RESET_TOKEN_INVALID","La autorización para cambiar la contraseña es inválida o venció.");
