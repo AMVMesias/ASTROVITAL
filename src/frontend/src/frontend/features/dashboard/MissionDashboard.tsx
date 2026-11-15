@@ -188,8 +188,13 @@ export function MissionDashboard() {
   const matchingHeart=heart?.origin!=="device" || heart.deviceId===selectedDeviceId ? heart : undefined;
   const pulseStatus=currentPulseStatus(matchingHeart,device?.signal,latestTelemetry,now);
   const pulseDisplay=displayedPulse(matchingHeart,device?.signal,latestTelemetry,now);
-  const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin latido detectado",insufficient:"Sin pulso válido",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No heartbeat detected",insufficient:"No valid pulse",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
-  const pulseExplanation=pulseStatus==="no_signal"
+  const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin latido detectado",insufficient:"Calculando frecuencia ECG",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No heartbeat detected",insufficient:"Calculating ECG heart rate",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
+  const pulseViewLabel=pulseDisplay?.retained?(es?"Señal ECG intermitente":"Intermittent ECG signal"):pulseDisplay&&pulseStatus!=="live"?(es?"Pulso recibido · evaluación pendiente":"Pulse received · assessment pending"):pulseLabels[pulseStatus];
+  const pulseExplanation=pulseDisplay?.retained
+    ? (es?`Se conserva la última frecuencia válida de ${pulseDisplay.value} lpm, recibida hace ${pulseDisplay.ageSeconds} s. El ECG está recalculando; esperamos una lectura nueva para actualizar la evaluación. Respiración y oxigenación se actualizan de forma independiente.`:`Keeping the last valid heart rate of ${pulseDisplay.value} bpm, received ${pulseDisplay.ageSeconds} s ago. ECG is recalculating; a new reading is needed to update the assessment. Respiration and oxygen readings update independently.`)
+    : pulseDisplay&&pulseStatus!=="live"
+      ? (es?`El ESP32 informa ${pulseDisplay.value} lpm en la telemetría. Falta completar su registro y evaluación; todavía no hay una conclusión actual.`:`The ESP32 reports ${pulseDisplay.value} bpm in telemetry. Recording and assessment are pending; no current conclusion is available yet.`)
+      : pulseStatus==="no_signal"
     ? (es?"Se recibe señal eléctrica, pero el ESP32 no detecta latidos válidos para calcular la frecuencia cardíaca.":"An electrical signal is being received, but the ESP32 has not detected valid beats to calculate heart rate.")
     : pulseStatus==="insufficient"
       ? (es?"Hay señal, pero todavía faltan intervalos válidos para calcular el pulso.":"A signal is present, but there are not enough valid intervals to calculate heart rate yet.")
@@ -324,7 +329,7 @@ export function MissionDashboard() {
                       : heartAlert?styles.alertBadge:styles.neutralBadge
                   }
                 >
-                  {pulseDisplay?.retained?(es?`Última válida · hace ${pulseDisplay.ageSeconds} s`:`Last valid · ${pulseDisplay.ageSeconds} s ago`):pulseDisplay&&pulseStatus!=="live"?(es?"Pulso recibido · pendiente de evaluación":"Pulse received · awaiting assessment"):heartAlert?(es?"Alerta · verificar lectura":"Alert · verify reading"):pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
+                  {pulseDisplay?.retained?(es?`Última válida · hace ${pulseDisplay.ageSeconds} s`:`Last valid · ${pulseDisplay.ageSeconds} s ago`):pulseDisplay&&pulseStatus!=="live"?(es?"Pulso recibido · pendiente de evaluación":"Pulse received · awaiting assessment"):heartAlert?(es?"Alerta · verificar lectura":"Alert · verify reading"):pulseStatus!=="live" ? pulseViewLabel : heart
                     ? states[heartState]
                     : es
                       ? "Sin lectura"
@@ -426,7 +431,7 @@ export function MissionDashboard() {
                 <div>
                   <dt>{es ? "Vigencia" : "Freshness"}</dt>
                   <dd>
-                    {pulseStatus!=="live" ? pulseLabels[pulseStatus] : freshness === "fresh"
+                    {pulseStatus!=="live" ? pulseViewLabel : freshness === "fresh"
                       ? es
                         ? "Lectura vigente"
                         : "Fresh reading"
@@ -489,7 +494,7 @@ export function MissionDashboard() {
               <AdminIcon name={!heartAlert && pulseStatus==="live" && heartState === "stable" ? "check" : "pulse"} />
               <div>
                 <h3>
-                  {pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
+                  {pulseStatus!=="live" ? pulseViewLabel : heart
                     ? heartState==="deviation" && heartAssessment?.direction ? (es?`Pulso ${heartAssessment.direction==="above"?"por encima":"por debajo"} de tu referencia`:`Pulse ${heartAssessment.direction==="above"?"above":"below"} your baseline`) : states[heartState]
                     : es
                       ? "Esperando lecturas"
