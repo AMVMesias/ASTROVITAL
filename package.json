@@ -26,6 +26,7 @@
     "bridge:retry": "node --import tsx scripts/bridge.ts retry",
     "test:bridge": "python3 -m unittest discover -s tools/bridge -p \"test_*.py\"",
     "assessment:retry": "node --import tsx scripts/local.ts assess",
+    "bridge:inspect": "node --import tsx scripts/bridge.ts inspect",
     "bridge:status": "node --import tsx scripts/bridge.ts status"
   },
   "engines": {

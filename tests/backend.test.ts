@@ -36,7 +36,7 @@ test("semillas y migraciones repetibles; contraseñas/tokens no se guardan en cl
   try {
     seed(f.repo,"admin",credential);
     assert.equal(f.repo.users().length,3);
-    assert.equal(f.repo.all("SELECT * FROM schema_migrations").length,5);
+    assert.equal(f.repo.all("SELECT * FROM schema_migrations").length,6);
     assert.notEqual(f.repo.account(f.admin.id)!.passwordHash,credential);
     assert.equal(f.repo.session(f.loginA.token),null);
     assert.equal(JSON.stringify(f.users.list(f.admin)).includes("passwordHash"),false);

@@ -117,3 +117,25 @@ El sketch BLE confirmado usa servicio Nordic UART y notificaciones TX fragmentad
 Este firmware no aporta UTC, bootId ni secuencia: se conservan fecha de recepción del portátil e identificador de sesión del puente, igual que en la captura CSV anterior. USB de este nuevo sketch usa 115200 y once columnas; el modo serial anterior sigue destinado al sketch original de diez columnas a 230400.
 
 Para evitar `401`, definir `DEVICE_USERNAME` con el astronauta autorizado y ejecutar `npm run device:provision` usando el mismo `DEVICE_ID`, `DEVICE_TOKEN` y base local que el backend. Reiniciar el puente después de modificar `.env.local`. Los rechazos antiguos se conservan; `npm run bridge:retry` los reintenta explícitamente tras corregir la credencial.
+
+## Inspección de la señal BLE antes del muestreo
+
+Detener el puente con Ctrl+C antes de ejecutar `npm run bridge:inspect`: un solo consumidor debe usar la placa. La inspección observa durante 20 segundos y muestra conteos cada cinco segundos de todas las líneas completas, tramas inválidas, `valid_bpm`, `no_contact`, `no_signal` e `insufficient`, más bytes parciales. No abre la cola ni hace solicitudes HTTP. Se puede ajustar `BRIDGE_INSPECT_SECONDS` entre 1 y 60. Este modo requiere `BLE_FORMAT=csv-11`.
+
+Un conteo `valid_bpm` mayor que cero confirma que al menos una línea recibida tiene estado ECG 100 y BPM entre 1 y 300; no certifica exactitud del sensor. Si solo aparece `no_contact`, el firmware indica electrodos sueltos. Si solo hay `no_signal` o `insufficient`, no entrega un BPM utilizable todavía. Si predominan líneas inválidas, investigar formato o pérdida de fragmentos. Si no llegan líneas, investigar notificaciones/conexión. Después de inspeccionar, reiniciar `npm run bridge:ble` y confirmar lecturas `origin=device` y `deviceId=esp32-demo` en el historial del astronauta vinculado. La oximetría no sustituye automáticamente al BPM ECG.
+
+La inspección también muestra `last_sample`: fecha de recepción, CSV completo de once columnas, campos con nombre y estado ECG. Permite ver la transmisión aun sin sensores colocados. Los ceros permanecen como valores crudos de diagnóstico; no se envían ni se guardan como mediciones. Una línea inválida no reemplaza la última muestra válida; revisar su fecha y los conteos para distinguir datos antiguos. Si no ha llegado ninguna trama válida, `last_sample` es null.
+
+## Fragmentos duplicados observados en ASTROVITAL
+
+La captura real mostró cada fragmento dos veces consecutivas (inicio, inicio, final, final), produciendo líneas de 18 y 4 columnas. Para este enlace configurar `BLE_NOTIFICATION_COPIES=2`. El valor por defecto es 1; no se deduplican fragmentos automáticamente en enlaces normales. Con 2 se exige igualdad exacta de cada pareja, se consume una copia y se descarta la trama parcial si no coinciden. No sustituye un protocolo de firmware con secuencia/CRC: si el comportamiento del enlace cambia, volver a inspeccionar y configurar 1 cuando corresponda. Reiniciar el puente después del cambio. La inspección conserva una muestra breve de notificaciones crudas y cuenta `duplicate_fragments_removed`.
+
+## API de los once campos ESP32
+
+El puente BLE CSV-11 ahora persiste una instantánea de todos los campos como máximo una vez por segundo, incluso sin contacto: `POST /api/v1/devices/telemetry` con Bearer del dispositivo y X-Device-Id. Una cola independiente por evento conserva fecha, lectura e identidad en los reintentos. La tabla `sensor_telemetry` se incorpora mediante migración 006, sin borrar mediciones anteriores.
+
+Como astronauta propietario, consultar `GET /api/v1/me/telemetry` (historial) o `GET /api/v1/me/telemetry/latest` (última instantánea). El historial permite `field` con cualquiera de los once nombres, `from`, `to`, `limit` y `offset`. En Swagger estos campos tienen un selector propio. También se incluye `telemetry` en `GET /api/v1/me/device` y `GET /api/v1/me/measurements/latest`. Admin y otros astronautas no acceden a los datos personales.
+
+`fields` conserva los valores crudos, incluidos ceros, ECG, respiración, SpO2, pulso del oxímetro, IR y rojo. `sensors` contiene estados del firmware y estimaciones disponibles; cuando el estado o formato no permiten aceptar la estimación, el valor derivado es null. No se reemplaza automáticamente el BPM ECG por el del oxímetro. Esta telemetría no genera evaluación clínica ni se envía a PostgreSQL: la cola de sincronización de mediciones y sus tres indicadores sigue siendo independiente. `clock=host_received_csv_snapshot` identifica la fecha de recepción del portátil. El historial representa instantáneas a 1 Hz, no una señal ECG de 250 Hz.
+
+Reiniciar el backend y el puente tras actualizar. Ejecutar `npm run db:migrate` desde la raíz si se desea aplicar explícitamente la nueva migración. Las instantáneas empiezan a guardarse desde que se ejecuta el puente actualizado; no se reconstruyen datos crudos antiguos.

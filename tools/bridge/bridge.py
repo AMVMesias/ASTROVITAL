@@ -5,6 +5,7 @@ ble: contrato JSON v1 terminado en LF; admite fragmentación de notificaciones.
 La cola local conserva payload/fecha/ID tras fallo o reinicio. No almacena tokens.
 """
 import asyncio
+from collections import deque
 import datetime as dt
 import json
 import math
@@ -139,6 +140,142 @@ def decode_serial(line, received_at, reading_id, columns_expected=10):
     return payload(status, bpm, received_at, reading_id, "host_received_csv_snapshot")
 
 
+def decode_telemetry(line, received_at, reading_id):
+    names = ("ecg", "bpm_ecg", "estado_ecg_x50", "resp_mg", "rpm", "estado_resp_x50",
+             "spo2", "bpm_oxi", "estado_oxi_x50", "ir", "rojo")
+    columns = line.split(",")
+    if len(columns) != 11:
+        raise ValueError("Se requieren once columnas")
+    values = [float(value) for value in columns]
+    if not all(math.isfinite(value) and abs(value) <= 1e9 for value in values):
+        raise ValueError("Telemetría no finita o fuera de rango")
+    if values[2] not in (0,50,100) or values[5] not in (0,50,100) or values[8] not in (0,50,100,150,200):
+        raise ValueError("Estado de sensor desconocido")
+    return {"readingId":reading_id,"capturedAt":received_at,"fields":dict(zip(names,values))}
+
+
+def csv_invalid_reason(line):
+    columns = line.split(",")
+    if len(columns) != 11:
+        return "columns_" + str(len(columns)) + "_expected_11"
+    try:
+        values = [float(value) for value in columns]
+    except ValueError:
+        return "non_numeric"
+    if not all(math.isfinite(value) for value in values):
+        return "non_finite"
+    if values[2] not in {0, 50, 100}:
+        return "ecg_state_not_0_50_100"
+    return "bpm_out_of_range"
+
+
+class NotificationPairError(ValueError):
+    pass
+
+
+class NotificationCopies:
+    """Modo explícito para enlaces que duplican cada fragmento; valida cada pareja."""
+    def __init__(self, copies=1):
+        if copies not in (1, 2):
+            raise ValueError("BLE_NOTIFICATION_COPIES debe ser 1 o 2")
+        self.copies, self.pending, self.removed = copies, None, 0
+
+    def feed(self, chunk):
+        chunk = bytes(chunk)
+        if self.copies == 1:
+            return chunk
+        if self.pending is None:
+            self.pending = chunk
+            return None
+        previous, self.pending = self.pending, None
+        if previous != chunk:
+            raise NotificationPairError("Pareja de notificaciones distinta; revisa BLE_NOTIFICATION_COPIES")
+        self.removed += 1
+        return chunk
+
+
+class CsvInspection:
+    """Conteos y última trama válida, solo diagnóstico local; antes del muestreo."""
+    def __init__(self, copies=1):
+        self.notifications = NotificationCopies(copies)
+        self.frames = Frames()
+        self.invalid_reasons = {}
+        self.last_sample = None
+        self.recent_notifications = deque(maxlen=6)
+        self.last_invalid_csv = None
+        self.counts = {"complete": 0, "invalid": 0, "valid_bpm": 0,
+                       "no_contact": 0, "no_signal": 0, "insufficient": 0}
+
+    def feed(self, chunk):
+        self.recent_notifications.append(bytes(chunk[:192]).decode("utf-8", errors="replace"))
+        try:
+            chunk = self.notifications.feed(chunk)
+            if chunk is None:
+                return
+            lines = self.frames.feed(chunk)
+        except (ValueError, UnicodeError) as error:
+            self.counts["invalid"] += 1
+            self.frames.buffer.clear()
+            reason = "notification_copy_mismatch_check_BLE_NOTIFICATION_COPIES" if isinstance(error, NotificationPairError) else "framing_or_utf8"
+            self.invalid_reasons[reason] = self.invalid_reasons.get(reason, 0) + 1
+            return
+        for line in lines:
+            if not line:
+                continue
+            self.counts["complete"] += 1
+            try:
+                route, body = decode_serial(line, utc_now(), "inspection", 11)
+                key = "valid_bpm" if route == "/api/v1/measurements" else body["status"]
+                self.counts[key] += 1
+                names = ("ecg", "bpm_ecg", "estado_ecg_x50", "resp_mg", "rpm",
+                         "estado_resp_x50", "spo2", "bpm_oxi", "estado_oxi_x50", "ir", "rojo")
+                self.last_sample = {"receivedAt": utc_now(), "csv": line,
+                    "fields": dict(zip(names, (float(value) for value in line.split(",")))),
+                    "ecg_status": "valid" if key == "valid_bpm" else key}
+            except (ValueError, TypeError):
+                self.counts["invalid"] += 1
+                self.last_invalid_csv = line[:384]
+                reason = csv_invalid_reason(line)
+                self.invalid_reasons[reason] = self.invalid_reasons.get(reason, 0) + 1
+
+    def summary(self):
+        return {**self.counts, "partial_bytes": len(self.frames.buffer), "invalid_reasons": dict(self.invalid_reasons), "last_sample": self.last_sample, "last_invalid_csv": self.last_invalid_csv,
+                "recent_notifications": list(self.recent_notifications), "duplicate_fragments_removed": self.notifications.removed}
+
+
+async def inspect_ble():
+    """Observación acotada: no abre la cola ni envía eventos a la API."""
+    from bleak import BleakClient, BleakScanner
+    address, service, characteristic = [os.environ.get(key) for key in
+        ("BLE_ADDRESS", "BLE_SERVICE_UUID", "BLE_CHARACTERISTIC_UUID")]
+    if not all((address, service, characteristic)):
+        raise ValueError("Configura dirección y UUID BLE confirmados por firmware")
+    uuid.UUID(service)
+    uuid.UUID(characteristic)
+    if os.environ.get("BLE_FORMAT", "json-v1") != "csv-11":
+        raise ValueError("La inspección del firmware ASTROVITAL requiere BLE_FORMAT=csv-11")
+    duration = float(os.environ.get("BRIDGE_INSPECT_SECONDS", "20"))
+    if not math.isfinite(duration) or not 1 <= duration <= 60:
+        raise ValueError("BRIDGE_INSPECT_SECONDS debe estar entre 1 y 60")
+    inspection = CsvInspection(int(os.environ.get("BLE_NOTIFICATION_COPIES", "1")))
+    try:
+        peripheral = await find_ble_device(address, BleakScanner)
+        async with BleakClient(peripheral, services=[service]) as client:
+            await client.start_notify(characteristic, lambda _sender, chunk: inspection.feed(chunk))
+            print("Inspección BLE activa; no se guardan ni envían mediciones.", flush=True)
+            elapsed = 0.0
+            while elapsed < duration and client.is_connected:
+                step = min(5, duration - elapsed)
+                await asyncio.sleep(step)
+                elapsed += step
+                print(json.dumps(inspection.summary()), flush=True)
+            await client.stop_notify(characteristic)
+    except Exception as error:
+        print(ble_error_message(error), file=sys.stderr)
+        print(json.dumps(inspection.summary()), flush=True)
+        raise ValueError("Inspección no completada; revisa alimentación y publicidad BLE") from None
+
+
 class Spool:
     def __init__(self, path):
         Path(path).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -181,6 +318,8 @@ class Spool:
                 break
             if status in {200, 201}:
                 valid = result.get("status") == "recorded" if route.endswith("/status") else isinstance(result.get("measurement"), dict) and result["measurement"].get("readingId") == json.loads(encoded)["readingId"]
+                if route.endswith("/telemetry"):
+                    valid = result.get("status") == "recorded" and result.get("readingId") == json.loads(encoded)["readingId"]
                 if not valid:
                     break
                 state, reason = "confirmed", None
@@ -215,6 +354,9 @@ def post(url, device, token, body):
 
 
 async def run(mode):
+    if mode == "inspect":
+        await inspect_ble()
+        return
     device, token = os.environ.get("DEVICE_ID", ""), os.environ.get("DEVICE_TOKEN", "")
     root = os.environ.get("BRIDGE_API_URL", "http://localhost:3001").rstrip("/")
     target = urllib.parse.urlparse(root)
@@ -256,12 +398,18 @@ async def run(mode):
             await asyncio.to_thread(deliver)
             await asyncio.sleep(2)
     worker = asyncio.create_task(sender())
+    notifications = NotificationCopies(int(os.environ.get("BLE_NOTIFICATION_COPIES", "1")))
     frames, host_boot, sequence, last_sample = Frames(), uuid.uuid4().hex, 0, 0.0
     def accept(chunk, transport):
         nonlocal sequence, last_sample
         try:
+            if transport == "ble":
+                chunk = notifications.feed(chunk)
+                if chunk is None:
+                    return
             lines = frames.feed(chunk)
         except (ValueError, UnicodeError):
+            frames.buffer.clear()
             print("Trama descartada: tamaño o codificación inválida", file=sys.stderr)
             return
         for line in lines:
@@ -274,6 +422,10 @@ async def run(mode):
                         continue
                     sequence += 1
                     event_id = f"host-{host_boot}:{sequence}"
+                    if transport == "ble":
+                        telemetry = decode_telemetry(line, received, event_id)
+                        spool.put(device, event_id + ":telemetry", "/api/v1/devices/telemetry", telemetry)
+                        last_sample = time.monotonic()
                     route, body = decode_serial(line, received, event_id, 10 if transport == "serial" else 11)
                     last_sample = time.monotonic()
                 else:
@@ -315,6 +467,7 @@ async def run(mode):
                     peripheral = await find_ble_device(address, BleakScanner)
                     async with BleakClient(peripheral, services=[service]) as client:
                         frames.buffer.clear()
+                        notifications.pending = None
                         await client.start_notify(characteristic, lambda _sender, chunk: accept(chunk, "ble"))
                         print("BLE conectado; formato " + ble_format)
                         while client.is_connected:

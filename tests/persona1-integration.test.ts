@@ -26,7 +26,7 @@ test("actualiza una base v1 existente sin perder cuentas, lecturas o pendientes"
   const f=fixture(path);
   const saved=f.measurements.manual(f.session,{indicator:"sleep",value:7,unit:"h",capturedAt:"2026-01-01T08:00:00Z"}).measurement;
   // Reconstrucción de la estructura previa en una base temporal, conservando datos v1.
-  f.repo.db.exec(`DROP TABLE password_reset_grants; DROP TABLE recovery_challenges; DROP TABLE recovery_attempts; DROP TABLE security_answers;
+  f.repo.db.exec(`DROP TABLE sensor_telemetry; DROP TABLE password_reset_grants; DROP TABLE recovery_challenges; DROP TABLE recovery_attempts; DROP TABLE security_answers;
     ALTER TABLE users DROP COLUMN requires_onboarding;
     DROP TABLE assessment_jobs; DROP TABLE device_status; DROP TABLE local_settings;
     DROP TABLE astronaut_alert_actions; DROP TABLE astronaut_alerts;
@@ -35,7 +35,7 @@ test("actualiza una base v1 existente sin perder cuentas, lecturas o pendientes"
   f.repo.close();
   const reopened=new SqliteRepository(path);
   try {
-    assert.equal(reopened.all("SELECT * FROM schema_migrations").length,5);
+    assert.equal(reopened.all("SELECT * FROM schema_migrations").length,6);
     assert.equal(reopened.pending(100)[0].id,saved.id);
     assert.equal(reopened.get("SELECT status FROM assessment_jobs WHERE id=?",saved.id)?.status,"pending");
     assert.equal(reopened.account(f.user.id)?.username,"astro");

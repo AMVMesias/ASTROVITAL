@@ -48,6 +48,12 @@ const modules = [
     CREATE TABLE password_reset_grants(token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id),
       expires_at TEXT NOT NULL);
   `); } },
+  { id: "006_sensor_telemetry", apply(db: DatabaseSync) { db.exec(`
+    CREATE TABLE sensor_telemetry(device_id TEXT NOT NULL REFERENCES devices(id), reading_id TEXT NOT NULL,
+      astronaut_id TEXT NOT NULL REFERENCES astronauts(id), captured_at TEXT NOT NULL, received_at TEXT NOT NULL,
+      payload TEXT NOT NULL, PRIMARY KEY(device_id,reading_id));
+    CREATE INDEX telemetry_history ON sensor_telemetry(astronaut_id,captured_at,device_id,reading_id);
+  `); } },
 ];
 
 export function migrate(db: DatabaseSync) {

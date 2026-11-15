@@ -1,3 +1,6 @@
+import { POST as telemetryCapture } from "../src/backend/src/app/api/v1/devices/telemetry/route";
+import { GET as telemetryHistory } from "../src/backend/src/app/api/v1/me/telemetry/route";
+import { GET as telemetryLatest } from "../src/backend/src/app/api/v1/me/telemetry/latest/route";
 import { GET as listAlerts } from "../src/backend/src/app/api/v1/me/alerts/route";
 import { GET as alertDetail, POST as actAlert } from "../src/backend/src/app/api/v1/me/alerts/[id]/route";
 import { onboardingBody } from "./fixtures/auth";
@@ -147,6 +150,21 @@ test("HTTP completo: cookies, CSRF, roles, captura, dispositivo, revocación y e
     const close=await actAlert(request(alertsUrl,"POST",{type:"close",note:"Verificado"},astroCookie),context);
     assert.equal((await close.json()).alert.status,"closed");
     assert.equal((await actAlert(request(alertsUrl,"POST",{type:"track"},astroCookie),context)).status,409);
+    const telemetryUrl="/api/v1/devices/telemetry";
+    const telemetryInput={readingId:"telemetry-http-1",capturedAt:new Date().toISOString(),fields:{ecg:0,bpm_ecg:0,estado_ecg_x50:0,resp_mg:-1,rpm:0,estado_resp_x50:50,spo2:0,bpm_oxi:0,estado_oxi_x50:50,ir:1490,rojo:2316}};
+    assert.equal((await telemetryCapture(request(telemetryUrl,"POST",telemetryInput))).status,401);
+    const telemetryResponse=await telemetryCapture(request(telemetryUrl,"POST",telemetryInput,undefined,headers));
+    assert.equal(telemetryResponse.status,200);
+    assert.equal((await telemetryResponse.json()).readingId,telemetryInput.readingId);
+    assert.equal((await (await telemetryCapture(request(telemetryUrl,"POST",telemetryInput,undefined,headers))).json()).duplicate,true);
+    assert.equal((await telemetryHistory(request("/api/v1/me/telemetry","GET",undefined,adminCookie))).status,403);
+    assert.equal((await telemetryHistory(request("/api/v1/me/telemetry"))).status,401);
+    const raw=await (await telemetryLatest(request("/api/v1/me/telemetry/latest","GET",undefined,astroCookie))).json();
+    assert.equal(raw.samples[0].fields.ir,1490);
+    assert.equal(raw.samples[0].sensors.ecg.bpm,null);
+    assert.equal((await (await telemetryHistory(request("/api/v1/me/telemetry","GET",undefined,otherCookie))).json()).samples.length,0);
+    const combined=await (await latest(request("/api/v1/me/measurements/latest","GET",undefined,astroCookie))).json();
+    assert.equal(combined.telemetry.readingId,telemetryInput.readingId);
     const invalidJson=new NextRequest("http://localhost:3000/api/v1/me/measurements",{method:"POST",headers:{"content-type":"application/json","x-nasa-request":"1",cookie:astroCookie},body:"{"});
     assert.equal((await manual(invalidJson)).status,400);
     assert.equal((await manual(request("/api/v1/me/measurements","POST",{note:"x".repeat(17000)},astroCookie))).status,413);
