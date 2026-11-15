@@ -1,7 +1,7 @@
 .page { --ink:#102643; --muted:#607086; --surface:#fff; --soft:#f3f6fb; --line:#dce4ee; --accent:#0960ec; color:var(--ink); background:var(--surface); }
 .page section[id] { scroll-margin-top:76px; }
 .page h1,.page h2,.page h3,.page p { margin:0; }
-.hero { color:#fff; background:linear-gradient(90deg,rgba(4,20,37,.94),rgba(4,20,37,.73) 40%,rgba(4,20,37,.08) 76%),url('/project/astrovital-portada.jpeg') center 42% / cover; }
+.hero { color:#fff; background:linear-gradient(90deg,rgba(4,20,37,.94),rgba(4,20,37,.73) 40%,rgba(4,20,37,.08) 76%),url('/project/astrovital-portada.webp') center 42% / cover; }
 .heroContent { width:min(1180px,88%); margin:auto; padding:95px 0 100px; }
 .eyebrow { font-size:10px; font-weight:700; letter-spacing:2px; color:#b2d6f6; }
 .hero h1 { font-size:clamp(36px,4.3vw,62px); letter-spacing:-2px; line-height:1.13; margin:25px 0; max-width:660px; }
@@ -40,7 +40,7 @@
 :global(html[data-theme='dark']) .page { --ink:#e8f0ff; --muted:#acbdd4; --surface:#0d1d32; --soft:#142b45; --line:#2b405c; --accent:#82baff; }
 @media(max-width:950px) { .goals { grid-template-columns:repeat(2,1fr); } .heroContent { padding:75px 0; } .teamInner { gap:40px; } }
 @media(max-width:600px) {
-  .hero { background:linear-gradient(90deg,rgba(4,20,37,.91),rgba(4,20,37,.65)),url('/project/astrovital-portada.jpeg') 65% center / cover; }
+  .hero { background:linear-gradient(90deg,rgba(4,20,37,.91),rgba(4,20,37,.65)),url('/project/astrovital-portada.webp') 65% center / cover; }
   .heroContent { padding:58px 0; }
   .hero h1 { font-size:37px; letter-spacing:-1.3px; }
   .heroContent > p:not(.eyebrow) { font-size:14px; }
