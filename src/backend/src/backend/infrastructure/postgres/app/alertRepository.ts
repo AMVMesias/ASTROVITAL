@@ -1,8 +1,14 @@
 import type { Database } from "../database";
 import type { Alert, AlertAction, AlertRepository } from "../../../application/alerts/alerts";
+import type { Measurement } from "../../../domain/model";
 
 function decodeAlert(row: Record<string, unknown>): Alert {
-  return { ...JSON.parse(String(row.payload)) as Alert, status: row.status as Alert["status"] };
+  const alert={ ...JSON.parse(String(row.payload)) as Alert, status: row.status as Alert["status"] };
+  if(row.measurement_payload){
+    const m=JSON.parse(String(row.measurement_payload)) as Measurement;
+    alert.reading={indicator:m.indicator,value:m.value,unit:m.unit,capturedAt:m.capturedAt,activity:m.activity,origin:m.origin,environment:m.environment};
+  }
+  return alert;
 }
 
 export function createPostgresAlertRepository(database: Database): AlertRepository {
@@ -11,11 +17,14 @@ export function createPostgresAlertRepository(database: Database): AlertReposito
     VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING
   `);
   const byOwner = database.prepare(`
-    SELECT status, payload FROM astronaut_alerts WHERE id = ? AND mission_id = ? AND astronaut_id = ?
+    SELECT a.status, a.payload, m.payload AS measurement_payload FROM astronaut_alerts a
+    LEFT JOIN measurements m ON m.id=a.payload::jsonb->>'measurementId' AND m.astronaut_id=a.astronaut_id
+    WHERE a.id = ? AND a.mission_id = ? AND a.astronaut_id = ?
   `);
   const list = database.prepare(`
-    SELECT status, payload FROM astronaut_alerts
-    WHERE mission_id = ? AND astronaut_id = ? ORDER BY created_at DESC, id
+    SELECT a.status, a.payload, m.payload AS measurement_payload FROM astronaut_alerts a
+    LEFT JOIN measurements m ON m.id=a.payload::jsonb->>'measurementId' AND m.astronaut_id=a.astronaut_id
+    WHERE a.mission_id = ? AND a.astronaut_id = ? ORDER BY a.created_at DESC, a.id
   `);
   const actions = database.prepare(`
     SELECT payload FROM astronaut_alert_actions WHERE alert_id = ? ORDER BY sequence

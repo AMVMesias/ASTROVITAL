@@ -16,6 +16,7 @@ export type Assessment = {
   indicator: Reading["indicator"];
   status: "insufficient" | "invalid" | "stale" | "stable" | "deviation";
   ruleVersion: string;
+  direction?: "above"|"below";
   reference?: { mean: number; count: number };
   recommendation?: { message: { es: string; en: string } };
 };

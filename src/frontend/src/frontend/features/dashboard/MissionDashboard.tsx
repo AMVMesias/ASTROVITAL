@@ -15,6 +15,7 @@ import {
 } from "./readingPresentation";
 import { VitalTrend, type TrendSeries } from "./VitalTrend";
 import styles from "./dashboard.module.css";
+import {groupNotices,noticeTitle,type Notice} from "../alerts/presentation";
 
 type Device = {
   id: string;
@@ -26,13 +27,7 @@ type Summary = {
   evaluation: Assessment[];
   devices: Device[];
 };
-type Alert = {
-  id: string;
-  measurementId: string;
-  status: string;
-  reason: Assessment["status"];
-  evidence: Assessment;
-};
+type Alert = Notice;
 type Telemetry = SensorSnapshot;
 type DashboardData = {
   summary: Summary;
@@ -186,7 +181,8 @@ export function MissionDashboard() {
   const matchingHeart=heart?.origin!=="device" || heart.deviceId===selectedDeviceId ? heart : undefined;
   const pulseStatus=currentPulseStatus(matchingHeart,device?.signal,latestTelemetry,now);
   const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin señal",insufficient:"Sin pulso válido",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No signal",insufficient:"No valid pulse",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
-  const activeAlerts = data?.alerts.filter((a) => a.status !== "closed") ?? [];
+  const activeGroups=groupNotices(data?.alerts.filter((a)=>a.status!=="closed")??[]);
+  const activeAlerts=activeGroups.map(group=>group[0]);
   const series: TrendSeries[] = [
     {
       name: "SpO₂",
@@ -449,11 +445,12 @@ export function MissionDashboard() {
               <div>
                 <h3>
                   {pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
-                    ? states[heartState]
+                    ? heartState==="deviation" && heartAssessment?.direction ? (es?`Pulso ${heartAssessment.direction==="above"?"por encima":"por debajo"} de tu referencia`:`Pulse ${heartAssessment.direction==="above"?"above":"below"} your baseline`) : states[heartState]
                     : es
                       ? "Esperando lecturas"
                       : "Awaiting readings"}
                 </h3>
+                {pulseStatus==="live" && heart && heartAssessment?.reference && <p>{es?"Lectura actual":"Current reading"}: {heart.value} lpm · {es?"Referencia":"Baseline"}: {heartAssessment.reference.mean.toFixed(1)} lpm.</p>}
                 <p>
                   {pulseStatus!=="live" ? (es ? "No hay pulso actual válido para evaluar. Revisa los sensores y la conexión." : "No valid current pulse to assess. Check the sensors and connection.") : heartState === "stable"
                     ? es
@@ -525,9 +522,9 @@ export function MissionDashboard() {
                   <AdminIcon name="bell" />
                   <div>
                     <h3>
-                      {states[alert.reason] ??
-                        (es ? "Aviso de salud" : "Health alert")}
+                      {noticeTitle(alert,es)}
                     </h3>
+                    <p>{activeGroups.find(group=>group[0].id===alert.id)?.length} {es?"detecciones similares":"similar detections"}</p>
                     <p>
                       {alert.evidence?.recommendation?.message[
                         es ? "es" : "en"

@@ -1,4 +1,5 @@
 import type { Assessment, PersonalMeasurement } from "../assessment/assessMeasurements";
+import type { Measurement } from "../../domain/model";
 
 export type Alert = {
   id: string;
@@ -10,6 +11,7 @@ export type Alert = {
   reason: "invalid" | "stale" | "deviation";
   evidence: Assessment;
   createdAt: string;
+  reading?: Pick<Measurement,"indicator"|"value"|"unit"|"capturedAt"|"activity"|"origin"|"environment">;
 };
 
 export type AlertAction = {

@@ -53,6 +53,15 @@ test("Supabase application: authentication, roles, recovery, measurements and HT
  await t.test("manual measurements and assessment persist in PostgreSQL",async()=>{const saved=await app.measurements.manual(astro,input);assert.equal((await app.assessments.process(saved.measurement.id)).status,"done");assert.equal((await app.measurements.history(astro,new URLSearchParams())).length,1);const summary=await app.measurements.summary(astro);assert.equal(summary.latest[0].value,7.5);assert.ok(Array.isArray(summary.evaluation));await assert.rejects(app.measurements.manual(astro,{...input,value:25}),{code:"VALIDATION"});await assert.rejects(app.measurements.history(astro,new URLSearchParams("limit=0")),{code:"VALIDATION"});});
  await t.test("database transactions roll back writes",async()=>{const before=(await app.repo.users()).length;await assert.rejects(app.repo.atomic(async()=>{await app.users.save(admin,{username:"rolledback",name:"Rollback",role:"admin",password});throw new Error("rollback");}));assert.equal((await app.repo.users()).length,before);});
  const deviceToken="device-token-"+randomUUID();await provisionDevice(app.repo,"astro","test-device",deviceToken);
+ await t.test("alert details include private measurement evidence and preserve follow-up",async()=>{
+ const saved=await app.measurements.fromDevice("test-device",deviceToken,{readingId:"alert-evidence",indicator:"heart_rate",value:90,unit:"bpm",capturedAt:new Date(Date.now()-10000).toISOString(),activity:"rest"});
+ const owner={missionId:astro.missionId!,astronautId:astro.astronautId!};
+ await app.alerts.insert({id:"alert-test",measurementId:saved.measurement.id,...owner,status:"open",kind:"variation",reason:"deviation",createdAt:new Date().toISOString(),evidence:{status:"deviation",ruleVersion:"test",direction:"above",reference:{mean:70,count:5,from:saved.measurement.capturedAt,to:saved.measurement.capturedAt},evidence:[saved.measurement.id]}});
+ const detail=await app.alerts.detail(owner,"alert-test");assert.equal(detail?.alert.reading?.value,90);assert.equal(detail?.alert.reading?.activity,"rest");assert.equal((await app.alerts.list(owner))[0].reading?.value,90);
+ assert.equal(await app.alerts.detail({...owner,astronautId:"other"},"alert-test"),undefined);
+ assert.equal(await app.alerts.act(owner,"alert-test",{authorId:astro.id,type:"track",note:"Verify contact",createdAt:new Date().toISOString()}),"recorded");
+ const tracked=await app.alerts.detail(owner,"alert-test");assert.equal(tracked?.alert.status,"tracking");assert.equal(tracked?.actions[0].note,"Verify contact");
+ });
  await t.test("astronaut self-link needs no MAC, stays private and cannot bypass disablement",async()=>{
  const cookie=`nasa_session=${login.token}`;
  assert.equal((await selfLinkRoute(request("me/device","POST",{}))).status,401);

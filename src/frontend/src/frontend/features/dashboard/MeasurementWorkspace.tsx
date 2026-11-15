@@ -5,6 +5,8 @@ import { AdminIcon } from "../../components/ui/AdminIcon";
 import styles from "./workspace.module.css";
 import { api } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
+import {groupNotices,type Notice} from "../alerts/presentation";
+import {AlertExplanation} from "../alerts/AlertExplanation";
 
 type Environment = { scenarioId: string; profileVersion: string };
 type Condition = {
@@ -39,12 +41,7 @@ type Assessment = {
   recommendation?: Recommendation;
   reference?: { mean: number; count: number };
 };
-type Alert = {
-  id: string;
-  status: "open" | "tracking" | "closed";
-  reason: Assessment["status"];
-  evidence: Assessment;
-};
+type Alert = Notice;
 type Summary = { latest: Reading[]; evaluation: Assessment[] };
 type DashboardData = { catalog: Catalog; summary: Summary; alerts: Alert[] };
 
@@ -450,7 +447,11 @@ export function MeasurementWorkspace({
                 <p>{es ? "Todavía no hay avisos." : "No alerts yet."}</p>
               )}
               <ul className={styles.items}>
-                {data.alerts.map((alert) => {
+                {groupNotices(data.alerts).map(group=><li key={group[0].id}>
+                  <AlertExplanation alert={group[0]} es={es}/>
+                  <p>{group.length} {es?"detecciones similares. Se conserva cada lectura y su seguimiento.":"similar detections. Every reading and its follow-up is preserved."}</p>
+                  <details open={group.length===1}><summary>{es?"Ver detecciones y registrar seguimiento":"View detections and record follow-up"}</summary><ul>
+                  {group.map((alert) => {
                   const path = `${root}/alerts/${encodeURIComponent(alert.id)}`;
                   return (
                     <li key={alert.id}>
@@ -466,15 +467,7 @@ export function MeasurementWorkspace({
                           : es
                             ? "Abierto"
                             : "Open"}
-                      {alert.evidence.recommendation && (
-                        <p>
-                          {
-                            alert.evidence.recommendation.message[
-                              es ? "es" : "en"
-                            ]
-                          }
-                        </p>
-                      )}
+                      {alert.reading&&<p>{alert.reading.value} {alert.reading.unit} · {new Date(alert.reading.capturedAt).toLocaleString(locale)}</p>}
                       {alert.status !== "closed" && (
                         <div className={styles.alertForm}>
                           <label>
@@ -520,7 +513,7 @@ export function MeasurementWorkspace({
                       )}
                     </li>
                   );
-                })}
+                })}</ul></details></li>)}
               </ul>
             </section>
           )}
