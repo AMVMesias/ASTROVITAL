@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdminIcon } from "../../components/ui/AdminIcon";
+import styles from "./workspace.module.css";
 import { api } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
 
@@ -76,6 +78,7 @@ export function MeasurementWorkspace({
   const [error, setError] = useState(false);
   const [pending, setPending] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [indicator, setIndicator] = useState("sleep");
   const [notes, setNotes] = useState<Record<string, string>>({});
   useEffect(() => {
     let active = true;
@@ -130,32 +133,65 @@ export function MeasurementWorkspace({
   );
 
   return (
-    <main className="interior">
-      <h1>
-        {view === "alerts"
-          ? es
-            ? "Avisos"
-            : "Alerts"
-          : view === "environment"
+    <main className={styles.workspace}>
+      <header className={styles.heading}>
+        <p className={styles.eyebrow}>
+          ASTROVITAL <span />
+        </p>
+        <h1>
+          {view === "alerts"
             ? es
-              ? "Entorno de captura"
-              : "Capture environment"
-            : es
-              ? "Registros y seguimiento"
-              : "Records and follow-up"}
-      </h1>
+              ? "Avisos"
+              : "Alerts"
+            : view === "environment"
+              ? es
+                ? "Entorno de captura"
+                : "Capture environment"
+              : es
+                ? "Registro manual"
+                : "Manual entry"}
+        </h1>
+        <p className={styles.subtitle}>
+          {view === "records"
+            ? es
+              ? "Registra tu descanso y cómo te sientes para dar seguimiento a tu salud."
+              : "Record your rest and how you feel to follow your health."
+            : view === "environment"
+              ? es
+                ? "Selecciona el escenario donde se toman tus mediciones."
+                : "Select the setting where your measurements are captured."
+              : es
+                ? "Revisa tus avisos y registra las observaciones de seguimiento."
+                : "Review your alerts and record follow-up observations."}
+        </p>
+        <button
+          className={styles.refresh}
+          disabled={pending}
+          onClick={() => void update()}
+        >
+          {es ? "Actualizar" : "Refresh"}
+        </button>
+      </header>
       {error && (
-        <p role="alert">
+        <p role="alert" className={styles.message}>
           {es
-            ? "No se pudo cargar o guardar. Comprueba tu sesión de astronauta y el conexión a Internet."
+            ? "No se pudo cargar o guardar. Comprueba tu sesión de astronauta y la conexión a Internet."
             : "Could not load or save. Check your astronaut session and Internet connection."}
         </p>
       )}
       {view === "records" && (
-        <section>
-          <h2>{es ? "Registrar medición" : "Record measurement"}</h2>
+        <section className={styles.card}>
+          <h2>
+            <AdminIcon name="edit" />
+            {es ? "Registrar medición" : "Record measurement"}
+          </h2>
+          <p className={styles.description}>
+            {es
+              ? "Sueño y bienestar se registran manualmente. La frecuencia cardíaca se recibe desde tu dispositivo."
+              : "Sleep and wellbeing are recorded manually. Heart rate comes from your device."}
+          </p>
           <form
-            className="data-form"
+            className={styles.form}
             onSubmit={async (event) => {
               event.preventDefault();
               const form = event.currentTarget,
@@ -178,6 +214,7 @@ export function MeasurementWorkspace({
                 );
                 setData(await loadDashboard());
                 form.reset();
+                setIndicator("sleep");
                 setSaved(true);
               } catch {
                 setError(true);
@@ -188,7 +225,11 @@ export function MeasurementWorkspace({
           >
             <label>
               {es ? "Indicador" : "Indicator"}
-              <select name="indicator">
+              <select
+                name="indicator"
+                value={indicator}
+                onChange={(event) => setIndicator(event.target.value)}
+              >
                 <option value="sleep">
                   {es ? "Sueño (horas, 0–24)" : "Sleep (hours, 0–24)"}
                 </option>
@@ -203,9 +244,9 @@ export function MeasurementWorkspace({
                 name="value"
                 type="number"
                 required
-                min="0"
-                max="24"
-                step="0.1"
+                min={indicator === "sleep" ? 0 : 1}
+                max={indicator === "sleep" ? 24 : 5}
+                step={indicator === "sleep" ? 0.1 : 1}
               />
             </label>
             <label>
@@ -221,30 +262,62 @@ export function MeasurementWorkspace({
                 <option value="eva">EVA</option>
               </select>
             </label>
-            <label>
-              {es ? "Nota" : "Note"}
-              <input name="note" maxLength={1000} />
+            <label className={styles.fullWidth}>
+              {es ? "Nota (opcional)" : "Note (optional)"}
+              <textarea
+                name="note"
+                maxLength={1000}
+                rows={3}
+                placeholder={
+                  es
+                    ? "Añade contexto sobre tu descanso o cómo te sientes…"
+                    : "Add context about your rest or how you feel…"
+                }
+              />
             </label>
-            <button disabled={pending}>
-              {es ? "Guardar medición" : "Save measurement"}
-            </button>
+            <div className={styles.formFooter}>
+              <p>
+                {es
+                  ? "La fecha y hora se guardan al registrar la medición."
+                  : "Date and time are saved when you record the measurement."}
+              </p>
+              <button disabled={pending}>
+                <AdminIcon name="plus" />
+                {pending
+                  ? es
+                    ? "Guardando…"
+                    : "Saving…"
+                  : es
+                    ? "Guardar medición"
+                    : "Save measurement"}
+              </button>
+            </div>
           </form>
           {saved && (
-            <p role="status">
+            <p role="status" className={styles.success}>
               {es ? "Medición guardada." : "Measurement saved."}
             </p>
           )}
         </section>
       )}
-      <button disabled={pending} onClick={() => void update()}>
-        {es ? "Actualizar" : "Refresh"}
-      </button>
-      {!data && !error && <p role="status">{es ? "Cargando…" : "Loading…"}</p>}
+      {!data && !error && (
+        <p role="status" className={styles.success}>
+          {es ? "Cargando…" : "Loading…"}
+        </p>
+      )}
       {data && (
         <>
           {view === "environment" && (
-            <section>
-              <h2>{es ? "Entorno de captura" : "Capture environment"}</h2>
+            <section className={styles.card}>
+              <h2>
+                <AdminIcon name="layers" />
+                {es ? "Entorno de captura" : "Capture environment"}
+              </h2>
+              <p className={styles.description}>
+                {es
+                  ? "El escenario seleccionado se aplicará a las próximas capturas; no modifica las mediciones anteriores."
+                  : "The selected setting applies to future captures; previous measurements stay unchanged."}
+              </p>
               <label>
                 {es ? "Escenario" : "Scenario"}{" "}
                 <select
@@ -279,7 +352,7 @@ export function MeasurementWorkspace({
                         ? "Referencias ambientales"
                         : "Environmental references"}
                     </summary>
-                    <ul>
+                    <ul className={styles.items}>
                       {profile.conditions.map((condition) => {
                         const { value, metric, scope, unit, sourceId, reason } =
                           condition;
@@ -306,12 +379,15 @@ export function MeasurementWorkspace({
             </section>
           )}
           {view === "records" && (
-            <section>
-              <h2>{es ? "Evaluación de demostración" : "Demo assessment"}</h2>
+            <section className={styles.card}>
+              <h2>
+                <AdminIcon name="shield" />
+                {es ? "Evaluación de demostración" : "Demo assessment"}
+              </h2>
               {data.summary.evaluation.length === 0 && (
                 <p>{status.insufficient}</p>
               )}
-              <ul>
+              <ul className={styles.items}>
                 {data.summary.evaluation.map((result) => {
                   const reading = data.summary.latest.find(
                     ({ id }) => id === result.measurementId,
@@ -365,12 +441,15 @@ export function MeasurementWorkspace({
             </section>
           )}
           {view === "alerts" && (
-            <section>
-              <h2>{es ? "Avisos" : "Alerts"}</h2>
+            <section className={styles.card}>
+              <h2>
+                <AdminIcon name="bell" />
+                {es ? "Avisos" : "Alerts"}
+              </h2>
               {data.alerts.length === 0 && (
                 <p>{es ? "Todavía no hay avisos." : "No alerts yet."}</p>
               )}
-              <ul>
+              <ul className={styles.items}>
                 {data.alerts.map((alert) => {
                   const path = `${root}/alerts/${encodeURIComponent(alert.id)}`;
                   return (
@@ -397,7 +476,7 @@ export function MeasurementWorkspace({
                         </p>
                       )}
                       {alert.status !== "closed" && (
-                        <div>
+                        <div className={styles.alertForm}>
                           <label>
                             {es ? "Observación" : "Observation"}{" "}
                             <input
