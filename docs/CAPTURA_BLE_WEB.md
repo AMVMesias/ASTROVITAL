@@ -6,11 +6,13 @@ La recepción ocurre en el navegador de la laptop, con la URL HTTPS de AstroVita
 
 1. Se necesita una cuenta habilitada de astronauta. La captura web no requiere una vinculación previa del administrador, una dirección MAC ni escribir identificadores.
 2. El astronauta completa el primer acceso e inicia sesión en una laptop y navegador compatibles con Web Bluetooth, por ejemplo Chrome/Edge en Windows con Bluetooth habilitado.
-3. En el dashboard selecciona la actividad si la conoce; inicialmente figura como no confirmada. Si ya hay dispositivos vinculados puede seleccionarlos. En Configuración BLE comprueba los UUID del servicio y la característica y el número de copias de cada fragmento. Los valores iniciales corresponden al ejemplo documentado del Python; no prueban el firmware cargado en una placa concreta.
+3. Abre **ESP32 Bluetooth** en el menú del astronauta (`/bluetooth`). Selecciona la actividad si la conoce; inicialmente figura como no confirmada. Si ya hay dispositivos vinculados puede seleccionarlos. En Configuración BLE comprueba los UUID del servicio y la característica y el número de copias de cada fragmento. Los valores iniciales corresponden al ejemplo documentado del Python; no prueban el firmware cargado en una placa concreta.
 4. Pulsa Conectar ESP32 y autoriza la placa en el selector del navegador. Si no hay dispositivo seleccionado, después de esa autorización se crea o reutiliza automáticamente un canal de captura propio de la cuenta. La aplicación solicita acceso al servicio GATT configurado, se suscribe a la característica y reconstruye las líneas terminadas en LF.
 5. La tarjeta muestra los once campos crudos, el estado de captura y los envíos confirmados. El resumen y los avisos se refrescan de forma limitada después de las confirmaciones. Usa Desconectar al terminar.
 
 La conexión se conserva al navegar entre páginas del panel del astronauta; se libera al salir del panel o cerrar la sesión. Otra pestaña de AstroVital no debe capturar simultáneamente: se usa Web Locks cuando el navegador lo ofrece. El permiso de Bluetooth es independiente de la sesión de usuario.
+
+La actividad se puede cambiar durante la captura sin reconectar. Cada nueva lectura guarda la actividad seleccionada al recibirla. Las lecturas anteriores y los paquetes pendientes o reintentados conservan su actividad original. La selección también se conserva al navegar por el panel. Los ajustes del enlace BLE permanecen bloqueados mientras está conectado.
 
 ## Protocolo y límites
 

@@ -119,6 +119,7 @@ export function AdminShell({
           {(astronaut
             ? [
                 ["/dashboard", "grid", en ? "Overview" : "Resumen"],
+                ["/bluetooth", "chip", "ESP32 Bluetooth"],
                 ["/reportes", "chart", en ? "History" : "Historial"],
                 ["/registros", "edit", en ? "Manual entry" : "Registro manual"],
                 ["/avisos", "bell", en ? "Alerts" : "Avisos"],

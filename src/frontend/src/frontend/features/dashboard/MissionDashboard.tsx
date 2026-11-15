@@ -1,6 +1,5 @@
 "use client";
 import Link from "next/link";
-import { BleCaptureCard } from "../capture/BleCapture";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
@@ -224,7 +223,6 @@ export function MissionDashboard() {
   const formatTime = (time: string) => new Date(time).toLocaleString(locale);
   return (
     <main className={styles.page}>
-      <BleCaptureCard />
       <header className={styles.heading}>
         <div>
           <p className={styles.eyebrow}>

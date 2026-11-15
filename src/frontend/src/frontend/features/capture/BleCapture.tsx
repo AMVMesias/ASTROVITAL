@@ -6,12 +6,16 @@ type Characteristic=EventTarget&{value?:DataView;startNotifications():Promise<Ch
 type Gatt={connected:boolean;connect():Promise<Gatt>;disconnect():void;getPrimaryService(uuid:string):Promise<{getCharacteristic(uuid:string):Promise<Characteristic>}>};
 type BleDevice=EventTarget&{name?:string;gatt?:Gatt};
 type Bluetooth={requestDevice(options:{acceptAllDevices:true;optionalServices:string[]}):Promise<BleDevice>};
-type Options={deviceId:string;service:string;characteristic:string;copies:1|2;activity:"rest"|"exercise"|"eva"|"unknown"};
+type Activity="rest"|"exercise"|"eva"|"unknown";
+type Options={deviceId:string;service:string;characteristic:string;copies:1|2};
 type View={state:string;error:string;received:number;confirmed:number;dropped:number;pending:number;fields?:TelemetryFields;capturedAt?:string;name?:string};
-type Capture={view:View;connect(options:Options):Promise<void>;disconnect():void};
+type Capture={view:View;activity:Activity;setActivity(activity:Activity):void;connect(options:Options):Promise<void>;disconnect():void};
 const Context=createContext<Capture|null>(null);
 export function BleCaptureProvider({children}:{children:ReactNode}){
  const [view,setView]=useState<View>({state:"Desconectado",error:"",received:0,confirmed:0,dropped:0,pending:0});
+ const [activity,setActivityState]=useState<Activity>("unknown");
+ const activityRef=useRef<Activity>("unknown");
+ function setActivity(value:Activity){activityRef.current=value;setActivityState(value);}
  const active=useRef(false),mounted=useRef(true),device=useRef<BleDevice|null>(null),release=useRef<(()=>void)|null>(null),disconnectHandler=useRef<(()=>void)|null>(null);
  const captureDeviceId=useRef<string|null>(null);
  const queue=useRef<{deviceId:string;packet:CapturePacket;attempts:number}[]>([]),sending=useRef(false),generation=useRef(0);
@@ -56,7 +60,7 @@ export function BleCaptureProvider({children}:{children:ReactNode}){
     resolve();await new Promise<void>(done=>{release.current=done;});
    }).catch(reject);});
    if(!active.current||attempt!==generation.current){release.current?.();release.current=null;return;}
-   device.current=selected;patch({state:"Conectando…",name:`${selected.name??"ESP32"} → ${options.deviceId} (${options.activity})`});
+   device.current=selected;patch({state:"Conectando…",name:selected.name??"ESP32"});
    const disconnected=()=>{if(attempt!==generation.current)return;stop();patch({error:"Se perdió la conexión Bluetooth. Revisa la placa y vuelve a conectar."});};
    disconnectHandler.current=disconnected;selected.addEventListener("gattserverdisconnected",disconnected);
    const gatt=await selected.gatt?.connect();if(attempt!==generation.current){selected.gatt?.disconnect();return;}if(!gatt)throw new Error("La placa no ofrece una conexión GATT disponible.");
@@ -66,7 +70,7 @@ export function BleCaptureProvider({children}:{children:ReactNode}){
     if(!active.current||attempt!==generation.current)return;const value=characteristic.value;if(!value)return;
     try{for(const line of frames.feed(new Uint8Array(value.buffer,value.byteOffset,value.byteLength))){
      if(performance.now()-lastSample<1000)continue;
-     const capturedAt=new Date().toISOString(),packet=decodeCsv(line,`${boot}:${++sequence}`,capturedAt,options.activity);lastSample=performance.now();
+     const capturedAt=new Date().toISOString(),packet=decodeCsv(line,`${boot}:${++sequence}`,capturedAt,activityRef.current);lastSample=performance.now();
      setView(v=>({...v,state:"Capturando",fields:packet.telemetry?.fields,capturedAt,received:v.received+1}));
      if(queue.current.length>=10){setView(v=>({...v,dropped:v.dropped+1}));continue;}
      queue.current.push({deviceId:options.deviceId,packet,attempts:0});patch({pending:queue.current.length});void send();
@@ -76,7 +80,7 @@ export function BleCaptureProvider({children}:{children:ReactNode}){
    captureDeviceId.current=options.deviceId;patch({state:"Conectado · esperando lecturas"});
   }catch(error){if(attempt!==generation.current)return;stop();patch({error:error instanceof Error?error.message:"No se pudo conectar por Bluetooth."});}
  }
- return <Context.Provider value={{view,connect,disconnect:stop}}>{children}</Context.Provider>;
+ return <Context.Provider value={{view,activity,setActivity,connect,disconnect:stop}}>{children}</Context.Provider>;
 }
 export function BleCaptureCard(){
  const capture=useContext(Context);const [devices,setDevices]=useState<{id:string;enabled:boolean}[]>([]),[loadError,setLoadError]=useState("");
@@ -87,9 +91,10 @@ export function BleCaptureCard(){
  <p>Conecta la placa desde esta laptop. Mantén la página abierta y el equipo activo durante la captura.</p>
  {(loadError||view.error)&&<p role="alert">{loadError||view.error}</p>}
  {!devices.length&&!loadError&&<p>Pulsa Conectar ESP32 y selecciona tu placa. El vínculo con tu cuenta se crea automáticamente.</p>}
- <form className="data-form" onSubmit={event=>{event.preventDefault();const f=new FormData(event.currentTarget);void capture.connect({deviceId:String(f.get("deviceId")??""),service:String(f.get("service")).trim(),characteristic:String(f.get("characteristic")).trim(),copies:Number(f.get("copies")) as 1|2,activity:String(f.get("activity")) as Options["activity"]});}}>
+ <form className="data-form" onSubmit={event=>{event.preventDefault();const f=new FormData(event.currentTarget);void capture.connect({deviceId:String(f.get("deviceId")??""),service:String(f.get("service")).trim(),characteristic:String(f.get("characteristic")).trim(),copies:Number(f.get("copies")) as 1|2});}}>
+ <label>Actividad confirmada<select name="activity" value={capture.activity} onChange={event=>capture.setActivity(event.target.value as Activity)}><option value="unknown">No confirmada</option><option value="rest">Reposo confirmado</option><option value="exercise">Ejercicio</option><option value="eva">EVA</option></select></label>
+ <p>Puedes cambiar la actividad sin desconectar. Se aplica a las próximas lecturas; las anteriores y los envíos pendientes conservan su actividad.</p>
  <fieldset disabled={busy}>{devices.length>0&&<label>Dispositivo vinculado<select name="deviceId">{devices.map(d=><option key={d.id}>{d.id}</option>)}</select></label>}
- <label>Actividad confirmada<select name="activity" defaultValue="unknown"><option value="unknown">No confirmada</option><option value="rest">Reposo confirmado</option><option value="exercise">Ejercicio</option><option value="eva">EVA</option></select></label>
  <details><summary>Configuración BLE (la misma que Python)</summary><p>Formato CSV de once columnas, terminado en salto de línea.</p>
  <label>UUID del servicio<input name="service" required defaultValue="6e400001-b5a3-f393-e0a9-e50e24dcca9e"/></label>
  <label>UUID de la característica<input name="characteristic" required defaultValue="6e400003-b5a3-f393-e0a9-e50e24dcca9e"/></label>
