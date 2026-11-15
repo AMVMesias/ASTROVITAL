@@ -15,8 +15,8 @@ const groups = [
   {
     title: "Recursos",
     links: [
-      ["Documentación", "/recursos"],
-      ["Publicaciones", "/recursos#publicaciones"],
+      ["Guía de uso", "/recursos#guia"],
+      ["Fuentes científicas", "/recursos#fuentes"],
       ["Centro de ayuda", "/recursos#ayuda"],
     ],
   },

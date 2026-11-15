@@ -29,6 +29,8 @@ export const english = {
   Objetivos: "Objectives",
   Equipo: "Team",
   Documentación: "Documentation",
+  "Guía de uso": "User guide",
+  "Fuentes científicas": "Scientific sources",
   Publicaciones: "Publications",
   "Centro de ayuda": "Help center",
   Legal: "Legal",
