@@ -1,5 +1,36 @@
 # DSS de telemetría: integración del parche v2
 
+## Contexto interior (mission-context-1)
+
+En **Sensores y entorno de misión → Ambiente respirable e intensidad** se registran condiciones interiores, con origen manual o simulado, procedencia, fecha y asignación activa. Ningún planeta rellena presión o composición como si fueran mediciones. Los campos vacíos se envían como `null`.
+
+- Presión **absoluta** en kPa y fracción seca de O₂ en porcentaje: `PiO₂ = (P × 7.50061683 − 47) × O₂ / 100`, en mmHg. No predice SpO₂ ni certifica el ambiente.
+- Referencia NASA de normoxia: 145–155 mmHg. Bajo 145 se pide revisar vigilancia/protocolo; bajo 127 queda fuera de la referencia inferior publicada. Sobre 356 se pide verificar duración/protocolo. Una atmósfera enriquecida por encima de 155 no se clasifica automáticamente como peligro ni se autoriza para uso por ese solo dato.
+- CO₂ es **presión parcial en mmHg**, no ppm ni un valor del oxímetro. Solo una media de cabina declarada de una hora se compara con 3 mmHg. Un valor puntual no verifica esa media. En traje se solicita el protocolo específico; no se aplica el límite de cabina.
+- Ejercicio/EVA con ECG válido de hasta 30 s y FC máxima individual declarada como medida antes del vuelo permite calcular `pulso / máxima × 100`. No se estima la máxima por edad, no se modifican referencias de reposo y no se proporciona autorización de esfuerzo. Fase y gravedad no generan multiplicadores.
+
+Fuentes realmente usadas: [NASA-STD-3001 Vol. 2 Rev. F, §6.2 y tabla 6.2-1](https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf), [OCHMO-TB-031 Exercise Overview](https://www.nasa.gov/ochmo-tb-031-exercise-overview-2/) y [estudio de adaptación cardiovascular de cuatro participantes](https://ntrs.nasa.gov/citations/20040087874), este último como contexto y sin extrapolación numérica lunar/marciana.
+
+**Contrato y persistencia.** `PUT /api/v1/me/dss/context` exige sesión astronauta, origen autorizado, `scenarioId` y `assignmentFrom` idénticos a `GET /me/dss`. Solo guarda el último contexto privado por misión/persona en una clave de `app_settings` protegida por el backend y RLS. Incluye hora de registro y revisión asignada; deja auditoría sin copiar valores de salud al log. No necesita migración. Un cambio de intervalo, incluso al volver al mismo planeta, o de revisión invalida el contexto anterior. `DELETE` lo retira. Caduca a los cinco minutos desde la observación (política técnica del prototipo); la UI retira el cálculo al caducar incluso si falla la red. Esto no borra automáticamente el registro persistido.
+
+**Comparación demostrativa.** El botón de comparación llama `GET /api/v1/me/dss/context/compare`: obtiene una sola captura personal y calcula tres ambientes sintéticos, sin escrituras ni sensores ficticios. Si faltan sensores, siguen ausentes. El resultado queda fechado y no se presenta como captura en vivo.
+
+| Ambiente sintético de cabina | Presión kPa | O₂ % | CO₂ mmHg (media 1 h) | PiO₂ mmHg | Resultado ambiental |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Referencia | 101.325 | 21 | 1 | 149.7 | Dentro de referencias evaluadas |
+| Menor presión interior | 56.5 | 21 | 1 | 79.1 | Revisar oxígeno inspirado |
+| CO₂ elevado | 101.325 | 21 | 5 | 149.7 | Revisar CO₂ |
+
+Con el mismo ECG de prueba de 90 lpm, una máxima de 180 produce 50 %, y una de 150 produce 60 %. `state` y sus alertas fisiológicas permanecen intactos: un ambiente de referencia nunca elimina la prioridad por SpO₂ baja. Se muestran dos evaluaciones independientes, no un diagnóstico combinado.
+
+**Evidencia de pruebas.** `tests/mission-context.test.ts` comprueba estos cálculos, umbrales sin redondear, independencia del planeta, traje enriquecido, ventanas de CO₂, datos ausentes/caducados, calidad ECG y conservación de prioridad. La integración real de `tests/cloud.test.ts` verifica guardado/lectura/borrado, aislamiento entre cuentas, origen HTTP, roles, cambio y regreso de escenario, caducidad y comparación sin escrituras. Se usa un esquema temporal autorizado, sin modificar datos de aplicación.
+
+## Documentos de entrega
+
+Equipo: **20_Codengineers**. `informe/Ficha_Entrega_ES_EN.pdf` es una ficha descriptiva de dos páginas (ES y EN en un documento), publicada en `/project/astrovital-entrega.pdf`. Los documentos extensos conservan el detalle técnico y añaden este contexto y el enlace del video. Son documentos descriptivos/técnicos, no una presentación de siete diapositivas.
+
+El video final `https://youtu.be/6HKFjn3UDb8` abre públicamente sin cookies de sesión y sus metadatos indican 29 s (verificación del 15 de noviembre de 2026). Cumple la duración de 30 s y la tolerancia máxima de 35 s del formulario. Se reemplazó el enlace anterior; no se afirma cumplimiento de toda la auditoría ni envío del formulario.
+
 Se integraron el motor, las pruebas y los resúmenes aportados en `/home/grimroot/Desktop/ASTROVITAL_DSS_V2_PATCH` con la aplicación actual de Supabase y Next.js. El dashboard del parche correspondía a una versión anterior: se incorporó su panel como componente nuevo y se conservaron las gráficas, BLE web, caducidad, sesiones y seguimiento de avisos existentes.
 
 ## Uso

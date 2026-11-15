@@ -1,4 +1,6 @@
 import { GET as dssRoute } from "../src/backend/src/app/api/v1/me/dss/route";
+import { PUT as contextRoute, DELETE as clearContextRoute } from "../src/backend/src/app/api/v1/me/dss/context/route";
+import { GET as compareContextRoute } from "../src/backend/src/app/api/v1/me/dss/context/compare/route";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -13,7 +15,7 @@ import { POST as captureRoute } from "../src/backend/src/app/api/v1/me/device/ca
 import { POST as selfLinkRoute } from "../src/backend/src/app/api/v1/me/device/route";
 import { POST as loginRoute } from "../src/backend/src/app/api/v1/auth/login/route";
 import { GET as sessionRoute } from "../src/backend/src/app/api/v1/auth/session/route";
-import { GET as environmentRoute } from "../src/backend/src/app/api/v1/me/environment/route";
+import { GET as environmentRoute, PUT as selectEnvironmentRoute } from "../src/backend/src/app/api/v1/me/environment/route";
 import { POST as measurementRoute } from "../src/backend/src/app/api/v1/me/measurements/route";
 
 test("Supabase application: authentication, roles, recovery, measurements and HTTP",{skip:!process.env.DATABASE_URL},async t=>{
@@ -131,6 +133,41 @@ test("Supabase application: authentication, roles, recovery, measurements and HT
  await app.repo.signalStatus("test-device","disconnected",new Date(Date.now()+1).toISOString(),new Date().toISOString());
  const lost=await (await dssRoute(request(path,"GET",undefined,cookie))).json();assert.equal(lost.state.level,"sensor_issue");
  assert.ok(lost.telemetry.indicators.every((indicator:{value:number|null})=>indicator.value===null));
+ });
+ await t.test("DSS context persists privately, expires, validates HTTP and compares without writes",async()=>{
+ const cookie=`nasa_session=${login.token}`,path="me/dss/context";
+ const current=await (await dssRoute(request("me/dss","GET",undefined,cookie))).json();
+ const context={scenarioId:current.scenario.id,assignmentFrom:current.assignment.effectiveFrom,capturedAt:new Date().toISOString(),sourceNote:"Synthetic integration test",origin:"simulated",location:"cabin",activity:"exercise",phase:"inflight",pressureKpa:101.325,oxygenPercent:21,co2Mmhg:1,co2WindowMinutes:60,measuredHrMax:180};
+ assert.equal((await contextRoute(request(path,"PUT",context))).status,401);
+ assert.equal((await contextRoute(request(path,"PUT",context,`nasa_session=${adminLogin.token}`))).status,403);
+ const crossSite=new NextRequest(`http://localhost:3001/api/v1/${path}`,{method:"PUT",headers:{cookie,"content-type":"application/json",origin:"https://other.example"},body:JSON.stringify(context)});
+ assert.equal((await contextRoute(crossSite)).status,403);
+ assert.equal((await contextRoute(request(path,"PUT",{...context,astronautId:"other"},cookie))).status,400);
+ assert.equal((await contextRoute(request(path,"PUT",{...context,scenarioId:"mars_surface"},cookie))).status,409);
+ assert.equal((await contextRoute(request(path,"PUT",{...context,capturedAt:new Date(Date.now()-301000).toISOString()},cookie))).status,400);
+ const saved=await contextRoute(request(path,"PUT",context,cookie));assert.equal(saved.status,200,JSON.stringify(await saved.clone().json()));
+ assert.equal(saved.headers.get("cache-control"),"no-store");
+ const after=await (await dssRoute(request("me/dss","GET",undefined,cookie))).json();
+ assert.equal(after.contextual.environment.pio2Mmhg,149.7);assert.equal(after.contextual.status,"fresh");assert.equal(after.contextual.input.origin,"simulated");
+ assert.deepEqual({...after.telemetry,ageSeconds:0},{...current.telemetry,ageSeconds:0});assert.deepEqual(after.state,current.state);
+ const later=await app.dss.evaluate(astro,new Date(Date.now()+301000));assert.equal(later.contextual.status,"stale");assert.equal(later.contextual.environment.pio2Mmhg,null);
+ const other=await app.users.save(admin,{username:"contextother",name:"Other astronaut",role:"astronauta",password});
+ await app.repo.run("UPDATE users SET requires_onboarding=0 WHERE id=?",other.id);
+ const otherLogin=await app.auth.login({username:"contextother",password});
+ const otherDss=await (await dssRoute(request("me/dss","GET",undefined,`nasa_session=${otherLogin.token}`))).json();assert.equal(otherDss.contextual.status,"missing");assert.equal(otherDss.contextual.input,null);
+ const beforeComparison=await app.repo.get("SELECT value FROM app_settings WHERE key=?",JSON.stringify(["mission-context-1",astro.missionId,astro.astronautId]));
+ assert.equal((await compareContextRoute(request(path+"/compare"))).status,401);
+ const comparisonResponse=await compareContextRoute(request(path+"/compare","GET",undefined,cookie));assert.equal(comparisonResponse.status,200);
+ const comparison=await comparisonResponse.json();assert.equal(comparison.simulated,true);assert.deepEqual(comparison.examples.map((e:{result:{environment:{pio2Mmhg:number}}})=>e.result.environment.pio2Mmhg),[149.7,79.1,149.7]);
+ assert.deepEqual(comparison.examples.map((e:{result:{environment:{status:string}}})=>e.result.environment.status),["within_reference","review","review"]);
+ assert.deepEqual(await app.repo.get("SELECT value FROM app_settings WHERE key=?",JSON.stringify(["mission-context-1",astro.missionId,astro.astronautId])),beforeComparison);
+ assert.equal((await selectEnvironmentRoute(request("me/environment","PUT",{scenarioId:"moon_surface"},cookie))).status,200);
+ const changed=await (await dssRoute(request("me/dss","GET",undefined,cookie))).json();assert.equal(changed.contextual.status,"missing");
+ assert.equal((await contextRoute(request(path,"PUT",context,cookie))).status,409);
+ assert.equal((await selectEnvironmentRoute(request("me/environment","PUT",{scenarioId:context.scenarioId},cookie))).status,200);
+ assert.equal((await (await dssRoute(request("me/dss","GET",undefined,cookie))).json()).contextual.status,"missing");
+ assert.equal((await clearContextRoute(request(path,"DELETE",undefined,cookie))).status,200);
+ assert.equal((await (await dssRoute(request("me/dss","GET",undefined,cookie))).json()).contextual.status,"missing");
  });
  await t.test("HTTP login, cookie session, environment and capture use real services",async()=>{const response=await loginRoute(request("auth/login","POST",{username:"astro",password:next},`nasa_session=${login.token}`));assert.equal(response.status,200);const cookie=response.headers.get("set-cookie")!.split(";")[0];const session=await sessionRoute(request("auth/session","GET",undefined,cookie));assert.equal((await session.json()).user.username,"astro");const catalog=await environmentRoute(request("me/environment","GET",undefined,cookie));assert.equal((await catalog.json()).profiles.length,4);const reading=await measurementRoute(request("me/measurements","POST",input,cookie));assert.equal(reading.status,201,JSON.stringify(await reading.clone().json()));assert.equal((await reading.json()).measurement.value,7.5);});
  await t.test("recovery verifies persisted answers and grants are single use",async()=>{const challenge=await app.recovery.start({username:"astro"});await assert.rejects(app.recovery.verify({challengeId:challenge.challengeId,answer:"wrong"}),{code:"RECOVERY_INVALID"});const grant=await app.recovery.verify({challengeId:challenge.challengeId,answer:`Answer ${challenge.question.id}`});const newPassword="Recovered-password-12345";await app.recovery.resetPassword({resetToken:grant.resetToken,newPassword,confirmation:newPassword});await assert.rejects(app.recovery.resetPassword({resetToken:grant.resetToken,newPassword,confirmation:newPassword}),{code:"RESET_TOKEN_INVALID"});await assert.rejects(app.auth.session(login.token),{code:"UNAUTHENTICATED"});assert.ok(await app.auth.login({username:"astro",password:newPassword}));});

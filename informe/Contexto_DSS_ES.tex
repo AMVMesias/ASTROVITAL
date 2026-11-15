@@ -1,0 +1,26 @@
+\newpage
+\heading{23  Contexto interior y ficha de entrega}{NUEVA EVALUACIÓN INDEPENDIENTE}
+\textbf{Nombre del equipo:} 20\_Codengineers. \textbf{Proyecto:} AstroVital.
+La ficha descriptiva de entrega está disponible en español e inglés dentro de un solo documento: \url{https://astrovital-health.vercel.app/project/astrovital-entrega.pdf}. Este documento extenso conserva el detalle técnico complementario; no es una presentación de diapositivas.
+\heading{23.1  Condiciones que modifican el análisis}{DATOS DECLARADOS Y TRAZABLES}
+El panel permite registrar presión absoluta interior (kPa), fracción seca de oxígeno (\%), presión parcial de CO\textsubscript{2} (mmHg), actividad y FC máxima individual medida antes del vuelo. Indica procedencia manual o simulada, instrumento/fuente y fecha. La API conserva solo el último contexto privado por misión y astronauta. Un cambio de asignación o revisión lo invalida; la caducidad de cinco minutos es una política técnica, no un límite de exposición fisiológica.
+\begin{infobox}
+\textbf{Oxígeno inspirado:} $PiO_2=(P_{kPa}\times7{,}50061683-47)\times F_{O_2}$. El cálculo no estima SpO\textsubscript{2}. Referencias NASA: objetivo de normoxia 145--155 mmHg; por debajo de 145 exige comprobar el protocolo; por debajo de 127 queda fuera de la referencia inferior publicada. Superar 356 exige verificar duración y procedimiento de exposición. No se certifica seguridad mediante estos valores.
+\end{infobox}
+En cabina se compara únicamente el CO\textsubscript{2} declarado como promedio de una hora con 3 mmHg. Una lectura puntual no acredita ese promedio. El umbral de cabina no se aplica al traje; falta su protocolo específico. Las variaciones de respiración no se atribuyen automáticamente al CO\textsubscript{2}.
+
+Durante ejercicio/EVA, el pulso ECG válido y vigente puede expresarse como porcentaje de la FC máxima medida individualmente. En reposo, con referencia ausente o ECG inválido/caducado, no se calcula esa relación. No se estima la máxima por edad, gravedad ni planeta. La fase de misión queda como contexto de adaptación, sin multiplicador lunar o marciano.
+\heading{23.2  Diferencia reproducible}{MISMAS LECTURAS PERSONALES}
+\begin{tabularx}{\linewidth}{@{}Xrrrr@{}}\toprule
+Ejemplo sintético & P (kPa) & O\textsubscript{2} (\%) & CO\textsubscript{2} (mmHg) & PiO\textsubscript{2} (mmHg)\\\midrule
+Cabina de referencia &101,325&21&1&149,7\\
+Menor presión interior &56,5&21&1&79,1\\
+CO\textsubscript{2} elevado &101,325&21&5&149,7\\\bottomrule\end{tabularx}
+El segundo ejemplo requiere revisar oxígeno inspirado; el tercero, CO\textsubscript{2} de cabina. El comparador toma una única captura personal real para los tres ejemplos y no guarda los ambientes sintéticos. Con ECG de prueba de 90 lpm y máxima declarada de 180, la relación es 50\%; con máxima 150, 60\%. Son datos de prueba, no resultados humanos. Ninguna condición interior reduce la prioridad de una SpO\textsubscript{2} baja ni elimina advertencias del sensor.
+\heading{23.3  Fuentes de esta implementación}{REFERENCIAS NASA}
+{\footnotesize\url{https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf}\par
+\url{https://www.nasa.gov/ochmo-tb-031-exercise-overview-2/}\par
+\url{https://ntrs.nasa.gov/citations/20040087874}}
+\heading{23.4  Video del proyecto}{ENLACE SUMINISTRADO POR EL EQUIPO}
+\url{https://youtu.be/6HKFjn3UDb8}\par
+Los metadatos públicos de YouTube, consultados el 15 de noviembre de 2026, indican \textbf{29 segundos}: cumple el límite de 30 s y la tolerancia máxima de 35 s para el video demo opcional. No requiere acceso a una cuenta para abrir su página pública.

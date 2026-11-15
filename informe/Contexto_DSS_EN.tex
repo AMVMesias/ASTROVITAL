@@ -1,0 +1,26 @@
+\newpage
+\heading{23  Interior context and submission brief}{NEW INDEPENDENT ASSESSMENT}
+\textbf{Team name:} 20\_Codengineers. \textbf{Project:} AstroVital.
+The descriptive submission brief contains Spanish and English in one document: \url{https://astrovital-health.vercel.app/project/astrovital-entrega.pdf}. This longer document retains complementary technical detail; it is not a slide presentation.
+\heading{23.1  Conditions that change the assessment}{DECLARED, TRACEABLE INPUTS}
+The panel accepts interior absolute pressure (kPa), dry oxygen fraction (\%), CO\textsubscript{2} partial pressure (mmHg), activity and individually measured preflight maximum HR. Manual or simulated origin, instrument/source and observation time are explicit. The API retains only the latest private context per mission and astronaut. A different assignment or revision invalidates it; five-minute expiry is a technical policy, not a physiological exposure limit.
+\begin{infobox}
+\textbf{Inspired oxygen:} $PiO_2=(P_{kPa}\times7.50061683-47)\times F_{O_2}$. This does not predict SpO\textsubscript{2}. NASA references: normoxia target 145--155 mmHg; below 145 requires checking the protocol; below 127 falls outside the published lower reference. Above 356 requires checking exposure duration and procedures. These values do not certify safety.
+\end{infobox}
+Only cabin CO\textsubscript{2} declared as a one-hour average is compared with 3 mmHg. A spot reading cannot verify that average. The cabin threshold is not applied to a suit; a suit-specific protocol is required. Respiratory changes are not automatically attributed to CO\textsubscript{2}.
+
+During exercise/EVA, valid current ECG pulse can be expressed as a percentage of individually measured maximum HR. At rest, without a maximum or with invalid/stale ECG, this ratio is not calculated. Maximum HR is not estimated from age, gravity or planet. Mission phase provides adaptation context without a lunar or Martian multiplier.
+\heading{23.2  Reproducible differences}{IDENTICAL PERSONAL READINGS}
+\begin{tabularx}{\linewidth}{@{}Xrrrr@{}}\toprule
+Synthetic example & P (kPa) & O\textsubscript{2} (\%) & CO\textsubscript{2} (mmHg) & PiO\textsubscript{2} (mmHg)\\\midrule
+Reference cabin &101.325&21&1&149.7\\
+Lower interior pressure &56.5&21&1&79.1\\
+Elevated CO\textsubscript{2} &101.325&21&5&149.7\\\bottomrule\end{tabularx}
+The second example requires reviewing inspired oxygen; the third, cabin CO\textsubscript{2}. The comparator uses one real personal snapshot for all examples and does not save synthetic environments. A test ECG pulse of 90 bpm with a declared maximum of 180 produces 50\%; a maximum of 150 produces 60\%. These are test inputs, not human findings. No interior condition downgrades low-SpO\textsubscript{2} priority or removes sensor warnings.
+\heading{23.3  Sources used in this implementation}{NASA REFERENCES}
+{\footnotesize\url{https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf}\par
+\url{https://www.nasa.gov/ochmo-tb-031-exercise-overview-2/}\par
+\url{https://ntrs.nasa.gov/citations/20040087874}}
+\heading{23.4  Project video}{LINK SUPPLIED BY THE TEAM}
+\url{https://youtu.be/6HKFjn3UDb8}\par
+Public YouTube metadata checked on November 15, 2026 indicates \textbf{29 seconds}: within the 30 s limit and maximum 35 s tolerance for the optional demo video. Its public page does not require account access.

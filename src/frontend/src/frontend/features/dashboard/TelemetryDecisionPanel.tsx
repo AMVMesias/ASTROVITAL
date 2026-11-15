@@ -4,10 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { api, ApiError, writeRequest } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
 import styles from "./telemetryDecision.module.css";
+import { MissionContextPanel, type ContextResult } from "./MissionContextPanel";
 
 type Indicator = {key:string;label:string;value:number|null;unit:string;quality:string;detail:string;trend?:number;trendSeconds?:number;checkRequired?:boolean;alertLevel?:"review"|"priority"|null};
 type Action = {id:string;priority:"priority"|"check"|"follow_up";title:string;reason:string;steps:string[];expected:string;escalation?:string};
 type Result = {
+  assignment:{effectiveFrom:string};contextual:ContextResult;
   version:string;timestamp:string;scenario:{id:string;label:string;context?:string;radiation:{instrument:string|null;location:string;n:number;p05?:number;median?:number;p95?:number;unit:string;interpretation:string;provenance?:string}|null};
   state:{level:string;title:string;explanation:string;recommendations:string[];actions?:Action[];evidence:string[]};
   telemetry:{count:number;latestAt:string|null;ageSeconds:number|null;indicators:Indicator[]};
@@ -114,6 +116,7 @@ export function TelemetryDecisionPanel() {
         <p>{result.scenario.radiation.interpretation}</p><p>{es?"Resumen aportado; percentiles no recalculados sin los CSV originales. No representa dosis personal ni límites de seguridad.":"Supplied summary; percentiles have not been recalculated without the original CSVs. It does not represent personal dose or safety limits."}</p>
       </details>}
       <details><summary>{es?"Alcance de las reglas":"Scope of the rules"}</summary><ul>{result.limitations.map(text=><li key={text}>{text}</li>)}</ul><p><a href="https://www.fda.gov/consumers/consumer-updates/pulse-oximeter-basics" target="_blank" rel="noreferrer">{es?"Cómo comprobar una lectura: FDA":"Checking a reading: FDA"}</a> · <a href="https://medlineplus.gov/lab-tests/pulse-oximetry/" target="_blank" rel="noreferrer">{es?"Orientación general: MedlinePlus":"General guidance: MedlinePlus"}</a></p><small>{result.version}</small></details>
+      {result.contextual&&<MissionContextPanel key={`${result.scenario.id}:${result.assignment.effectiveFrom}`} scenarioId={result.scenario.id} assignmentFrom={result.assignment.effectiveFrom} analysis={result.contextual} latestTelemetryAt={result.telemetry.latestAt} now={now} es={es} onSaved={()=>setRefreshKey(key=>key+1)}/>}
     </>}
   </section>;
 }

@@ -1,0 +1,65 @@
+% !TeX program = pdflatex
+% Ficha descriptiva bilingüe; no es una presentación de diapositivas.
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=17mm]{geometry}
+\usepackage[T1]{fontenc}\usepackage[utf8]{inputenc}\usepackage{lmodern}
+\usepackage[english,spanish,es-tabla]{babel}
+\usepackage{xcolor,hyperref,xurl,enumitem,fancyhdr}
+\renewcommand{\familydefault}{\sfdefault}
+\definecolor{navy}{HTML}{091B36}\definecolor{blue}{HTML}{0965EB}
+\hypersetup{colorlinks=true,urlcolor=blue,pdftitle={AstroVital - Ficha del proyecto / Project brief},pdfauthor={AstroVital contributors}}
+\setlength{\parindent}{0pt}\setlength{\parskip}{5pt}
+\setlist[itemize]{leftmargin=4mm,itemsep=3pt,topsep=3pt}
+\pagestyle{fancy}\fancyhf{}\fancyfoot[L]{\footnotesize ASTROVITAL | NASA Space Apps ESPE - Sangolquí 2026}\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\newcommand{\block}[1]{\par\vspace{5pt}{\large\bfseries\color{navy}#1}\par{\color{blue}\rule{\linewidth}{.6pt}}\par}
+\newcommand{\links}{\textbf{Demo:} \url{https://astrovital-health.vercel.app/}\\
+\textbf{GitHub:} \url{https://github.com/AMVMesias/ASTROVITAL}\\
+\textbf{MIT LICENSE:} \url{https://github.com/AMVMesias/ASTROVITAL/blob/main/LICENSE}}
+\begin{document}
+{\Huge\bfseries\color{navy}ASTROVITAL}\hfill{\bfseries ESPAÑOL}\par
+{\Large Ficha descriptiva del proyecto}\par
+\textbf{Nombre del equipo:} 20\_Codengineers\par
+\textbf{Reto:} Create Health Monitoring Software for Astronauts on Space Missions.\par
+\textbf{Equipo:} Mesias Mariscal (líder), Denise Rea, José Joaquín Silva Escobar, Gabriel José Freitas y Leonel Alejandro Tipan Quinto.\par
+\textbf{Contacto:} \href{mailto:mesiasmariscal@gmail.com}{mesiasmariscal@gmail.com}
+\block{1. Propuesta y alcance}
+Prototipo web de monitoreo de salud con ESP32, ECG, pulso, SpO\textsubscript{2} y estimación respiratoria. Reúne captura BLE, historial, referencias personales y avisos de verificación. El contexto interior evalúa presión/O\textsubscript{2}, CO\textsubscript{2} e intensidad respecto a una FC máxima individual medida. Distingue datos simulados, ausentes y caducados; no diagnostica ni certifica seguridad de vuelo.
+\block{2. Fuentes NASA realmente empleadas}
+\begin{itemize}
+\item \textbf{NASA OSDR RadLab: Curiosity / MSL-RAD, LRO / CRaTER-D1D2 y Orion Artemis I / EAD-MU01.} Resúmenes históricos de radiación incluidos en el código; no son dosimetría personal ni flujos en vivo. Conteos y percentiles aportados, sin reproducción de CSV originales.\\\url{https://visualization.osdr.nasa.gov/radlab/gui/overview/}\\\url{https://visualization.osdr.nasa.gov/radlab/gui/data-api/}
+\item \textbf{NASA-STD-3001 Vol. 2 Rev. F, sección 6.2, tabla 6.2-1.} Fórmula de PiO\textsubscript{2}, referencias de oxígeno inspirado y CO\textsubscript{2} de cabina (promedio de una hora). El límite de cabina no se aplica al traje.\\\url{https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf}
+\item \textbf{NASA OCHMO-TB-031, Exercise Overview.} Fundamenta usar la FC máxima medida individualmente antes del vuelo como referencia de esfuerzo; no introduce multiplicadores por planeta.\\\url{https://www.nasa.gov/ochmo-tb-031-exercise-overview-2/}
+\end{itemize}
+\block{3. Producto, repositorio y licencia}
+\links\par
+La portada y los documentos son públicos; las lecturas personales del panel requieren sesión. El detalle técnico enlazado en la web contiene otras referencias y créditos, con su uso y limitaciones.
+\block{4. Declaración de IA y créditos}
+\textbf{ChatGPT y Codex de OpenAI:} asistencia en generación/revisión de código, arquitectura, reglas, pruebas, interfaz, búsqueda de fuentes y documentación. El logo SVG de AstroVital contó con asistencia de IA. Las fotografías tienen créditos en el detalle técnico; las condiciones de uso están en \href{https://astrovital-health.vercel.app/legal#licencia}{la página legal}. El equipo asume las decisiones de integración; no se afirma respaldo de NASA.
+\block{5. Video del proyecto (enlace opcional)}
+\url{https://youtu.be/6HKFjn3UDb8}\par
+\textbf{Duración:} 29 s según los metadatos públicos de YouTube, consultados el 15 de noviembre de 2026. Dentro del límite de 30 s y de la tolerancia máxima de 35 s. La ficha descriptiva no es una presentación de diapositivas.
+\newpage\selectlanguage{english}
+{\Huge\bfseries\color{navy}ASTROVITAL}\hfill{\bfseries ENGLISH}\par
+{\Large Project descriptive brief}\par
+\textbf{Team name:} 20\_Codengineers\par
+\textbf{Challenge:} Create Health Monitoring Software for Astronauts on Space Missions.\par
+\textbf{Team:} Mesias Mariscal (lead), Denise Rea, José Joaquín Silva Escobar, Gabriel José Freitas and Leonel Alejandro Tipan Quinto.\par
+\textbf{Contact:} \href{mailto:mesiasmariscal@gmail.com}{mesiasmariscal@gmail.com}
+\block{1. Proposal and scope}
+Web health-monitoring prototype using ESP32, ECG, pulse, SpO\textsubscript{2} and movement-derived respiratory estimates. It combines BLE capture, history, personal baselines and verification notices. Interior context evaluates pressure/O\textsubscript{2}, CO\textsubscript{2} and intensity relative to an individually measured maximum HR. Simulated, missing and expired inputs remain explicit; no diagnosis or flight-safety certification is provided.
+\block{2. NASA sources actually used}
+\begin{itemize}
+\item \textbf{NASA OSDR RadLab: Curiosity / MSL-RAD, LRO / CRaTER-D1D2 and Orion Artemis I / EAD-MU01.} Historical radiation summaries included in code; not personal dosimetry or live feeds. Supplied counts and percentiles have not been reproduced from original CSV files.\\\url{https://visualization.osdr.nasa.gov/radlab/gui/overview/}\\\url{https://visualization.osdr.nasa.gov/radlab/gui/data-api/}
+\item \textbf{NASA-STD-3001 Vol. 2 Rev. F, section 6.2, table 6.2-1.} PiO\textsubscript{2} formula, inspired-oxygen references and cabin CO\textsubscript{2} (one-hour average). The cabin limit is not applied to a suit.\\\url{https://www.nasa.gov/wp-content/uploads/2025/05/nasa-std-3001-vol-2.pdf}
+\item \textbf{NASA OCHMO-TB-031, Exercise Overview.} Supports using an individually measured preflight maximum HR for exertion context; no planet-dependent multiplier is introduced.\\\url{https://www.nasa.gov/ochmo-tb-031-exercise-overview-2/}
+\end{itemize}
+\block{3. Product, repository and license}
+\links\par
+The landing page and documents are public; personal dashboard readings require authentication. The technical detail linked on the website contains further references and credits, with their uses and limitations.
+\block{4. AI disclosure and credits}
+\textbf{OpenAI ChatGPT and Codex:} assistance with code generation/review, architecture, rules, tests, interface, source research and documentation. The AstroVital SVG logo was AI-assisted. Photo credits appear in the technical detail; usage terms are on \href{https://astrovital-health.vercel.app/legal#licencia}{the legal page}. The team owns integration decisions; no NASA endorsement is claimed.
+\block{5. Project video (optional link)}
+\url{https://youtu.be/6HKFjn3UDb8}\par
+\textbf{Duration:} 29 s according to public YouTube metadata checked on November 15, 2026. Within the 30 s limit and the maximum 35 s tolerance. This descriptive brief is not a slide presentation.
+\end{document}
