@@ -1145,11 +1145,15 @@ html[data-theme="dark"] .admin-message.error {
 }
 .astronaut-shell .admin-sidebar {
   top: 0;
+  position: fixed;
   padding: 24px 16px;
-  min-height: 100svh;
+  height: 100dvh;
+  min-height: 0;
+  bottom: auto;
+  overflow-y: auto;
   background:
-    linear-gradient(180deg, #00152d 0%, #00152dfa 45%, #00152d22 100%),
-    url("/images/astrovital-earth.webp") center bottom/cover no-repeat;
+    linear-gradient(180deg, #00152df5 0%, #00152de8 52%, #00152d55 100%),
+    url("/images/astrovital-astronauta.webp") 62% bottom/cover no-repeat;
 }
 .astronaut-sidebar-brand {
   padding: 0 14px 36px;
