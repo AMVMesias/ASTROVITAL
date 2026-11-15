@@ -10,6 +10,7 @@ import {
   readingContext,
   readingFreshness,
   currentPulseStatus,
+  displayedPulse,
   type SensorSnapshot,
   type Reading,
   type Assessment,
@@ -186,6 +187,7 @@ export function MissionDashboard() {
   const telemetryFresh=latestTelemetry && !telemetryDisconnected && readingFreshness(latestTelemetry,now)==="fresh";
   const matchingHeart=heart?.origin!=="device" || heart.deviceId===selectedDeviceId ? heart : undefined;
   const pulseStatus=currentPulseStatus(matchingHeart,device?.signal,latestTelemetry,now);
+  const pulseDisplay=displayedPulse(matchingHeart,device?.signal,latestTelemetry,now);
   const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin latido detectado",insufficient:"Sin pulso válido",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No heartbeat detected",insufficient:"No valid pulse",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
   const pulseExplanation=pulseStatus==="no_signal"
     ? (es?"Se recibe señal eléctrica, pero el ESP32 no detecta latidos válidos para calcular la frecuencia cardíaca.":"An electrical signal is being received, but the ESP32 has not detected valid beats to calculate heart rate.")
@@ -281,6 +283,7 @@ export function MissionDashboard() {
       )}
       {data && (
         <div className={styles.dashboardGrid}>
+          <div className={styles.dashboardColumn}>
           <section className={`${styles.panel} ${styles.vitals}`}>
             <div className={styles.sectionHeading}>
               <h2>
@@ -311,7 +314,7 @@ export function MissionDashboard() {
                   {es ? "Frecuencia cardíaca" : "Heart rate"}
                 </h3>
                 <p className={styles.value}>
-                  {pulseStatus==="live" ? heart?.value : "—"}
+                  {pulseDisplay?.value ?? "—"}
                   <span>lpm</span>
                 </p>
                 <span
@@ -321,16 +324,17 @@ export function MissionDashboard() {
                       : heartAlert?styles.alertBadge:styles.neutralBadge
                   }
                 >
-                  {heartAlert?(es?"Alerta · verificar lectura":"Alert · verify reading"):pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
+                  {pulseDisplay?.retained?(es?`Última válida · hace ${pulseDisplay.ageSeconds} s`:`Last valid · ${pulseDisplay.ageSeconds} s ago`):pulseDisplay&&pulseStatus!=="live"?(es?"Pulso recibido · pendiente de evaluación":"Pulse received · awaiting assessment"):heartAlert?(es?"Alerta · verificar lectura":"Alert · verify reading"):pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
                     ? states[heartState]
                     : es
                       ? "Sin lectura"
                       : "No reading"}
                 </span>
+                {pulseDisplay?.retained&&<p className={styles.timestamp}>{es?"Señal intermitente; valor anterior, sin confirmación actual.":"Intermittent signal; previous value, currently unconfirmed."}</p>}
                 <p className={styles.timestamp}>
                   {heart ? (
                     <time dateTime={heart.capturedAt}>
-                      {es ? "Última FC válida (histórica): " : "Last valid HR (historical): "}{heart.value} lpm · {formatTime(heart.capturedAt)}
+                      {pulseStatus==="live"?(es?"Última FC válida: ":"Last valid HR: "):(es?"Última FC válida (histórica): ":"Last valid HR (historical): ")}{heart.value} lpm · {formatTime(heart.capturedAt)}
                     </time>
                   ) : es ? (
                     "Sin mediciones registradas"
@@ -445,6 +449,33 @@ export function MissionDashboard() {
               )}
             </div>
           </section>
+          <section className={`${styles.panel} ${styles.trend}`}>
+            <div className={styles.sectionHeading}>
+              <h2>
+                <AdminIcon name="chart" />
+                {es ? "Tendencia de signos vitales" : "Vital signs trend"}
+              </h2>
+              <span className={styles.period}>
+                {es ? "Últimas 24 horas" : "Last 24 hours"}
+              </span>
+            </div>
+            {data.history === null && data.telemetry === null ? (
+              <p className={styles.chartEmpty}>
+                {es
+                  ? "Historial no disponible. Vuelve a actualizar."
+                  : "History unavailable. Try refreshing."}
+              </p>
+            ) : (
+              <VitalTrend series={series} now={now} locale={locale} />
+            )}
+            <p className={styles.chartNote}>
+              {es
+                ? "Hasta 200 muestras por origen. Unidades por serie; sin interpolar valores ausentes."
+                : "Up to 200 samples per source. Units per series; absent values are not interpolated."}
+            </p>
+          </section>
+          </div>
+          <div className={styles.dashboardColumn}>
           <section className={`${styles.panel} ${styles.evaluation} ${heartAlert?styles.alertCard:""}`}>
             <div className={styles.sectionHeading}>
               <h2>
@@ -485,31 +516,6 @@ export function MissionDashboard() {
                 (es
                   ? "Evaluación de reposo pendiente"
                   : "Resting assessment pending")}
-            </p>
-          </section>
-          <section className={`${styles.panel} ${styles.trend}`}>
-            <div className={styles.sectionHeading}>
-              <h2>
-                <AdminIcon name="chart" />
-                {es ? "Tendencia de signos vitales" : "Vital signs trend"}
-              </h2>
-              <span className={styles.period}>
-                {es ? "Últimas 24 horas" : "Last 24 hours"}
-              </span>
-            </div>
-            {data.history === null && data.telemetry === null ? (
-              <p className={styles.chartEmpty}>
-                {es
-                  ? "Historial no disponible. Vuelve a actualizar."
-                  : "History unavailable. Try refreshing."}
-              </p>
-            ) : (
-              <VitalTrend series={series} now={now} locale={locale} />
-            )}
-            <p className={styles.chartNote}>
-              {es
-                ? "Hasta 200 muestras por origen. Unidades por serie; sin interpolar valores ausentes."
-                : "Up to 200 samples per source. Units per series; absent values are not interpolated."}
             </p>
           </section>
           <section className={`${styles.panel} ${styles.alerts}`}>
@@ -559,6 +565,7 @@ export function MissionDashboard() {
               </div>
             )}
           </section>
+          </div>
           <div className={styles.bottomCards}>
             {(["sleep", "wellbeing"] as const).map((indicator) => {
               const reading = readings.find((r) => r.indicator === indicator);

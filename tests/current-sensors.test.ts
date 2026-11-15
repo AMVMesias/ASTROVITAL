@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {currentPulseStatus,readingFreshness,type Reading,type SensorSnapshot} from "../src/frontend/src/frontend/features/dashboard/readingPresentation";
+import {displayedPulse,currentPulseStatus,readingFreshness,type Reading,type SensorSnapshot} from "../src/frontend/src/frontend/features/dashboard/readingPresentation";
 const now=Date.now();
 const reading:Reading={id:"heart",indicator:"heart_rate",value:138,unit:"bpm",capturedAt:new Date(now-5000).toISOString(),origin:"device",quality:"valid",deviceId:"device",maxAgeSeconds:30};
 const snapshot:SensorSnapshot={deviceId:"device",capturedAt:new Date(now-1000).toISOString(),maxAgeSeconds:30,sensors:{ecg:{state:0,bpm:null},oximeter:{spo2:null},respiration:{rpm:null}}};
@@ -17,4 +17,23 @@ test("old signal cannot mask a newer valid pulse; stale and invalid readings nev
  assert.equal(currentPulseStatus({...reading,quality:"invalid"},null,undefined,now),"invalid");
  assert.equal(currentPulseStatus(undefined,null,snapshot,now),"no_contact");
  assert.equal(readingFreshness(snapshot,now+31000),"stale");
+});
+
+test("Retains a recent valid pulse during intermittent detection without promoting assessment",()=>{
+ const intermittent={...snapshot,sensors:{...snapshot.sensors,ecg:{state:2,bpm:null}}};
+ assert.equal(displayedPulse(reading,null,intermittent,now)?.value,reading.value);
+ assert.equal(displayedPulse(reading,null,intermittent,now)?.retained,true);
+ assert.equal(currentPulseStatus(reading,null,intermittent,now),"insufficient");
+ assert.equal(displayedPulse(reading,null,intermittent,now+31000),null);
+ assert.equal(displayedPulse(reading,null,snapshot,now),null);
+ assert.equal(displayedPulse(reading,{status:"disconnected",observedAt:snapshot.capturedAt},undefined,now),null);
+ assert.equal(displayedPulse({...reading,quality:"invalid"},null,intermittent,now),null);
+ assert.equal(displayedPulse({...reading,capturedAt:new Date(now+1000).toISOString()},null,intermittent,now),null);
+});
+test("Shows firmware-valid telemetry before a persisted measurement arrives",()=>{
+ const valid={...snapshot,sensors:{...snapshot.sensors,ecg:{state:2,bpm:179}}};
+ assert.equal(displayedPulse(undefined,null,valid,now)?.value,179);
+ assert.equal(displayedPulse(undefined,null,valid,now)?.retained,false);
+ assert.equal(displayedPulse(undefined,null,valid,now+31000),null);
+ assert.equal(displayedPulse(undefined,{status:"no_signal",observedAt:new Date(now).toISOString()},valid,now),null);
 });

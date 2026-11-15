@@ -86,3 +86,19 @@ export function sensorHasAlert(snapshot:SensorSnapshot|undefined,decision:Sensor
  const indicator=decision.telemetry.indicators.find(value=>value.key===key);
  return indicator?.quality==="valid"&&indicator.value!==null&&!!indicator.alertLevel;
 }
+
+/** Display grace only: never promotes a retained value to a current assessment. */
+export function displayedPulse(reading:Reading|undefined,signal:{status:string;observedAt:string}|null|undefined,snapshot:SensorSnapshot|undefined,now:number) {
+ const status=currentPulseStatus(reading,signal,snapshot,now);
+ if(status==="disconnected"||status==="no_contact")return null;
+ const ecg=snapshot?.sensors.ecg;
+ if(snapshot&&(!reading||Date.parse(snapshot.capturedAt)>=Date.parse(reading.capturedAt))&&readingFreshness(snapshot,now)==="fresh"&&ecg?.state===2&&ecg.bpm!==null&&Number.isFinite(ecg.bpm)&&ecg.bpm>0&&ecg.bpm<=300&&
+  (!signal||Date.parse(signal.observedAt)<=Date.parse(snapshot.capturedAt)||!["no_signal","insufficient"].includes(signal.status))) {
+  return {value:ecg.bpm,capturedAt:snapshot.capturedAt,retained:false,ageSeconds:Math.floor((now-Date.parse(snapshot.capturedAt))/1000)};
+ }
+ if(!reading||reading.quality!=="valid"||reading.unit!=="bpm"||!Number.isFinite(reading.value)||reading.value<=0||reading.value>300||readingFreshness(reading,now)!=="fresh")return null;
+ const ageSeconds=Math.floor((now-Date.parse(reading.capturedAt))/1000);
+ if(status==="live")return {value:reading.value,capturedAt:reading.capturedAt,retained:false,ageSeconds};
+ if(["no_signal","insufficient"].includes(status)&&now-Date.parse(reading.capturedAt)<=30000)return {value:reading.value,capturedAt:reading.capturedAt,retained:true,ageSeconds};
+ return null;
+}

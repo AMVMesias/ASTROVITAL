@@ -58,7 +58,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1.72fr) minmax(0, 1fr);
   gap: 16px;
-  align-items: stretch;
+  align-items: start;
+}
+.dashboardColumn {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  align-content: start;
 }
 .panel {
   min-width: 0;
@@ -496,6 +502,9 @@
 @media (max-width: 1100px) {
   .dashboardGrid {
     grid-template-columns: 1fr;
+  }
+  .dashboardColumn {
+    display: contents;
   }
   .vitals,
   .trend {
