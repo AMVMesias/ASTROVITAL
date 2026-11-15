@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { Pool } from "pg";
+import { postgresConnection } from "../../../../../backend/infrastructure/postgres/connection";
 import {
   parseSyncBatch, receiveMeasurements, syncBodyByteLimit,
 } from "../../../../../backend/application/sync/syncMeasurements";
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    pool ??= new Pool({ connectionString, max: 2, connectionTimeoutMillis: 5_000 });
+    pool ??= new Pool({ ...postgresConnection(connectionString), max: 2, connectionTimeoutMillis: 5_000 });
     const receipts = await receiveMeasurements(createPostgresMeasurementReceiver(pool), missionId, measurements);
     return Response.json({ receipts });
   } catch {
