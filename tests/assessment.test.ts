@@ -20,3 +20,12 @@ test("assessment isolates people, environments, duplicate IDs and simulated orig
  assert.equal(assessMeasurements(reading("x",90),[...baseline.map(r=>({...r,origin:"simulado" as const})),reading("4",90,10)],rule,now).status,"insufficient");
  assert.equal(assessMeasurements(reading("x",90),[baseline[0],baseline[0],baseline[0],reading("4",90,10)],rule,now).status,"insufficient");
 });
+test("contextual recommendations remain available after the PostgreSQL migration",()=>{
+ const result=assessMeasurements(reading("x",90),[...baseline,reading("4",90,10)],rule,now);
+ assert.equal(result.direction,"above");
+ assert.equal(result.recommendation?.id,"pulse-rest");
+ assert.ok(result.recommendation?.message.es);
+ assert.ok(result.recommendation?.message.en);
+ assert.equal(assessMeasurements({...reading("x",70),quality:"invalid"},[],rule,now).recommendation?.action,"repeat_reading");
+ assert.equal(assessMeasurements(reading("x",70),[],rule,now).recommendation?.action,"collect_history");
+});
