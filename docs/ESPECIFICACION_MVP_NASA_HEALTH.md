@@ -27,3 +27,9 @@ Evaluación con reglas de demostración versionadas, referencia individual compa
 ## Criterios de aceptación
 
 Desde el dominio público: login real, primer acceso, cuentas por rol, medición manual persistida en Supabase, historial propio, selector ambiental, evaluación y seguimiento. Rechazar acceso cruzado de usuarios y roles. El cierre de sesión y las revocaciones deben invalidar la cookie. Los despliegues automáticos parten de main; el esquema se versiona en supabase/migrations y se aplica mediante CLI.
+
+## Sesiones y rendimiento
+
+Cada cuenta admite una sola sesión activa. Otro navegador con las mismas credenciales recibe 409 SESSION_ACTIVE y conserva la sesión original. Reenviar el login desde el navegador que ya posee la cookie conserva esa sesión. Cerrar sesión, cambiar credenciales o vencer el plazo de ocho horas libera el acceso. Cerrar el navegador por sí solo no libera la sesión. JWT no es necesario para esta regla.
+
+El login bloquea únicamente su fila de usuario durante la reserva de sesión. La comprobación de sesión y cuenta usa una consulta conjunta. El encabezado Server-Timing expone los tiempos de apertura de conexión y procesamiento, sin credenciales ni datos del usuario. Los tiempos de red, el arranque del servidor y la distancia a la región influyen en la carga.

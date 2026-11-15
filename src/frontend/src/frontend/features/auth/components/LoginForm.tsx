@@ -310,7 +310,7 @@ export function LoginForm() {
                 pending || (screen === "question" && (!challenge || challenge.attemptsRemaining <= 0))
               }
             >
-              {screen === "login"
+              {pending ? (es ? "Procesando…" : "Processing…") : screen === "login"
                 ? t("Iniciar sesión")
                 : screen === "password" || screen === "onboarding-question"
                   ? (es ? "Guardar" : "Save")

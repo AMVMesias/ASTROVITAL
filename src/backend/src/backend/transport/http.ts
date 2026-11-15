@@ -5,12 +5,18 @@ import { AppError, type Role } from "../domain/model";
 export const SESSION_COOKIE = "nasa_session";
 export function respond(value: unknown, status = 200) { return NextResponse.json(value, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } }); }
 export async function handle(work: () => Response | Promise<Response>) {
-  try { return await withServices(async () => await work()); }
+  const start=performance.now(),timing={connectionMs:0};
+  let response:Response;
+  try { response=await withServices(async () => await work(),timing); }
   catch (error) {
-    if (error instanceof AppError) return respond({ error: { code: error.code, message: error.message, fields: error.fields } }, error.status);
-    console.error("NASA Health: operación no completada", error instanceof Error ? error.name : "UnknownError");
-    return respond({ error: { code: "INTERNAL", message: "No se pudo completar la operación." } }, 500);
+    if (error instanceof AppError) response=respond({ error: { code: error.code, message: error.message, fields: error.fields } }, error.status);
+    else {
+      console.error("NASA Health: operación no completada", error instanceof Error ? error.name : "UnknownError");
+      response=respond({ error: { code: "INTERNAL", message: "No se pudo completar la operación." } }, 500);
+    }
   }
+  response.headers.set("Server-Timing",`db_connect;dur=${timing.connectionMs.toFixed(1)}, app;dur=${(performance.now()-start).toFixed(1)}`);
+  return response;
 }
 export function sameOrigin(request: Request) {
   const origin = request.headers.get("origin");

@@ -9,6 +9,8 @@ export interface Repository {
   audit(authorId: string, targetId: string, action: string): Promise<void>;
   session(id: string): Promise<{ userId: string; expiresAt: string } | null>;
   saveSession(id: string, userId: string, expiresAt: string): Promise<void>;
+  claimSession(user: Account, id: string, expiresAt: string, currentId?: string): Promise<{ id: string; expiresAt: string }>;
+  sessionAccount(id: string): Promise<{ user: Account; expiresAt: string } | null>;
   revokeSession(id: string): Promise<void>;
   revokeUserSessions(userId: string): Promise<void>;
   blockedUntil(username: string): Promise<string | null>;

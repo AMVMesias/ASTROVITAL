@@ -9,7 +9,7 @@ export function publicUser(user: User): User {
 }
 export class AuthService {
   constructor(private repo: Repository, private durationSeconds = 8 * 3600) {}
-  async login(value: unknown) {
+  async login(value: unknown, currentToken?: string) {
     const input = object(value); only(input, ["username", "password"]);
     const username = text(input, "username", 1, 64).toLowerCase();
     if (typeof input.password !== "string" || input.password.length > 128) throw new AppError(401, "INVALID_CREDENTIALS", "Credenciales incorrectas o cuenta no disponible.");
@@ -21,21 +21,18 @@ export class AuthService {
       (await this.repo.loginFailure(username));
       throw new AppError(401, "INVALID_CREDENTIALS", "Credenciales incorrectas o cuenta no disponible.");
     }
-    return (await this.repo.atomic(async () => {
-      (await this.repo.clearFailures(username));
-      const raw = token();
-      const expiresAt = new Date(Date.now() + this.durationSeconds * 1000).toISOString();
-      (await this.repo.saveSession(digest(raw), user.id, expiresAt));
-      return { token: raw, expiresAt, user: publicUser(user) };
-    }));
+    const raw=token(),expiresAt=new Date(Date.now()+this.durationSeconds*1000).toISOString();
+    const currentId=currentToken&&/^[a-f0-9]{64}$/.test(currentToken)?digest(currentToken):undefined;
+    const claimed=await this.repo.claimSession(user,digest(raw),expiresAt,currentId);
+    return {token:claimed.id===currentId?currentToken!:raw,expiresAt:claimed.expiresAt,user:publicUser(user)};
   }
   async session(raw: string | undefined): Promise<Session> {
     if (!raw || !/^[a-f0-9]{64}$/.test(raw)) throw new AppError(401, "UNAUTHENTICATED", "Inicia sesión para continuar.");
     return this.requireSession(digest(raw), undefined, true);
   }
   async requireSession(id: string, role?: Role, allowOnboarding = false): Promise<Session> {
-    const record = (await this.repo.session(id));
-    const user = record ? (await this.repo.account(record.userId)) : null;
+    const record = await this.repo.sessionAccount(id);
+    const user = record?.user;
     if (!record || record.expiresAt <= new Date().toISOString() || !user?.enabled) throw new AppError(401, "UNAUTHENTICATED", "La sesión venció o fue revocada.");
     if (role && user.role !== role) throw new AppError(403, "FORBIDDEN", "No tienes permiso para esta operación.");
     if (user.requiresOnboarding && !allowOnboarding) throw new AppError(403, "ONBOARDING_REQUIRED", "Completa el primer acceso antes de continuar.");

@@ -33,3 +33,9 @@ npm run build
 npm test
 
 Las pruebas de PostgreSQL usan un esquema temporal separado de app. Para comprobar la API publicada: definir API_URL=https://astrovital-health.vercel.app, SMOKE_USERNAME y SMOKE_PASSWORD y ejecutar npm run test:production. No hay envío de pendientes ni servicio de sincronización.
+
+## Sesiones y rendimiento
+
+Cada cuenta admite una sola sesión activa. Otro navegador con las mismas credenciales recibe 409 SESSION_ACTIVE y conserva la sesión original. Reenviar el login desde el navegador que ya posee la cookie conserva esa sesión. Cerrar sesión, cambiar credenciales o vencer el plazo de ocho horas libera el acceso. Cerrar el navegador por sí solo no libera la sesión. JWT no es necesario para esta regla.
+
+El login bloquea únicamente su fila de usuario durante la reserva de sesión. La comprobación de sesión y cuenta usa una consulta conjunta. El encabezado Server-Timing expone los tiempos de apertura de conexión y procesamiento, sin credenciales ni datos del usuario. Los tiempos de red, el arranque del servidor y la distancia a la región influyen en la carga.

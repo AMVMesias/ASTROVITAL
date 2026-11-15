@@ -1,7 +1,7 @@
 import { Database, type SQLInputValue } from "../database";
 import { randomUUID } from "node:crypto";
 import type { Repository } from "../../../domain/repository";
-import { type Account, type Device, type Measurement, type MeasurementQuery, type Role, type User } from "../../../domain/model";
+import { AppError, type Account, type Device, type Measurement, type MeasurementQuery, type Role, type User } from "../../../domain/model";
 
 type Row = Record<string, string | number | bigint | Uint8Array | null>;
 const selectAccount = `SELECT u.*, a.id AS astronaut_id, a.mission_id, a.module_id FROM users u LEFT JOIN astronauts a ON a.user_id=u.id`;
@@ -45,6 +45,26 @@ export class PostgresRepository implements Repository {
     return row ? { userId: String(row.user_id), expiresAt: String(row.expires_at) } : null;
   }
   async saveSession(id: string, user: string, expires: string) { (await this.run("INSERT INTO sessions VALUES(?,?,?)", id, user, expires)); }
+  async sessionAccount(id: string) {
+    const row=await this.get(`${selectAccount.replace("u.*,","u.*, s.expires_at,")} JOIN sessions s ON s.user_id=u.id WHERE s.id=?`,id);
+    return row ? {user:account(row)!,expiresAt:String(row.expires_at)} : null;
+  }
+  async claimSession(user: Account,id:string,expiresAt:string,currentId?:string) {
+    return this.db.atomic(async()=>{
+      // Lock only this account; concurrent logins cannot both claim it.
+      const fresh=await this.get("SELECT id FROM users WHERE id=? AND password_hash=? AND enabled=1 FOR UPDATE",user.id,user.passwordHash);
+      if(!fresh) throw new AppError(401,"INVALID_CREDENTIALS","La cuenta cambió. Inicia sesión de nuevo.");
+      await this.run("DELETE FROM sessions WHERE user_id=? AND expires_at<=?",user.id,new Date().toISOString());
+      const active=await this.get("SELECT id,expires_at FROM sessions WHERE user_id=? ORDER BY expires_at,id LIMIT 1",user.id);
+      if(active){
+        if(active.id!==currentId) throw new AppError(409,"SESSION_ACTIVE","Esta cuenta ya tiene una sesión activa. Cierra esa sesión o espera a que venza.");
+        return {id:String(active.id),expiresAt:String(active.expires_at)};
+      }
+      await this.saveSession(id,user.id,expiresAt);
+      await this.clearFailures(user.username);
+      return {id,expiresAt};
+    },false);
+  }
   async revokeSession(id: string) { (await this.run("DELETE FROM sessions WHERE id=?", id)); }
   async revokeUserSessions(id: string) { (await this.run("DELETE FROM sessions WHERE user_id=?", id)); }
   async blockedUntil(username: string) { const row = (await this.get("SELECT blocked_until FROM login_attempts WHERE username=? AND failures>=5", username)); return row ? String(row.blocked_until) : null; }

@@ -17,7 +17,9 @@ export function createServices(repo: PostgresRepository) {
 }
 const context = new AsyncLocalStorage<ReturnType<typeof createServices>>();
 export function services() { const value=context.getStore();if(!value) throw new Error("Request context required");return value; }
-export async function withServices<T>(work:()=>Promise<T>):Promise<T> {
+export async function withServices<T>(work:()=>Promise<T>,timing?:{connectionMs:number}):Promise<T> {
+ const started=performance.now();
  const client=await databasePool().connect();
+ if(timing)timing.connectionMs=performance.now()-started;
  try {return await context.run(createServices(new PostgresRepository(new Database(client,process.env.NASA_DATABASE_SCHEMA ?? "app"))),work);} finally {client.release();}
 }

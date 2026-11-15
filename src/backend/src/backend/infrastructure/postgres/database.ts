@@ -6,7 +6,7 @@ let pool: Pool | undefined;
 export function databasePool() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("Configura DATABASE_URL");
-  return pool ??= new Pool({ ...postgresConnection(url), max: 3, connectionTimeoutMillis: 10000, idleTimeoutMillis: 10000 });
+  return pool ??= new Pool({ ...postgresConnection(url), max: 3, connectionTimeoutMillis: 10000, idleTimeoutMillis: 60000, keepAlive: true });
 }
 
 /** Parameterized PostgreSQL statements shared by the application repositories. */
@@ -35,13 +35,13 @@ export class Database {
     };
   }
   async exec(sql: string) { await this.client.query(this.qualify(sql)); }
-  async atomic<T>(work: () => T | Promise<T>): Promise<T> {
+  async atomic<T>(work: () => T | Promise<T>, lockAccounts = true): Promise<T> {
     const nested = this.depth > 0;
     const name = `app_tx_${this.depth++}`;
     await this.exec(nested ? `SAVEPOINT ${name}` : "BEGIN");
     try {
       // Serialize changes to accounts, sessions and their dependent state.
-      if (!nested) await this.exec("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE");
+      if (!nested && lockAccounts) await this.exec("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE");
       const result = await work();
       await this.exec(nested ? `RELEASE SAVEPOINT ${name}` : "COMMIT");
       return result;
