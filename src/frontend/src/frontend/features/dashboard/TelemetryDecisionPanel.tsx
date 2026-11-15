@@ -5,10 +5,11 @@ import { api, ApiError, writeRequest } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
 import styles from "./telemetryDecision.module.css";
 
-type Indicator = {key:string;label:string;value:number|null;unit:string;quality:string;detail:string;trend?:number;alertLevel?:"review"|"priority"|null};
+type Indicator = {key:string;label:string;value:number|null;unit:string;quality:string;detail:string;trend?:number;trendSeconds?:number;checkRequired?:boolean;alertLevel?:"review"|"priority"|null};
+type Action = {id:string;priority:"priority"|"check"|"follow_up";title:string;reason:string;steps:string[];expected:string;escalation?:string};
 type Result = {
-  version:string;timestamp:string;scenario:{id:string;label:string;radiation:{instrument:string|null;location:string;n:number;p05?:number;median?:number;p95?:number;unit:string;interpretation:string;provenance?:string}|null};
-  state:{level:string;title:string;explanation:string;recommendations:string[];evidence:string[]};
+  version:string;timestamp:string;scenario:{id:string;label:string;context?:string;radiation:{instrument:string|null;location:string;n:number;p05?:number;median?:number;p95?:number;unit:string;interpretation:string;provenance?:string}|null};
+  state:{level:string;title:string;explanation:string;recommendations:string[];actions?:Action[];evidence:string[]};
   telemetry:{count:number;latestAt:string|null;ageSeconds:number|null;indicators:Indicator[]};
   rules:{freshnessSeconds:number;trendWindowSeconds:number};limitations:string[];
 };
@@ -93,16 +94,26 @@ export function TelemetryDecisionPanel() {
         <h3>{indicator.label}</h3>
         <strong>{expired||indicator.value===null?(es?"Sin dato vigente":"No current value"):`${indicator.value} ${indicator.unit}`}</strong>
         <p>{indicator.detail}</p>
-        {!expired&&indicator.quality==="valid"&&indicator.alertLevel&&<span className={styles.alertBadge}>{es?"Alerta · verificar lectura":"Alert · verify reading"}</span>}
-        {!expired&&indicator.trend!==undefined&&<small>Δ {indicator.trend} {indicator.unit} · {result.rules.trendWindowSeconds} s</small>}
+        {!expired&&indicator.quality==="valid"&&indicator.alertLevel&&<span className={styles.alertBadge}>{indicator.checkRequired?(es?"Señal a comprobar":"Signal needs checking"):(es?"Alerta · verificar lectura":"Alert · verify reading")}</span>}
+        {!expired&&indicator.trend!==undefined&&<small>Δ {indicator.trend>0?"+":""}{indicator.trend} {indicator.key==="spo2"?"pp":indicator.unit} · {indicator.trendSeconds!==undefined?`${indicator.trendSeconds} s`:`${es?"ventana":"window"} ${result.rules.trendWindowSeconds} s`}</small>}
       </article>)}</div>
-      {!expired&&<><h3>{es?"Acciones sugeridas":"Suggested actions"}</h3><ul>{result.state.recommendations.map(text=><li key={text}>{text}</li>)}</ul></>}
+      {(!expired||result.state.actions?.every(action=>["restore-capture","start-capture"].includes(action.id)))&&<div className={styles.actions}>
+        <h3>{es?"Qué hacer ahora":"What to do now"}</h3>
+        {result.state.actions?.length?<ol className={styles.actionList}>{result.state.actions.map(action=><li key={action.id} className={`${styles.action} ${action.priority==="priority"?styles.urgent:""}`}>
+          <div className={styles.actionHeading}><h4>{action.title}</h4><span>{action.priority==="priority"?(es?"Prioridad":"Priority"):action.priority==="check"?(es?"Comprobar":"Check"):(es?"Seguimiento":"Follow-up")}</span></div>
+          <p>{action.reason}</p>
+          {action.escalation&&<p className={styles.escalation}>{action.escalation}</p>}
+          <ol>{action.steps.map(step=><li key={step}>{step}</li>)}</ol>
+          <p className={styles.expected}><strong>{es?"Qué comprobar: ":"What to check: "}</strong>{action.expected}</p>
+        </li>)}</ol>:<ul>{result.state.recommendations.map(text=><li key={text}>{text}</li>)}</ul>}
+      </div>}
       {result.state.evidence.length>0&&<details><summary>{es?"Evidencia del análisis":"Analysis evidence"}</summary><ul>{result.state.evidence.map((text,index)=><li key={index}>{text}</li>)}</ul><small>{es?"Calculado":"Calculated"}: <time dateTime={result.timestamp}>{new Date(result.timestamp).toLocaleString(locale)}</time></small></details>}
       {result.scenario.radiation&&<details><summary>{es?"Referencia histórica de radiación":"Historical radiation reference"}</summary>
         {result.scenario.radiation.n>0?<p>{result.scenario.radiation.instrument} · {result.scenario.radiation.location} · n={result.scenario.radiation.n.toLocaleString(locale)} · p05={result.scenario.radiation.p05} · {es?"mediana":"median"}={result.scenario.radiation.median} · p95={result.scenario.radiation.p95} {result.scenario.radiation.unit}</p>:<p>{es?"Sin serie instrumental ISS aportada.":"No ISS instrumental series supplied."}</p>}
+        {result.scenario.context&&<p>{result.scenario.context}</p>}
         <p>{result.scenario.radiation.interpretation}</p><p>{es?"Resumen aportado; percentiles no recalculados sin los CSV originales. No representa dosis personal ni límites de seguridad.":"Supplied summary; percentiles have not been recalculated without the original CSVs. It does not represent personal dose or safety limits."}</p>
       </details>}
-      <details><summary>{es?"Alcance de las reglas":"Scope of the rules"}</summary><ul>{result.limitations.map(text=><li key={text}>{text}</li>)}</ul><small>{result.version}</small></details>
+      <details><summary>{es?"Alcance de las reglas":"Scope of the rules"}</summary><ul>{result.limitations.map(text=><li key={text}>{text}</li>)}</ul><p><a href="https://www.fda.gov/consumers/consumer-updates/pulse-oximeter-basics" target="_blank" rel="noreferrer">{es?"Cómo comprobar una lectura: FDA":"Checking a reading: FDA"}</a> · <a href="https://medlineplus.gov/lab-tests/pulse-oximetry/" target="_blank" rel="noreferrer">{es?"Orientación general: MedlinePlus":"General guidance: MedlinePlus"}</a></p><small>{result.version}</small></details>
     </>}
   </section>;
 }

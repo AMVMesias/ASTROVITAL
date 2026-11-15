@@ -52,3 +52,36 @@ test("metadatos de alerta identifican solo indicadores vigentes que activaron re
  assert.equal(run([s(1,{spo2:88},31000)]).telemetry.indicators[0].alertLevel,null);
  assert.equal(run([s(1,{spo2:0,estado_oxi_x50:50})]).telemetry.indicators[0].alertLevel,null);
 });
+
+test("caso SpO2 80 y pulso 300 genera acciones concretas sin descartar la prioridad como ruido",()=>{
+ const result=run([s(1,{spo2:80,bpm_oxi:300,bpm_ecg:0,estado_ecg_x50:50,rpm:0,estado_resp_x50:50}),s(2,{spo2:78,bpm_oxi:17})]);
+ assert.equal(result.state.level,"priority");
+ assert.equal(result.telemetry.indicators.find(metric=>metric.key==="bpm_oxi")?.alertLevel,"review");
+ assert.equal(result.telemetry.indicators.find(metric=>metric.key==="bpm_oxi")?.checkRequired,true);
+ const oxygen=result.state.actions.find(action=>action.id==="verify-oxygen")!;
+ assert.equal(oxygen.priority,"priority");assert.match(oxygen.title,/80/);assert.match(oxygen.escalation!,/urgente/);
+ assert.match(oxygen.reason,/no se puede descartar/);
+ assert.ok(result.state.actions.some(action=>action.id==="verify-oximeter-pulse"&&action.title.includes("300")));
+ assert.ok(result.state.actions.some(action=>action.id==="restore-ecg"));
+ assert.ok(result.state.actions.some(action=>action.id==="restore-respiration"));
+ assert.ok(!result.state.explanation.includes("CRaTER"));
+ assert.ok(result.state.actions.every(action=>action.reason&&action.steps.length&&action.expected));
+});
+test("cambio brusco del oxímetro se distingue de una discrepancia entre sensores",()=>{
+ const result=run([s(1,{bpm_oxi:130,bpm_ecg:0,estado_ecg_x50:50},1000),s(2,{bpm_oxi:70},2000)]);
+ assert.equal(result.state.level,"review");
+ assert.match(result.telemetry.indicators.find(metric=>metric.key==="bpm_oxi")!.detail,/pasó de 70 a 130/);
+ assert.ok(result.state.actions.some(action=>action.id==="verify-oximeter-pulse"));
+ assert.ok(!result.state.evidence.some(text=>text.includes("Discrepancia ECG")));
+});
+test("datos caducados solo recomiendan recuperar captura y no arrastran urgencia médica anterior",()=>{
+ const result=run([s(1,{spo2:80,bpm_oxi:300},31000)]);
+ assert.equal(result.state.level,"insufficient");
+ assert.deepEqual(result.state.actions.map(action=>action.id),["restore-capture"]);
+ assert.ok(result.telemetry.indicators.every(metric=>!metric.checkRequired&&!metric.alertLevel));
+});
+test("las tendencias informan el lapso real y no la ventana máxima",()=>{
+ const result=run([s(1,{spo2:98},1000),s(2,{spo2:97},3000),s(3,{spo2:96},6000)]);
+ assert.equal(result.telemetry.indicators[0].trend,2);
+ assert.equal(result.telemetry.indicators[0].trendSeconds,5);
+});

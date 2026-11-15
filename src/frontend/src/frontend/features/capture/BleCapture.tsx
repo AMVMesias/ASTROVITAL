@@ -99,7 +99,7 @@ export function BleCaptureProvider({children}:{children:ReactNode}){
     if(!active.current||attempt!==generation.current)return;const value=characteristic.value;if(!value)return;
     try{for(const line of frames.feed(new Uint8Array(value.buffer,value.byteOffset,value.byteLength))){
      const capturedAt=new Date().toISOString(),packet=decodeCsv(line,`${boot}:${sequence+1}`,capturedAt,activityRef.current);
-     if(packet.telemetry)ecgStream.append(packet.telemetry.fields.ecg,packet.telemetry.fields.estado_ecg_x50,Date.now());
+     if(packet.telemetry)ecgStream.append(packet.telemetry.fields.ecg,packet.telemetry.fields.estado_ecg_x50,Date.now(),packet.telemetry.fields.bpm_ecg);
      if(performance.now()-lastSample<1000)continue;
      sequence++;lastSample=performance.now();
      setView(v=>({...v,state:"Capturando",fields:packet.telemetry?.fields,capturedAt,received:v.received+1}));

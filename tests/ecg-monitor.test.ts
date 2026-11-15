@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {test} from "node:test";
-import {EcgStream,ecgSegments} from "../src/frontend/src/frontend/features/capture/ecgStream";
+import {EcgStream,ecgSegments,filterEcg,validatedEcgSegments,hasValidatedPulse} from "../src/frontend/src/frontend/features/capture/ecgStream";
 import {sensorHasAlert,type SensorDecision,type SensorSnapshot} from "../src/frontend/src/frontend/features/dashboard/readingPresentation";
 
 test("monitor conserva muestras BLE previas al muestreo de 1 Hz y reinicia al reconectar",()=>{
@@ -38,4 +38,33 @@ test("rojo requiere alerta del backend para la misma instantánea vigente",()=>{
  assert.equal(sensorHasAlert({...snapshot,deviceId:"two"},decision,"spo2",now),false);
  assert.equal(sensorHasAlert({...snapshot,readingId:"other"},decision,"spo2",now),false);
  assert.equal(sensorHasAlert(snapshot,{...decision,telemetry:{...decision.telemetry,indicators:[{key:"spo2",value:null,quality:"unavailable",alertLevel:"priority"}]}},"spo2",now),false);
+});
+
+test("el monitor conserva el estado de latido del firmware por separado de la señal eléctrica",()=>{
+ const stream=new EcgStream();stream.setConnected(true);
+ stream.append(49.4,50,1000,0);stream.setConnected(false);
+ const point=stream.getSnapshot().points[0];assert.equal(point.contact,true);assert.equal(point.state,50);assert.equal(point.bpm,0);
+});
+
+test("filtro visual elimina componente constante y reduce variación rápida sin alterar el original",()=>{
+ const points=Array.from({length:200},(_,index)=>({time:index*40,value:1000+30*Math.sin(2*Math.PI*index*40/1000*2)+(index%2?45:-45),contact:true,state:100,bpm:72}));
+ const copy=points.map(point=>({...point}));
+ const filtered=filterEcg(points);
+ const change=(values:readonly {value:number}[])=>values.slice(51).reduce((sum,point,index)=>sum+Math.abs(point.value-values[index+50].value),0);
+ assert.ok(change(filtered)<change(points)*.6);
+ assert.deepEqual(points,copy);
+ assert.deepEqual(filtered.map(point=>point.time),points.map(point=>point.time));
+ assert.ok(filtered.every(point=>point.bpm===72&&point.state===100));
+ const constant=filterEcg(points.map(point=>({...point,value:1000})));
+ assert.ok(constant.every(point=>point.value===0));
+});
+test("vista validada corta el trazo cuando el firmware no valida un pulso",()=>{
+ const points=[{time:1000,value:30,contact:true,state:100,bpm:72},
+ {time:1040,value:10,contact:true,state:50,bpm:0},
+ {time:1080,value:20,contact:true,state:100,bpm:72}];
+ assert.deepEqual(validatedEcgSegments(points,1100).map(segment=>segment.length),[1,1]);
+ assert.equal(hasValidatedPulse(points[1]),false);
+ assert.equal(hasValidatedPulse({...points[0],bpm:0}),false);
+ assert.equal(hasValidatedPulse({...points[0],bpm:NaN}),false);
+ assert.equal(hasValidatedPulse(points[0]),true);
 });

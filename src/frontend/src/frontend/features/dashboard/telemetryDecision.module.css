@@ -35,3 +35,17 @@
 .metrics .metricAlert { border: 2px solid #d32e42; background: #fff0f2; color: #9e152b; }
 .alertBadge { display: inline-block; padding: 5px 8px; border-radius: 8px; background: #b82037; color: #fff; font-size: 12px; font-weight: 700; }
 :global(html[data-theme="dark"]) .metrics .metricAlert { background: #401923; color: #ffd7df; border-color: #ff7188; }
+
+.actions { margin-top: 24px; }
+.actionList { padding: 0; list-style: none; display: grid; gap: 12px; }
+.action { border: 1px solid var(--dashboard-line,#dfe8f7); border-radius: 12px; padding: 16px; background: var(--dashboard-inset,#f7f9ff); }
+.actionHeading { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.actionHeading h4 { margin: 0; font-size: 16px; }
+.actionHeading > span { white-space: nowrap; border-radius: 20px; padding: 4px 8px; font-size: 11px; background: var(--dashboard-card,#fff); font-weight: 700; }
+.action p { line-height: 1.6; margin: 10px 0; }
+.action ol { padding-left: 22px; }
+.action .expected { padding-top: 10px; border-top: 1px solid var(--dashboard-line,#dfe8f7); font-size: 13px; margin-bottom: 0; }
+.urgent { border-left: 4px solid #c5253d; }
+.action .escalation { font-weight: 700; color: #a41d31; }
+:global(html[data-theme="dark"]) .action .escalation { color: #ffb5c3; }
+@media(max-width:560px) { .action { padding: 12px; } .actionHeading { flex-direction: column; gap: 6px; } }

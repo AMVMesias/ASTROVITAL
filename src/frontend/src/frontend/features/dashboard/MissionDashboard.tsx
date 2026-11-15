@@ -186,7 +186,12 @@ export function MissionDashboard() {
   const telemetryFresh=latestTelemetry && !telemetryDisconnected && readingFreshness(latestTelemetry,now)==="fresh";
   const matchingHeart=heart?.origin!=="device" || heart.deviceId===selectedDeviceId ? heart : undefined;
   const pulseStatus=currentPulseStatus(matchingHeart,device?.signal,latestTelemetry,now);
-  const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin señal",insufficient:"Sin pulso válido",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No signal",insufficient:"No valid pulse",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
+  const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin latido detectado",insufficient:"Sin pulso válido",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No heartbeat detected",insufficient:"No valid pulse",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
+  const pulseExplanation=pulseStatus==="no_signal"
+    ? (es?"Se recibe señal eléctrica, pero el ESP32 no detecta latidos válidos para calcular la frecuencia cardíaca.":"An electrical signal is being received, but the ESP32 has not detected valid beats to calculate heart rate.")
+    : pulseStatus==="insufficient"
+      ? (es?"Hay señal, pero todavía faltan intervalos válidos para calcular el pulso.":"A signal is present, but there are not enough valid intervals to calculate heart rate yet.")
+      : (es?"No hay pulso actual válido para evaluar. Revisa el contacto de los sensores y la conexión.":"No current valid pulse to assess. Check sensor contact and connection.");
   const heartAlert=pulseStatus==="live"&&(heartState==="deviation"||(!telemetryDisconnected&&sensorHasAlert(latestTelemetry,data?.dss,"bpm_ecg",now)&&heart?.value===data?.dss?.telemetry.indicators.find(value=>value.key==="bpm_ecg")?.value));
   const activeGroups=groupNotices(data?.alerts.filter((a)=>a.status!=="closed")??[]);
   const activeAlerts=activeGroups.map(group=>group[0]);
@@ -325,7 +330,7 @@ export function MissionDashboard() {
                 <p className={styles.timestamp}>
                   {heart ? (
                     <time dateTime={heart.capturedAt}>
-                      {es ? "Última válida: " : "Last valid: "}{heart.value} lpm · {formatTime(heart.capturedAt)}
+                      {es ? "Última FC válida (histórica): " : "Last valid HR (historical): "}{heart.value} lpm · {formatTime(heart.capturedAt)}
                     </time>
                   ) : es ? (
                     "Sin mediciones registradas"
@@ -461,7 +466,7 @@ export function MissionDashboard() {
                 </h3>
                 {pulseStatus==="live" && heart && heartAssessment?.reference && <p>{es?"Lectura actual":"Current reading"}: {heart.value} lpm · {es?"Referencia":"Baseline"}: {heartAssessment.reference.mean.toFixed(1)} lpm.</p>}
                 <p>
-                  {pulseStatus!=="live" ? (es ? "No hay pulso actual válido para evaluar. Revisa los sensores y la conexión." : "No valid current pulse to assess. Check the sensors and connection.") : heartState === "stable"
+                  {pulseStatus!=="live" ? pulseExplanation : heartState === "stable"
                     ? es
                       ? "Sin desviación detectada en la frecuencia cardíaca en reposo respecto a tu referencia personal."
                       : "No resting heart-rate deviation detected against your personal reference."
@@ -474,6 +479,7 @@ export function MissionDashboard() {
                 </p>
               </div>
             </div>
+            <EcgMonitor locale={locale} alert={heartAlert} />
             <p className={styles.rule}>
               {heartAssessment?.ruleVersion ??
                 (es
@@ -636,7 +642,6 @@ export function MissionDashboard() {
           </div>
         </div>
       )}
-      <EcgMonitor locale={locale} alert={heartAlert} />
       <TelemetryDecisionPanel />
       <footer className={styles.footer}>
         <p>

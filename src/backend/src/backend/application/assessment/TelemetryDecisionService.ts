@@ -4,7 +4,7 @@ import type { PostgresRepository } from "../../infrastructure/postgres/app/Postg
 import { createPostgresEnvironmentRepository } from "../../infrastructure/postgres/app/environmentRepository";
 import type { AuthService } from "../auth/AuthService";
 import type { TelemetryService } from "../measurements/TelemetryService";
-import { analyzeTelemetry, type RadiationRef, type TelemetrySample } from "./telemetryDecisionTree";
+import { analyzeTelemetry, telemetryQualityRules, type RadiationRef, type TelemetrySample } from "./telemetryDecisionTree";
 import radiation from "../../../../../../data/radlab_reference_summaries.json";
 import { demoRules } from "./AssessmentService";
 
@@ -33,7 +33,7 @@ export class TelemetryDecisionService {
         scenarioScope:["moon_surface","mars_surface"].includes(scenarioId)?"exterior":"cabin",
         scenarioStartedAt:assignment.effectiveFrom,maxAgeMs:demoRules.heart_rate.maxAgeMs,
         radiation:supplied?{...supplied,provenance:radiation.provenance.status}:null});
-      return {...result,assignment,rules:{freshnessSeconds:demoRules.heart_rate.maxAgeMs/1000,trendWindowSeconds:120,maximumSamples:100},
+      return {...result,assignment,rules:{freshnessSeconds:demoRules.heart_rate.maxAgeMs/1000,trendWindowSeconds:120,maximumSamples:100,signalQuality:telemetryQualityRules},
         radiationProvenance:radiation.provenance,
         limitations:[...result.limitations,"Los percentiles de radiación provienen del resumen aportado; no se han recalculado sin sus CSV originales.","Una señal de desconexión posterior invalida las estimaciones actuales; los datos crudos permanecen en el historial."]};
     });

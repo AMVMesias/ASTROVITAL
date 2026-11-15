@@ -43,3 +43,13 @@ Ejecutar `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:bridge` 
 Cada indicador expone `alertLevel` (`review`, `priority` o null) para identificar qué regla produjo la revisión. El frontend resalta en rojo solo el indicador vigente y la instantánea que coincide en dispositivo, fecha e identificador con el DSS; las desviaciones respecto a la referencia personal también se destacan. Se conserva texto explicativo para no depender solo del color.
 
 El dashboard añade un monitor de señal ECG cruda con la captura BLE web, anterior al muestreo de la API. Consultar [CAPTURA_BLE_WEB.md](CAPTURA_BLE_WEB.md) para frecuencia, escala y límites. No utiliza instantáneas de 1 Hz para simular un electrocardiograma ni modifica reglas médicas para obtener un color.
+
+## Acciones trazables (reglas 2.2)
+
+`state.actions` devuelve título, motivo, pasos, criterio de comprobación y, cuando corresponde, escalamiento. El panel muestra estas acciones en «Qué hacer ahora»; `state.recommendations` se conserva para clientes anteriores. Cada acción se deriva de los valores y estados actuales, no de la referencia histórica de radiación.
+
+Para el ejemplo SpO₂ 80 %, pulso de oxímetro 300 lpm y ECG/respiración no disponibles, se ofrecen cuatro acciones: comprobar la saturación, contrastar el pulso, recuperar ECG y recuperar RPM. Una advertencia de calidad del pulso **no elimina la prioridad de la saturación baja**. No se presentan los ceros sin contacto como mediciones humanas.
+
+El valor 300 lpm coincide con el techo de formato del pulso; también se pide comprobación ante un cambio de al menos 40 lpm entre las dos últimas muestras válidas separadas por hasta 10 segundos. Son reglas técnicas demostrativas de revisión, no límites fisiológicos ni pruebas de artefacto. No recortan ni corrigen valores. `checkRequired` indica necesidad de contraste; no invalida automáticamente una lectura aceptada por el firmware. La tendencia muestra el tiempo realmente transcurrido entre sus extremos y usa puntos porcentuales para SpO₂.
+
+Los pasos de comprobación se apoyan en las [indicaciones de uso y limitaciones de la FDA](https://www.fda.gov/consumers/consumer-updates/pulse-oximeter-basics). La orientación de escalamiento se puede consultar en [MedlinePlus](https://medlineplus.gov/lab-tests/pulse-oximetry/). Estas fuentes no validan el montaje ni sus estimaciones. No se indican tratamientos, ajustes de oxígeno o cambios del traje. Al caducar los datos se retiran las acciones fisiológicas actuales y se solicita recuperar la captura.

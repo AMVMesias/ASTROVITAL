@@ -67,3 +67,13 @@ Conectar en `/bluetooth` y navegar al resumen dentro del panel conserva el flujo
 La escala es automática y utiliza unidades crudas del AD8232, no milivoltios calibrados. El trazo se interrumpe ante pérdida de contacto o huecos mayores de 500 ms y se oculta cuando la captura se desconecta o no llegan datos durante tres segundos. Es una vista de monitor, no un ECG diagnóstico.
 
 Los valores y tarjetas se resaltan en rojo cuando una regla vigente señala una desviación o revisión; el indicador DSS incluye `alertLevel`. Los datos sin contacto, caducados o de otra instantánea/dispositivo no heredan el rojo. El monitor cambia a rojo únicamente para una alerta cardíaca actual. No se crean nuevos límites clínicos por el color: las reglas de demostración y la referencia personal siguen siendo las existentes. La respiración no recibe un intervalo de normalidad inventado; se destaca solo si una regla configurada lo indica.
+
+El monitor está integrado dentro de **Evaluación actual**, con papel de cuadrícula y trazo fino. **Mostrar señal cruda** permite alternar entre el filtrado de visualización y los datos recibidos, manteniendo los tiempos y los valores originales. No añade picos, no regulariza latidos y no calcula BPM. Una señal eléctrica variable puede existir con `estado_ecg_x50=50` y BPM cero: se etiqueta **Sin latido detectado**, mientras la tarjeta de frecuencia conserva `—` y la última FC válida como histórica. El monitor muestra el mismo estado del firmware para no equiparar recepción de voltaje con detección de latidos.
+
+### Filtrado y coherencia con la frecuencia
+
+La vista predeterminada ahora usa rechazo de componente continua/deriva (0.5 Hz) y suavizado pasa-bajos de primer orden ajustado al ritmo de recepción (hasta 8 Hz, limitado al 30% de la tasa estimada). Es un filtro de visualización: conserva tiempos y estados, no modifica las muestras guardadas ni determina latidos. La tasa de recepción BLE no sustituye el reloj de adquisición de la placa; no se puede recuperar información que el firmware no transmitió.
+
+La vista filtrada dibuja solo tramos con contacto y pulso disponible según el firmware (`estado_ecg_x50=100`, BPM finito entre 1 y 300). Se corta al perder esa condición, sin unir ambos lados de un tramo inválido. Mientras la tarjeta de FC no tenga un pulso validado, el monitor muestra **Señal sin validar · FC no disponible** y no presenta el ruido como una onda de latidos confirmados.
+
+**Mostrar señal cruda** permite inspeccionar los voltajes sin filtrar, con etiqueta explícita cuando no hay pulso validado. Los datos originales se conservan. Esta validación del firmware es una condición de formato del prototipo, no una certificación clínica de calidad de señal.

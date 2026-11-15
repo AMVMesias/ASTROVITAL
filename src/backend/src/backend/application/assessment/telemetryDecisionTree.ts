@@ -1,3 +1,4 @@
+import {telemetryActions,type TelemetryAction} from "./telemetryActions";
 /** Regla documental / demostrativa. No es un diagnóstico ni protocolo EVA.
  * Analiza campos REALES del contrato TelemetryService y NUNCA convierte
  * radiación ambiental en dosis personal o cambios fisiológicos.
@@ -8,14 +9,15 @@ export type TelemetryFields = {
 };
 export type TelemetrySample = {readingId:string; capturedAt:string; receivedAt?:string; deviceId?:string; fields:TelemetryFields};
 export type Level = "no_data" | "sensor_issue" | "insufficient" | "observing" | "review" | "priority";
-export type Indicator = {key:string;label:string;value:number|null;unit:string;quality:"valid"|"unavailable"|"stale";detail:string;trend?:number;alertLevel:"review"|"priority"|null};
+export type Indicator = {key:string;label:string;value:number|null;unit:string;quality:"valid"|"unavailable"|"stale";detail:string;trend?:number;trendSeconds?:number;checkRequired?:boolean;alertLevel:"review"|"priority"|null};
 export type RadiationRef = {mission:string;instrument:string|null;location:string;n:number;from?:string;to?:string;p05?:number;median?:number;p95?:number;unit:string;interpretation:string;provenance?:string};
 export type DecisionResult = {
- version:string;timestamp:string; scenario:{id:string;label:string;scope:string;radiation:RadiationRef|null};
- state:{level:Level;title:string;explanation:string;recommendations:string[];evidence:string[]};
+ version:string;timestamp:string; scenario:{id:string;label:string;scope:string;radiation:RadiationRef|null;context:string};
+ state:{level:Level;title:string;explanation:string;recommendations:string[];actions:TelemetryAction[];evidence:string[]};
  telemetry:{count:number;latestAt:string|null;ageSeconds:number|null;indicators:Indicator[];lastReadingId:string|null;deviceId:string|null};
  limitations:string[];
 };
+export const telemetryQualityRules={pulseJumpLpm:40,pulseJumpMaxSeconds:10,pulseFormatCeiling:300};
 const OXIMETER_OK = new Set([150,200]);
 const finite=(n:number)=>Number.isFinite(n);
 const round=(n:number,d=1)=>Number(n.toFixed(d));
@@ -51,7 +53,7 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
  const metric=(key:'spo2'|'bpm_ecg'|'bpm_oxi'|'rpm',label:string,unit:string,detail:string):Indicator=>{
    const value=get(key),points=series(key);
    return {key,label,value,unit,quality:stale?'stale':value===null?'unavailable':'valid',detail,alertLevel:null,
-     ...(!stale&&value!==null&&points.length>=3?{trend:round(points[0]-points[points.length-1])}:{})};
+     ...(!stale&&value!==null&&points.length>=3?{trend:round(points[0]-points[points.length-1]),trendSeconds:round((Date.parse(recent.filter(sample=>sensorValue(sample.fields,key)!==null)[0].capturedAt)-Date.parse(recent.filter(sample=>sensorValue(sample.fields,key)!==null).at(-1)!.capturedAt))/1000)}:{})};
  };
  const indicators:Indicator[]=[
  metric('spo2','Saturación periférica estimada','%','MAX30102; requiere señal válida y buen contacto.'),
@@ -61,18 +63,17 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
  ];
  const mark=(key:string,alertLevel:'review'|'priority')=>{const indicator=indicators.find(value=>value.key===key);if(indicator?.quality==='valid')indicator.alertLevel=alertLevel;};
  let level:Level='observing';let title='Seguimiento de lecturas';const evidence:string[]=[];
- const recommendations:string[]=[];
- if(!latest){level='no_data';title='Sin datos para este escenario';recommendations.push('Espere mediciones nuevas del ESP32 con el ambiente seleccionado.');}
- else if(stale){level='insufficient';title='Datos desactualizados';recommendations.push('Compruebe la conexión del ESP32: no interprete datos antiguos como mediciones actuales.');}
+ if(!latest){level='no_data';title='Sin datos para este escenario';}
+ else if(stale){level='insufficient';title='Datos desactualizados';}
  else {
   const ox=series('spo2'),bpm=series('bpm_ecg'),resp=series('rpm');
-  if(ox.length===0 || get('spo2')===null){level='sensor_issue';title='Sin lectura de oxígeno fiable';recommendations.push('Revise contacto, movimiento y estado del oxímetro. No interprete SpO₂ = 0 como oxígeno sanguíneo cero.');}
+  if(ox.length===0 || get('spo2')===null){level='sensor_issue';title='Sin lectura de oxígeno fiable';}
   if(get('spo2')!==null){
    const value=get('spo2')!;
-   if(value<90){mark('spo2','priority');level='priority';title='Saturación estimada marcadamente baja';evidence.push(`Lectura más reciente SpO₂ ${value}% (válida según estado del firmware).`);
+   if(value<90){mark('spo2','priority');level='priority';title=`SpO₂ ${value} %: verificación prioritaria`;evidence.push(`Lectura más reciente SpO₂ ${value}% (aceptada por el formato del firmware; sin confirmación clínica).`);
     if(ox.length>=3&&ox.slice(0,3).every(v=>v<90))evidence.push('Tres instantáneas válidas recientes por debajo del umbral de demostración; pueden repetir una estimación del firmware.');
-    recommendations.push('Repita la lectura asegurando buen contacto y minimizando movimiento; solicite evaluación médica inmediata conforme al protocolo aplicable si se confirma o hay síntomas.');}
-   else if(value<95){mark('spo2','review');level='review';title='Revisar tendencia de oxigenación';evidence.push(`Última SpO₂ estimada ${value}%.`);recommendations.push('Revise la calidad de la señal y la tendencia; el valor aislado no diagnostica hipoxia.');}
+    }
+   else if(value<95){mark('spo2','review');level='review';title='Revisar tendencia de oxigenación';evidence.push(`Última SpO₂ estimada ${value}%.`);}
    else evidence.push(`Última SpO₂ estimada ${value}%; sin alerta por la regla terrestre demostrativa.`);
   }
   if(get('bpm_ecg')!==null&&bpm.length>=5){
@@ -81,7 +82,7 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
     mark('bpm_ecg','review');
     evidence.push(`Cambio observado de pulso ECG ≈ ${round(newer-baseline)} lpm respecto a muestras recientes (NO referencia clínica personal).`);
     if(levelRank(level)<levelRank('review')){level='review';title='Cambio de frecuencia cardíaca a revisar';}
-    recommendations.push('Compruebe actividad, postura, calidad de ECG y persistencia del cambio.');
+
    }
   }
   const e=get('bpm_ecg'),o=get('bpm_oxi');
@@ -89,13 +90,25 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
    mark('bpm_ecg','review');mark('bpm_oxi','review');
    evidence.push(`Discrepancia ECG/oxímetro de ${round(Math.abs(e-o))} lpm.`);
    if(levelRank(level)<levelRank('review')){level='review';title='Comprobar coherencia entre sensores';}
-   recommendations.push('Revise movimiento y contacto de ambos sensores antes de interpretar el pulso.');
+
   }
-  if(get('rpm')===null)recommendations.push('Respiración no disponible o inválida: revise el MPU6050 y su colocación.');
-  else evidence.push(`Respiración estimada ${get('rpm')} rpm; no permite diagnosticar trastornos respiratorios por sí sola.`);
+  const oxPulseSamples=recent.filter(sample=>sensorValue(sample.fields,'bpm_oxi')!==null);
+  const pulseJump=o!==null&&oxPulseSamples.length>=2&&Date.parse(oxPulseSamples[0].capturedAt)-Date.parse(oxPulseSamples[1].capturedAt)<=telemetryQualityRules.pulseJumpMaxSeconds*1000&&Math.abs(o-sensorValue(oxPulseSamples[1].fields,'bpm_oxi')!)>=telemetryQualityRules.pulseJumpLpm;
+  if(o!==null&&(o===telemetryQualityRules.pulseFormatCeiling||pulseJump)){
+   mark('bpm_oxi','review');
+   const pulse=indicators.find(metric=>metric.key==='bpm_oxi')!;
+   pulse.checkRequired=true;
+   pulse.detail=o===telemetryQualityRules.pulseFormatCeiling
+     ? `El oxímetro informa ${o} lpm, el límite superior del formato admitido. Esto no confirma la exactitud del pulso.`
+     : `El pulso del oxímetro pasó de ${sensorValue(oxPulseSamples[1].fields,'bpm_oxi')} a ${o} lpm entre dos instantáneas recientes. La causa puede ser fisiológica o de captura; requiere contraste.`;
+   evidence.push(pulse.detail);
+   const oxygen=indicators.find(metric=>metric.key==='spo2')!;
+   if(oxygen.value!==null){oxygen.checkRequired=true;oxygen.detail='MAX30102: el pulso del mismo sensor presenta un valor límite o un cambio brusco; contrastar también la SpO₂.';}
+   if(levelRank(level)<levelRank('review')){level='review';title='Lectura del oxímetro a comprobar';}
+  }
+  if(get('rpm')!==null)evidence.push(`Respiración estimada ${get('rpm')} rpm; no permite diagnosticar trastornos respiratorios por sí sola.`);
   if(get('rpm')!==null&&resp.length>=3){const delta=round(resp[0]-resp[resp.length-1]);if(Math.abs(delta)>=6)evidence.push(`Variación de respiración estimada de ${delta} rpm durante la ventana observada; comprobar artefactos de movimiento.`);}
-  if(recent.length<3 && level==='observing'){level='insufficient';title='Historial reciente insuficiente';recommendations.push('Se necesitan varias lecturas temporalmente próximas para una tendencia.');}
-  if(!recommendations.length)recommendations.push('Continúe el monitoreo y registre actividad y síntomas si los hubiera.');
+  if(recent.length<3 && level==='observing'){level='insufficient';title='Historial reciente insuficiente';}
  }
  const context:Record<string,string>={
   iss_leo:'La microgravedad y las condiciones de cabina pueden influir en el contexto; falta telemetría radiológica ISS en este paquete.',
@@ -105,13 +118,14 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
  };
  const explanation=(!latest?'Todavía no hay lecturas posteriores a la selección del escenario.':
   stale?'La señal más reciente no es actual. No se emitirán conclusiones fisiológicas basadas en datos antiguos.':
-  level==='priority'?'La SpO₂ estimada es baja en una lectura cuyo estado del sensor permite usar el valor. Este resultado exige confirmación y evaluación, no constituye por sí solo un diagnóstico de hipoxia.':
+  level==='priority'?`El MAX30102 informa SpO₂ de ${get('spo2')} %. Confirma la lectura con un instrumento de uso médico y aplica las acciones prioritarias; el prototipo no permite determinar la causa.`:
   level==='sensor_issue'?'El oxímetro no proporciona una lectura válida; el estado de señal tiene prioridad sobre cualquier número mostrado.':
   level==='review'?'Se detectó un valor o cambio que conviene revisar y verificar con el contexto de actividad y la calidad del sensor.':
-  'Las mediciones disponibles no activaron las reglas de advertencia demostrativas. Eso no significa que se hayan descartado todos los riesgos médicos.')+' '+(context[input.scenarioId]??'No hay referencia ambiental para este escenario.');
- return {version:'dss-telemetry-2.1-demo',timestamp:now.toISOString(),
-  scenario:{id:input.scenarioId,label:input.scenarioLabel,scope:input.scenarioScope,radiation:input.radiation},
-  state:{level,title,explanation,recommendations:[...new Set(recommendations)],evidence},
+  'Las mediciones disponibles no activaron las reglas de advertencia demostrativas. Eso no significa que se hayan descartado todos los riesgos médicos.');
+ const actions=telemetryActions({fields:latest?.fields,indicators,stale,count:recent.length});
+ return {version:'dss-telemetry-2.2-demo',timestamp:now.toISOString(),
+  scenario:{id:input.scenarioId,label:input.scenarioLabel,scope:input.scenarioScope,radiation:input.radiation,context:context[input.scenarioId]??"Sin referencia para este escenario."},
+  state:{level,title,explanation,recommendations:actions.map(action=>`${action.title}: ${action.steps.join(" ")}${action.escalation?" "+action.escalation:""}`),actions,evidence},
   telemetry:{count:recent.length,latestAt:latest?.capturedAt??null,ageSeconds:age,indicators,lastReadingId:latest?.readingId??null,deviceId:latest?.deviceId??null},
   limitations:["Sistema de apoyo y demostración; no sustituye valoración médica ni está certificado para EVA.","Reglas de SpO₂ basadas en cribado terrestre; NO validadas para trajes, hipobaria ni exploración espacial.","Los datos históricos de radiación NO predicen cambios instantáneos en SpO₂, ECG o respiración.","El perfil ambiental describe referencias históricas, no sensores activos dentro del traje o de la cabina."]};
 }
