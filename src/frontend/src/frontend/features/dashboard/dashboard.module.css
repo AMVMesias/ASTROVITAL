@@ -710,3 +710,9 @@
     margin-top: 5px;
   }
 }
+
+.alertCard { border: 2px solid #d32e42; background: #fff0f2; }
+.alertCard .value { color: #b01831; }
+.alertCard .alertBadge { color: #fff; background: #b82037; }
+:global(html[data-theme="dark"]) .alertCard { border-color: #ff7188; background: #401923; }
+:global(html[data-theme="dark"]) .alertCard .value { color: #ffb5c3; }

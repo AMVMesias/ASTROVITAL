@@ -46,7 +46,7 @@ export function readingFreshness(
 }
 
 export type SensorSnapshot = {
-  deviceId: string; capturedAt: string; maxAgeSeconds?: number;
+  deviceId: string; readingId?:string; capturedAt: string; maxAgeSeconds?: number;
   sensors: { ecg?: {state:number; bpm:number|null}; oximeter: {spo2:number|null}; respiration:{rpm:number|null} };
 };
 export function currentPulseStatus(reading:Reading|undefined, signal:{status:string;observedAt:string}|null|undefined, snapshot:SensorSnapshot|undefined, now:number) {
@@ -71,4 +71,18 @@ export function readingAssessment(
       result.measurementId === reading.id &&
       result.indicator === reading.indicator,
   );
+}
+
+export type SensorDecision = {
+ timestamp:string;
+ telemetry:{latestAt:string|null;lastReadingId:string|null;deviceId?:string|null;indicators:{key:string;value:number|null;quality:string;alertLevel?:"review"|"priority"|null}[]};
+};
+/** Never carry a red warning onto another snapshot, device, stale or absent value. */
+export function sensorHasAlert(snapshot:SensorSnapshot|undefined,decision:SensorDecision|null|undefined,key:string,now:number):boolean {
+ if(!snapshot||!decision||readingFreshness(snapshot,now)!=="fresh")return false;
+ if(snapshot.readingId!==decision.telemetry.lastReadingId||snapshot.deviceId!==decision.telemetry.deviceId||snapshot.capturedAt!==decision.telemetry.latestAt)return false;
+ const calculated=Date.parse(decision.timestamp);
+ if(!Number.isFinite(calculated)||calculated>now||now-calculated>30000)return false;
+ const indicator=decision.telemetry.indicators.find(value=>value.key===key);
+ return indicator?.quality==="valid"&&indicator.value!==null&&!!indicator.alertLevel;
 }

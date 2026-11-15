@@ -43,3 +43,12 @@ test("valida reloj y vigencia configurados",()=>{
  assert.throws(()=>run([],{maxAgeMs:0}));
  assert.throws(()=>run([],{scenarioStartedAt:"invalid"}));
 });
+
+test("metadatos de alerta identifican solo indicadores vigentes que activaron reglas",()=>{
+ const low=run([s(1,{spo2:88})]);
+ assert.equal(low.telemetry.indicators.find(i=>i.key==="spo2")?.alertLevel,"priority");
+ assert.equal(low.telemetry.indicators.find(i=>i.key==="rpm")?.alertLevel,null);
+ assert.equal(run([s(1,{spo2:93})]).telemetry.indicators[0].alertLevel,"review");
+ assert.equal(run([s(1,{spo2:88},31000)]).telemetry.indicators[0].alertLevel,null);
+ assert.equal(run([s(1,{spo2:0,estado_oxi_x50:50})]).telemetry.indicators[0].alertLevel,null);
+});

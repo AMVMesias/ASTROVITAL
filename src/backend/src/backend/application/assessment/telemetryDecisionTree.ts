@@ -8,12 +8,12 @@ export type TelemetryFields = {
 };
 export type TelemetrySample = {readingId:string; capturedAt:string; receivedAt?:string; deviceId?:string; fields:TelemetryFields};
 export type Level = "no_data" | "sensor_issue" | "insufficient" | "observing" | "review" | "priority";
-export type Indicator = {key:string;label:string;value:number|null;unit:string;quality:"valid"|"unavailable"|"stale";detail:string;trend?:number};
+export type Indicator = {key:string;label:string;value:number|null;unit:string;quality:"valid"|"unavailable"|"stale";detail:string;trend?:number;alertLevel:"review"|"priority"|null};
 export type RadiationRef = {mission:string;instrument:string|null;location:string;n:number;from?:string;to?:string;p05?:number;median?:number;p95?:number;unit:string;interpretation:string;provenance?:string};
 export type DecisionResult = {
  version:string;timestamp:string; scenario:{id:string;label:string;scope:string;radiation:RadiationRef|null};
  state:{level:Level;title:string;explanation:string;recommendations:string[];evidence:string[]};
- telemetry:{count:number;latestAt:string|null;ageSeconds:number|null;indicators:Indicator[];lastReadingId:string|null};
+ telemetry:{count:number;latestAt:string|null;ageSeconds:number|null;indicators:Indicator[];lastReadingId:string|null;deviceId:string|null};
  limitations:string[];
 };
 const OXIMETER_OK = new Set([150,200]);
@@ -50,7 +50,7 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
  const series=(key:'spo2'|'bpm_ecg'|'bpm_oxi'|'rpm')=>recent.map(s=>sensorValue(s.fields,key)).filter((v):v is number=>v!==null);
  const metric=(key:'spo2'|'bpm_ecg'|'bpm_oxi'|'rpm',label:string,unit:string,detail:string):Indicator=>{
    const value=get(key),points=series(key);
-   return {key,label,value,unit,quality:stale?'stale':value===null?'unavailable':'valid',detail,
+   return {key,label,value,unit,quality:stale?'stale':value===null?'unavailable':'valid',detail,alertLevel:null,
      ...(!stale&&value!==null&&points.length>=3?{trend:round(points[0]-points[points.length-1])}:{})};
  };
  const indicators:Indicator[]=[
@@ -59,6 +59,7 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
  metric('bpm_oxi','Frecuencia por oxímetro','lpm','MAX30102; puede discrepar durante movimiento.'),
  metric('rpm','Frecuencia respiratoria estimada','rpm','Estimación mediante movimiento MPU6050; no es capnografía.')
  ];
+ const mark=(key:string,alertLevel:'review'|'priority')=>{const indicator=indicators.find(value=>value.key===key);if(indicator?.quality==='valid')indicator.alertLevel=alertLevel;};
  let level:Level='observing';let title='Seguimiento de lecturas';const evidence:string[]=[];
  const recommendations:string[]=[];
  if(!latest){level='no_data';title='Sin datos para este escenario';recommendations.push('Espere mediciones nuevas del ESP32 con el ambiente seleccionado.');}
@@ -68,15 +69,16 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
   if(ox.length===0 || get('spo2')===null){level='sensor_issue';title='Sin lectura de oxígeno fiable';recommendations.push('Revise contacto, movimiento y estado del oxímetro. No interprete SpO₂ = 0 como oxígeno sanguíneo cero.');}
   if(get('spo2')!==null){
    const value=get('spo2')!;
-   if(value<90){level='priority';title='Saturación estimada marcadamente baja';evidence.push(`Lectura más reciente SpO₂ ${value}% (válida según estado del firmware).`);
+   if(value<90){mark('spo2','priority');level='priority';title='Saturación estimada marcadamente baja';evidence.push(`Lectura más reciente SpO₂ ${value}% (válida según estado del firmware).`);
     if(ox.length>=3&&ox.slice(0,3).every(v=>v<90))evidence.push('Tres instantáneas válidas recientes por debajo del umbral de demostración; pueden repetir una estimación del firmware.');
     recommendations.push('Repita la lectura asegurando buen contacto y minimizando movimiento; solicite evaluación médica inmediata conforme al protocolo aplicable si se confirma o hay síntomas.');}
-   else if(value<95){level='review';title='Revisar tendencia de oxigenación';evidence.push(`Última SpO₂ estimada ${value}%.`);recommendations.push('Revise la calidad de la señal y la tendencia; el valor aislado no diagnostica hipoxia.');}
+   else if(value<95){mark('spo2','review');level='review';title='Revisar tendencia de oxigenación';evidence.push(`Última SpO₂ estimada ${value}%.`);recommendations.push('Revise la calidad de la señal y la tendencia; el valor aislado no diagnostica hipoxia.');}
    else evidence.push(`Última SpO₂ estimada ${value}%; sin alerta por la regla terrestre demostrativa.`);
   }
   if(get('bpm_ecg')!==null&&bpm.length>=5){
    const baseline=median(bpm.slice(2));const newer=median(bpm.slice(0,2));
    if(baseline!==null&&newer!==null&&Math.abs(newer-baseline)>=20){
+    mark('bpm_ecg','review');
     evidence.push(`Cambio observado de pulso ECG ≈ ${round(newer-baseline)} lpm respecto a muestras recientes (NO referencia clínica personal).`);
     if(levelRank(level)<levelRank('review')){level='review';title='Cambio de frecuencia cardíaca a revisar';}
     recommendations.push('Compruebe actividad, postura, calidad de ECG y persistencia del cambio.');
@@ -84,6 +86,7 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
   }
   const e=get('bpm_ecg'),o=get('bpm_oxi');
   if(e!==null&&o!==null&&Math.abs(e-o)>=20){
+   mark('bpm_ecg','review');mark('bpm_oxi','review');
    evidence.push(`Discrepancia ECG/oxímetro de ${round(Math.abs(e-o))} lpm.`);
    if(levelRank(level)<levelRank('review')){level='review';title='Comprobar coherencia entre sensores';}
    recommendations.push('Revise movimiento y contacto de ambos sensores antes de interpretar el pulso.');
@@ -109,6 +112,6 @@ export function analyzeTelemetry(input:{samples:readonly TelemetrySample[];scena
  return {version:'dss-telemetry-2.1-demo',timestamp:now.toISOString(),
   scenario:{id:input.scenarioId,label:input.scenarioLabel,scope:input.scenarioScope,radiation:input.radiation},
   state:{level,title,explanation,recommendations:[...new Set(recommendations)],evidence},
-  telemetry:{count:recent.length,latestAt:latest?.capturedAt??null,ageSeconds:age,indicators,lastReadingId:latest?.readingId??null},
+  telemetry:{count:recent.length,latestAt:latest?.capturedAt??null,ageSeconds:age,indicators,lastReadingId:latest?.readingId??null,deviceId:latest?.deviceId??null},
   limitations:["Sistema de apoyo y demostración; no sustituye valoración médica ni está certificado para EVA.","Reglas de SpO₂ basadas en cribado terrestre; NO validadas para trajes, hipobaria ni exploración espacial.","Los datos históricos de radiación NO predicen cambios instantáneos en SpO₂, ECG o respiración.","El perfil ambiental describe referencias históricas, no sensores activos dentro del traje o de la cabina."]};
 }

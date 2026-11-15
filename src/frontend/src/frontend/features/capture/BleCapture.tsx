@@ -1,5 +1,6 @@
 "use client";
-import {createContext,useContext,useEffect,useRef,useState,type ReactNode} from "react";
+import {createContext,useCallback,useContext,useEffect,useRef,useState,useSyncExternalStore,type ReactNode} from "react";
+import {EcgStream,EMPTY_ECG} from "./ecgStream";
 import {api,ApiError,writeRequest} from "../../lib/api";
 import {bluetoothUnavailableReason,bluetoothConnectionError,bluetoothStep,type BluetoothEnvironment} from "./compatibility";
 import {BleFrames,decodeCsv,type CapturePacket,type TelemetryFields} from "./protocol";
@@ -12,6 +13,13 @@ type Options={deviceId:string;service:string;characteristic:string;copies:1|2};
 type View={state:string;error:string;received:number;confirmed:number;dropped:number;pending:number;fields?:TelemetryFields;capturedAt?:string;name?:string};
 type Capture={view:View;activity:Activity;setActivity(activity:Activity):void;connect(options:Options):Promise<void>;disconnect():void};
 const Context=createContext<Capture|null>(null);
+const EcgContext=createContext<EcgStream|null>(null);
+const emptySubscribe=()=>()=>{};
+const emptySnapshot=()=>EMPTY_ECG;
+export function useLiveEcg(){
+ const stream=useContext(EcgContext);
+ return useSyncExternalStore(stream?.subscribe??emptySubscribe,stream?.getSnapshot??emptySnapshot,stream?.getServerSnapshot??emptySnapshot);
+}
 function bluetoothEnvironment():BluetoothEnvironment {
  const policy=(document as Document&{permissionsPolicy?:{allowsFeature(name:string):boolean};featurePolicy?:{allowsFeature(name:string):boolean}});
  return {secure:window.isSecureContext,apiAvailable:typeof (navigator as Navigator&{bluetooth?:Bluetooth}).bluetooth?.requestDevice==="function",
@@ -20,6 +28,7 @@ function bluetoothEnvironment():BluetoothEnvironment {
 }
 export function BleCaptureProvider({children}:{children:ReactNode}){
  const [view,setView]=useState<View>({state:"Desconectado",error:"",received:0,confirmed:0,dropped:0,pending:0});
+ const [ecgStream]=useState(()=>new EcgStream());
  const [activity,setActivityState]=useState<Activity>("unknown");
  const activityRef=useRef<Activity>("unknown");
  function setActivity(value:Activity){activityRef.current=value;setActivityState(value);}
@@ -27,8 +36,8 @@ export function BleCaptureProvider({children}:{children:ReactNode}){
  const captureDeviceId=useRef<string|null>(null);
  const queue=useRef<{deviceId:string;packet:CapturePacket;attempts:number}[]>([]),sending=useRef(false),generation=useRef(0);
  function patch(update:Partial<View>){if(mounted.current)setView(v=>({...v,...update}));}
- function stop(){const id=captureDeviceId.current;captureDeviceId.current=null;if(id)void api("/v1/me/device/capture",{...writeRequest("POST",{deviceId:id,signal:{status:"disconnected",observedAt:new Date().toISOString()}}),keepalive:true}).catch(()=>{});active.current=false;generation.current++;if(device.current&&disconnectHandler.current)device.current.removeEventListener("gattserverdisconnected",disconnectHandler.current);device.current?.gatt?.disconnect();device.current=null;release.current?.();release.current=null;const lost=queue.current.length;queue.current=[];if(mounted.current)setView(v=>({...v,state:"Desconectado",pending:0,dropped:v.dropped+lost}));}
- useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;stop();};},[]);
+ const stop=useCallback(()=>{ecgStream.setConnected(false);const id=captureDeviceId.current;captureDeviceId.current=null;if(id)void api("/v1/me/device/capture",{...writeRequest("POST",{deviceId:id,signal:{status:"disconnected",observedAt:new Date().toISOString()}}),keepalive:true}).catch(()=>{});active.current=false;generation.current++;if(device.current&&disconnectHandler.current)device.current.removeEventListener("gattserverdisconnected",disconnectHandler.current);device.current?.gatt?.disconnect();device.current=null;release.current?.();release.current=null;const lost=queue.current.length;queue.current=[];if(mounted.current)setView(v=>({...v,state:"Desconectado",pending:0,dropped:v.dropped+lost}));},[ecgStream]);
+ useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;stop();};},[stop]);
  async function send(){
   if(sending.current)return;sending.current=true;const run=generation.current;
   try{while(active.current&&queue.current.length&&run===generation.current){
@@ -89,19 +98,21 @@ export function BleCaptureProvider({children}:{children:ReactNode}){
    characteristic.addEventListener("characteristicvaluechanged",()=>{
     if(!active.current||attempt!==generation.current)return;const value=characteristic.value;if(!value)return;
     try{for(const line of frames.feed(new Uint8Array(value.buffer,value.byteOffset,value.byteLength))){
+     const capturedAt=new Date().toISOString(),packet=decodeCsv(line,`${boot}:${sequence+1}`,capturedAt,activityRef.current);
+     if(packet.telemetry)ecgStream.append(packet.telemetry.fields.ecg,packet.telemetry.fields.estado_ecg_x50,Date.now());
      if(performance.now()-lastSample<1000)continue;
-     const capturedAt=new Date().toISOString(),packet=decodeCsv(line,`${boot}:${++sequence}`,capturedAt,activityRef.current);lastSample=performance.now();
+     sequence++;lastSample=performance.now();
      setView(v=>({...v,state:"Capturando",fields:packet.telemetry?.fields,capturedAt,received:v.received+1}));
      if(queue.current.length>=10){setView(v=>({...v,dropped:v.dropped+1}));continue;}
      queue.current.push({deviceId:options.deviceId,packet,attempts:0});patch({pending:queue.current.length});void send();
     }}catch(error){patch({error:error instanceof Error?error.message:"Trama BLE inválida."});}
    });
-   patch({state:"Activando notificaciones…"});
+   patch({state:"Activando notificaciones…"});ecgStream.setConnected(true);
    await bluetoothStep(characteristic.startNotifications(),"No se activaron las notificaciones BLE. Revisa la placa y vuelve a conectar.");if(!active.current||attempt!==generation.current){selected.gatt?.disconnect();return;}
    captureDeviceId.current=options.deviceId;patch({state:"Conectado · esperando lecturas"});
   }catch(error){if(attempt!==generation.current)return;stop();patch({error:bluetoothConnectionError(error,environment.linux)});}
  }
- return <Context.Provider value={{view,activity,setActivity,connect,disconnect:stop}}>{children}</Context.Provider>;
+ return <Context.Provider value={{view,activity,setActivity,connect,disconnect:stop}}><EcgContext.Provider value={ecgStream}>{children}</EcgContext.Provider></Context.Provider>;
 }
 export function BleCaptureCard(){
  const capture=useContext(Context);const [devices,setDevices]=useState<{id:string;enabled:boolean}[]>([]),[loadError,setLoadError]=useState("");

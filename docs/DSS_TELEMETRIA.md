@@ -37,3 +37,9 @@ La [FDA explica las limitaciones de la oximetría](https://www.fda.gov/medical-d
 `npm test` incluye pruebas deterministas de estados del sensor, caducidad, fechas futuras, separación de intervalos, duplicados y ausencia de influencia radiológica. `tests/cloud.test.ts` añade comprobaciones del endpoint con PostgreSQL cuando `DATABASE_URL` está configurada, en un esquema temporal. Sin ella esa integración se omite; no se considera probada la conexión real a Supabase.
 
 Ejecutar `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:bridge` y `npm run build`. La comprobación del navegador usa respuestas simuladas para no crear cuentas o lecturas reales. La prueba de integración con Supabase se completó el 15 de noviembre de 2026 usando el entorno privado del backend: 20 comprobaciones aprobadas, incluida la ruta DSS. Se creó y eliminó un esquema temporal, sin modificar los datos de app. La validación de la captura física y del despliegue web sigue siendo independiente.
+
+## Colores y señal ECG
+
+Cada indicador expone `alertLevel` (`review`, `priority` o null) para identificar qué regla produjo la revisión. El frontend resalta en rojo solo el indicador vigente y la instantánea que coincide en dispositivo, fecha e identificador con el DSS; las desviaciones respecto a la referencia personal también se destacan. Se conserva texto explicativo para no depender solo del color.
+
+El dashboard añade un monitor de señal ECG cruda con la captura BLE web, anterior al muestreo de la API. Consultar [CAPTURA_BLE_WEB.md](CAPTURA_BLE_WEB.md) para frecuencia, escala y límites. No utiliza instantáneas de 1 Hz para simular un electrocardiograma ni modifica reglas médicas para obtener un color.

@@ -57,3 +57,13 @@ El formulario valida manualmente los UUID, incluso con Configuración BLE plegad
 Para usar la captura web, detener `npm run bridge:ble` u otros consumidores de la misma placa. Si aparece error GATT, comprobar que Bluetooth esté encendido y que el ESP32 se anuncie. El modo Python sigue disponible como alternativa para sistemas donde el navegador no permita Web Bluetooth. Las correcciones del frontend son locales hasta publicarlas en el despliegue.
 
 La prueba de navegador usa un ESP32 simulado y verifica API ausente, selector cancelado, permiso del clic, UUID inválido dentro de detalles plegados, recepción CSV-11 con confirmación, desconexión y timeout GATT. No sustituye la comprobación física en la laptop y navegador del usuario.
+
+## Monitor ECG del dashboard
+
+El panel **Monitor de señal ECG** utiliza cada línea CSV-11 válida recibida por la captura web antes del muestreo de un segundo. Mantiene una ventana de diez segundos en memoria, hasta 3000 muestras, y publica actualizaciones de pantalla como máximo diez veces por segundo. La frecuencia indicada es la recepción observada, no la frecuencia ADC del firmware.
+
+Conectar en `/bluetooth` y navegar al resumen dentro del panel conserva el flujo. Si se recarga la página se pierde la conexión y el buffer. El monitor no reconstruye ondas con las instantáneas de 1 Hz del backend y no genera una forma de onda sintética. Para una captura por Python, los datos siguen disponibles por API, pero no existe un flujo de onda web de alta frecuencia en esta entrega.
+
+La escala es automática y utiliza unidades crudas del AD8232, no milivoltios calibrados. El trazo se interrumpe ante pérdida de contacto o huecos mayores de 500 ms y se oculta cuando la captura se desconecta o no llegan datos durante tres segundos. Es una vista de monitor, no un ECG diagnóstico.
+
+Los valores y tarjetas se resaltan en rojo cuando una regla vigente señala una desviación o revisión; el indicador DSS incluye `alertLevel`. Los datos sin contacto, caducados o de otra instantánea/dispositivo no heredan el rojo. El monitor cambia a rojo únicamente para una alerta cardíaca actual. No se crean nuevos límites clínicos por el color: las reglas de demostración y la referencia personal siguen siendo las existentes. La respiración no recibe un intervalo de normalidad inventado; se destaca solo si una regla configurada lo indica.

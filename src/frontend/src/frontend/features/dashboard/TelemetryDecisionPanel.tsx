@@ -5,7 +5,7 @@ import { api, ApiError, writeRequest } from "../../lib/api";
 import { useLanguage } from "../../providers/LanguageProvider";
 import styles from "./telemetryDecision.module.css";
 
-type Indicator = {key:string;label:string;value:number|null;unit:string;quality:string;detail:string;trend?:number};
+type Indicator = {key:string;label:string;value:number|null;unit:string;quality:string;detail:string;trend?:number;alertLevel?:"review"|"priority"|null};
 type Result = {
   version:string;timestamp:string;scenario:{id:string;label:string;radiation:{instrument:string|null;location:string;n:number;p05?:number;median?:number;p95?:number;unit:string;interpretation:string;provenance?:string}|null};
   state:{level:string;title:string;explanation:string;recommendations:string[];evidence:string[]};
@@ -89,10 +89,11 @@ export function TelemetryDecisionPanel() {
         <p>{expired?(es?"La última muestra ya no es actual. Se requiere una lectura nueva antes de interpretar el estado.":"The latest sample is no longer current. A new reading is required to interpret its status."):result.state.explanation}</p>
       </div>
       <p className={styles.metadata}>{es?"Última muestra":"Last sample"}: {result.telemetry.latestAt?<time dateTime={result.telemetry.latestAt}>{new Date(result.telemetry.latestAt).toLocaleString(locale)}</time>:"—"} · {es?"Antigüedad":"Age"}: {age??"—"} s · {es?"Muestras recientes":"Recent samples"}: {result.telemetry.count}</p>
-      <div className={styles.metrics}>{result.telemetry.indicators.map(indicator=><article key={indicator.key}>
+      <div className={styles.metrics}>{result.telemetry.indicators.map(indicator=><article key={indicator.key} className={!expired&&indicator.quality==="valid"&&indicator.alertLevel?styles.metricAlert:undefined}>
         <h3>{indicator.label}</h3>
         <strong>{expired||indicator.value===null?(es?"Sin dato vigente":"No current value"):`${indicator.value} ${indicator.unit}`}</strong>
         <p>{indicator.detail}</p>
+        {!expired&&indicator.quality==="valid"&&indicator.alertLevel&&<span className={styles.alertBadge}>{es?"Alerta · verificar lectura":"Alert · verify reading"}</span>}
         {!expired&&indicator.trend!==undefined&&<small>Δ {indicator.trend} {indicator.unit} · {result.rules.trendWindowSeconds} s</small>}
       </article>)}</div>
       {!expired&&<><h3>{es?"Acciones sugeridas":"Suggested actions"}</h3><ul>{result.state.recommendations.map(text=><li key={text}>{text}</li>)}</ul></>}

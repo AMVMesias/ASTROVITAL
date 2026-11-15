@@ -14,6 +14,8 @@ import {
   type Reading,
   type Assessment,
 } from "./readingPresentation";
+import { EcgMonitor } from "./EcgMonitor";
+import { sensorHasAlert,type SensorDecision } from "./readingPresentation";
 import { VitalTrend, type TrendSeries } from "./VitalTrend";
 import styles from "./dashboard.module.css";
 import {groupNotices,noticeTitle,type Notice} from "../alerts/presentation";
@@ -36,11 +38,12 @@ type DashboardData = {
   history: Reading[] | null;
   telemetry: Telemetry[] | null;
   latestTelemetry: Telemetry | undefined;
+  dss:SensorDecision|null;
 };
 async function loadDashboard(): Promise<DashboardData> {
   const from = new Date(Date.now() - 86400000).toISOString();
   const options = { cache: "no-store" } as const;
-  const [summary, notices, history, telemetry, latestTelemetry] = await Promise.all([
+  const [summary, notices, history, telemetry, latestTelemetry,dss] = await Promise.all([
     api<Summary>("/v1/me/measurements/latest", options),
     api<{ alerts: Alert[] }>("/v1/me/alerts", options),
     api<{ measurements: Reading[] }>(
@@ -52,6 +55,7 @@ async function loadDashboard(): Promise<DashboardData> {
       options,
     ).catch(() => null),
     api<{samples:Telemetry[]}>("/v1/me/telemetry/latest",options).catch(()=>null),
+    api<SensorDecision>("/v1/me/dss",options).catch(()=>null),
   ]);
   return {
     summary,
@@ -59,6 +63,7 @@ async function loadDashboard(): Promise<DashboardData> {
     history: history?.measurements ?? null,
     telemetry: telemetry?.samples ?? null,
     latestTelemetry: latestTelemetry?.samples[0],
+    dss,
   };
 }
 export function MissionDashboard() {
@@ -182,6 +187,7 @@ export function MissionDashboard() {
   const matchingHeart=heart?.origin!=="device" || heart.deviceId===selectedDeviceId ? heart : undefined;
   const pulseStatus=currentPulseStatus(matchingHeart,device?.signal,latestTelemetry,now);
   const pulseLabels:Record<string,string>=es ? {no_contact:"Sin contacto",no_signal:"Sin señal",insufficient:"Sin pulso válido",disconnected:"Desconectado",stale:"Lectura desactualizada",invalid:"Lectura inválida",missing:"Sin lectura"} : {no_contact:"No contact",no_signal:"No signal",insufficient:"No valid pulse",disconnected:"Disconnected",stale:"Stale reading",invalid:"Invalid reading",missing:"No reading"};
+  const heartAlert=pulseStatus==="live"&&(heartState==="deviation"||(!telemetryDisconnected&&sensorHasAlert(latestTelemetry,data?.dss,"bpm_ecg",now)&&heart?.value===data?.dss?.telemetry.indicators.find(value=>value.key==="bpm_ecg")?.value));
   const activeGroups=groupNotices(data?.alerts.filter((a)=>a.status!=="closed")??[]);
   const activeAlerts=activeGroups.map(group=>group[0]);
   const series: TrendSeries[] = [
@@ -282,7 +288,7 @@ export function MissionDashboard() {
             </div>
             <div className={styles.vitalCards}>
               <article
-                className={styles.vitalCard}
+                className={`${styles.vitalCard} ${heartAlert?styles.alertCard:""}`}
                 aria-label={es ? "Frecuencia cardíaca" : "Heart rate"}
               >
                 <h3>
@@ -305,12 +311,12 @@ export function MissionDashboard() {
                 </p>
                 <span
                   className={
-                    pulseStatus==="live" && heartState === "stable"
+                    !heartAlert && pulseStatus==="live" && heartState === "stable"
                       ? styles.goodBadge
-                      : styles.neutralBadge
+                      : heartAlert?styles.alertBadge:styles.neutralBadge
                   }
                 >
-                  {pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
+                  {heartAlert?(es?"Alerta · verificar lectura":"Alert · verify reading"):pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
                     ? states[heartState]
                     : es
                       ? "Sin lectura"
@@ -330,6 +336,7 @@ export function MissionDashboard() {
               </article>
               {[
                 {
+                  alert:!telemetryDisconnected&&sensorHasAlert(latestTelemetry,data?.dss,"spo2",now),
                   name: es ? "Oxigenación (SpO₂)" : "Oxygenation (SpO₂)",
                   icon: "droplet",
                   value: latestTelemetry?.sensors?.oximeter?.spo2,
@@ -337,6 +344,7 @@ export function MissionDashboard() {
                   color: styles.blue,
                 },
                 {
+                  alert:!telemetryDisconnected&&sensorHasAlert(latestTelemetry,data?.dss,"rpm",now),
                   name: es ? "Respiración" : "Respiration",
                   icon: "lungs",
                   value: latestTelemetry?.sensors?.respiration?.rpm,
@@ -344,7 +352,7 @@ export function MissionDashboard() {
                   color: styles.purple,
                 },
               ].map((item) => (
-                <article key={item.icon} className={styles.vitalCard}>
+                <article key={item.icon} className={`${styles.vitalCard} ${item.alert?styles.alertCard:""}`}>
                   <h3>
                     <span className={item.color}>
                       <AdminIcon name={item.icon} />
@@ -355,8 +363,8 @@ export function MissionDashboard() {
                     {telemetryFresh ? item.value ?? "—" : "—"}
                     <span>{item.unit}</span>
                   </p>
-                  <span className={styles.neutralBadge}>
-                    {telemetryDisconnected ? (es ? "Desconectado" : "Disconnected") : latestTelemetry && !telemetryFresh ? (es ? "Lectura desactualizada" : "Stale reading") : item.value == null
+                  <span className={item.alert?styles.alertBadge:styles.neutralBadge}>
+                    {item.alert?(es?"Alerta · verificar lectura":"Alert · verify reading"):telemetryDisconnected ? (es ? "Desconectado" : "Disconnected") : latestTelemetry && !telemetryFresh ? (es ? "Lectura desactualizada" : "Stale reading") : item.value == null
                       ? es
                         ? "Sin lectura válida"
                         : "No valid reading"
@@ -432,7 +440,7 @@ export function MissionDashboard() {
               )}
             </div>
           </section>
-          <section className={`${styles.panel} ${styles.evaluation}`}>
+          <section className={`${styles.panel} ${styles.evaluation} ${heartAlert?styles.alertCard:""}`}>
             <div className={styles.sectionHeading}>
               <h2>
                 <AdminIcon name="shield" />
@@ -440,9 +448,9 @@ export function MissionDashboard() {
               </h2>
             </div>
             <div
-              className={`${styles.evaluationBox} ${pulseStatus==="live" && heartState === "stable" ? styles.stable : ""}`}
+              className={`${styles.evaluationBox} ${!heartAlert && pulseStatus==="live" && heartState === "stable" ? styles.stable : ""}`}
             >
-              <AdminIcon name={pulseStatus==="live" && heartState === "stable" ? "check" : "pulse"} />
+              <AdminIcon name={!heartAlert && pulseStatus==="live" && heartState === "stable" ? "check" : "pulse"} />
               <div>
                 <h3>
                   {pulseStatus!=="live" ? pulseLabels[pulseStatus] : heart
@@ -552,7 +560,7 @@ export function MissionDashboard() {
                 ? readingAssessment(reading, evaluations)
                 : undefined;
               return (
-                <section key={indicator} className={styles.panel}>
+                <section key={indicator} className={`${styles.panel} ${reading&&assessment?.status==="deviation"&&readingFreshness(reading,now)==="fresh"?styles.alertCard:""}`}>
                   <div className={styles.sectionHeading}>
                     <h2>
                       <AdminIcon
@@ -628,6 +636,7 @@ export function MissionDashboard() {
           </div>
         </div>
       )}
+      <EcgMonitor locale={locale} alert={heartAlert} />
       <TelemetryDecisionPanel />
       <footer className={styles.footer}>
         <p>
