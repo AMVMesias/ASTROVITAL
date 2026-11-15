@@ -61,6 +61,19 @@ test("Supabase application: authentication, roles, recovery, measurements and HT
  const cookie=`nasa_session=${login.token}`;
  for(let i=0;i<2;i++){const r=await captureRoute(request("me/device/capture","POST",payload,cookie));assert.equal(r.status,200,JSON.stringify(await r.clone().json()));assert.equal((await r.json()).status,"recorded");}
  assert.equal(Number((await app.repo.get("SELECT COUNT(*) AS n FROM sensor_telemetry WHERE reading_id=?","browser:1:telemetry"))!.n),1);
+ const unknown=(await app.repo.deviceReading("test-device","browser:1"))!.measurement;
+ assert.equal(unknown.activity,"unknown");assert.equal(unknown.activityConfirmed,false);
+ const restPayload={deviceId:"test-device",measurement:{...payload.measurement,readingId:"browser:rest",activity:"rest"}};
+ const restResponse=await captureRoute(request("me/device/capture","POST",restPayload,cookie));
+ assert.equal(restResponse.status,200,JSON.stringify(await restResponse.clone().json()));
+ const rest=(await app.repo.deviceReading("test-device","browser:rest"))!.measurement;
+ assert.equal(rest.activity,"rest");assert.equal(rest.activityConfirmed,true);
+ assert.equal((await app.assessments.preview(rest)).status,"insufficient");
+ assert.equal((await app.measurements.history(astro,new URLSearchParams("indicator=heart_rate"))).find(m=>m.id===rest.id)?.activityConfirmed,true);
+ const filters=new URLSearchParams({indicator:"heart_rate",from:capturedAt,to:capturedAt});
+ assert.equal((await app.measurements.history(astro,filters)).filter(m=>m.deviceId==="test-device").length,2);
+ const telemetryFilters=new URLSearchParams({from:capturedAt,to:capturedAt});
+ assert.equal((await app.telemetry.history(astro,telemetryFilters)).samples.length,1);
  const other=await app.users.save(admin,{username:"bleother",name:"Other owner",role:"astronauta",password});await app.repo.run("UPDATE users SET requires_onboarding=0 WHERE id=?",other.id);
  const otherLogin=await app.auth.login({username:"bleother",password});const relink=await linkDeviceRoute(request("users/devices","POST",{deviceId:"test-device"},`nasa_session=${adminLogin.token}`),{params:Promise.resolve({id:other.id})});assert.equal(relink.status,409);const denied=await captureRoute(request("me/device/capture","POST",payload,`nasa_session=${otherLogin.token}`));assert.equal(denied.status,403);
  const invalid={...payload,telemetry:{...payload.telemetry,readingId:"browser:rollback"},measurement:{...payload.measurement,value:999}};

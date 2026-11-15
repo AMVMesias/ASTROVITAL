@@ -6,7 +6,7 @@ type Characteristic=EventTarget&{value?:DataView;startNotifications():Promise<Ch
 type Gatt={connected:boolean;connect():Promise<Gatt>;disconnect():void;getPrimaryService(uuid:string):Promise<{getCharacteristic(uuid:string):Promise<Characteristic>}>};
 type BleDevice=EventTarget&{name?:string;gatt?:Gatt};
 type Bluetooth={requestDevice(options:{acceptAllDevices:true;optionalServices:string[]}):Promise<BleDevice>};
-type Options={deviceId:string;service:string;characteristic:string;copies:1|2;activity:"rest"|"exercise"|"eva"};
+type Options={deviceId:string;service:string;characteristic:string;copies:1|2;activity:"rest"|"exercise"|"eva"|"unknown"};
 type View={state:string;error:string;received:number;confirmed:number;dropped:number;pending:number;fields?:TelemetryFields;capturedAt?:string;name?:string};
 type Capture={view:View;connect(options:Options):Promise<void>;disconnect():void};
 const Context=createContext<Capture|null>(null);
@@ -84,7 +84,7 @@ export function BleCaptureCard(){
  {!devices.length&&!loadError&&<p>No tienes dispositivos habilitados. Pide al administrador que vincule el ESP32 a tu cuenta.</p>}
  <form className="data-form" onSubmit={event=>{event.preventDefault();const f=new FormData(event.currentTarget);void capture.connect({deviceId:String(f.get("deviceId")),service:String(f.get("service")).trim(),characteristic:String(f.get("characteristic")).trim(),copies:Number(f.get("copies")) as 1|2,activity:String(f.get("activity")) as Options["activity"]});}}>
  <fieldset disabled={busy}><label>Dispositivo vinculado<select name="deviceId" required>{devices.map(d=><option key={d.id}>{d.id}</option>)}</select></label>
- <label>Actividad<select name="activity"><option value="rest">Reposo</option><option value="exercise">Ejercicio</option><option value="eva">EVA</option></select></label>
+ <label>Actividad confirmada<select name="activity" defaultValue="unknown"><option value="unknown">No confirmada</option><option value="rest">Reposo confirmado</option><option value="exercise">Ejercicio</option><option value="eva">EVA</option></select></label>
  <details><summary>Configuración BLE (la misma que Python)</summary><p>Formato CSV de once columnas, terminado en salto de línea.</p>
  <label>UUID del servicio<input name="service" required defaultValue="6e400001-b5a3-f393-e0a9-e50e24dcca9e"/></label>
  <label>UUID de la característica<input name="characteristic" required defaultValue="6e400003-b5a3-f393-e0a9-e50e24dcca9e"/></label>

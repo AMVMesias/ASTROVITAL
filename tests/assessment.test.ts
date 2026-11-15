@@ -29,3 +29,37 @@ test("contextual recommendations remain available after the PostgreSQL migration
  assert.equal(assessMeasurements({...reading("x",70),quality:"invalid"},[],rule,now).recommendation?.action,"repeat_reading");
  assert.equal(assessMeasurements(reading("x",70),[],rule,now).recommendation?.action,"collect_history");
 });
+
+test("resting heart baseline excludes exercise, EVA, unknown, invalid and out-of-window history", () => {
+ const good = [...baseline, reading("recent", 70, 10)];
+ const noise = [
+  ...(["exercise", "eva", "unknown", undefined] as const).flatMap((activity, i) => baseline.map(r => ({...r,id:`noise-${i}-${r.id}`,activity,value:200}))),
+  ...baseline.map(r=>({...r,id:`invalid-${r.id}`,quality:"invalid" as const,value:200})),
+  ...baseline.map(r=>({...r,id:`old-${r.id}`,capturedAt:new Date(now.getTime()-rule.referenceWindowMs-1000).toISOString(),value:200})),
+  ...baseline.map(r=>({...r,id:`foreign-${r.id}`,astronautId:"someone-else",value:200})),
+ ];
+ const result=assessMeasurements(reading("current",70),[...good,...noise],rule,now);
+ assert.equal(result.status,"stable"); assert.equal(result.reference?.mean,70); assert.equal(result.reference?.count,3);
+ for (const activity of ["exercise","eva","unknown",undefined] as const) {
+   const current={...reading("current",72),activity};
+   const assessed=assessMeasurements(current,good,rule,now);
+   assert.equal(assessed.status,"insufficient"); assert.equal(assessed.reference?.mean,70);
+   assert.equal(assessed.direction,undefined);
+   assert.equal(assessMeasurements(current,noise,rule,now).reference,undefined);
+ }
+});
+test("reference requires minimum valid rest samples; invalid/stale current readings cannot be stable",()=>{
+ assert.equal(assessMeasurements(reading("current",70),baseline.slice(0,2),rule,now).reference,undefined);
+ assert.equal(assessMeasurements(reading("current",70),baseline,rule,now).reference?.count,3);
+ assert.equal(assessMeasurements({...reading("current",70),quality:"invalid"},baseline,rule,now).status,"invalid");
+ assert.equal(assessMeasurements(reading("current",70,61),baseline,rule,now).status,"stale");
+ const unknown = baseline.map(r=>({...r,activity:undefined}));
+ assert.equal(assessMeasurements({...reading("current",70),activity:undefined},unknown,rule,now).reference,undefined);
+});
+test("sleep and wellbeing retain their existing same-activity evaluation",()=>{
+ for(const indicator of ["sleep","wellbeing"]) {
+  const current={...reading("current",90),indicator,activity:undefined};
+  const history=[...baseline,reading("recent",90,10)].map(r=>({...r,indicator,activity:undefined}));
+  assert.equal(assessMeasurements(current,history,rule,now).status,"deviation");
+ }
+});

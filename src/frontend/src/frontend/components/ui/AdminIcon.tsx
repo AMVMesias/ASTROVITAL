@@ -1,5 +1,60 @@
 import type { CSSProperties } from "react";
 const paths: Record<string, React.ReactNode> = {
+  grid: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </>
+  ),
+  chart: (
+    <>
+      <path d="M3 3v18h18M5 15l5-5 4 3 6-8" />
+      <path d="M16 5h4v4" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM9 21h6" />
+    </>
+  ),
+  layers: (
+    <>
+      <path d="m12 2 10 6-10 6L2 8l10-6ZM2 12l10 6 10-6M2 16l10 6 10-6" />
+    </>
+  ),
+  pulse: <path d="M2 12h5l3-9 4 18 3-9h5" />,
+  moon: <path d="M20 15.5A9 9 0 0 1 8.5 4 9 9 0 1 0 20 15.5Z" />,
+  smile: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 14s1 3 4 3 4-3 4-3M8 8v2m8-2v2" />
+    </>
+  ),
+  chip: (
+    <>
+      <rect x="5" y="5" width="14" height="14" rx="1" />
+      <path d="M9 1v4m6-4v4M9 19v4m6-4v4M1 9h4m-4 6h4M19 9h4m-4 6h4M9 9h6v6H9Z" />
+    </>
+  ),
+  droplet: (
+    <>
+      <path d="M12 2S4 10 4 15a8 8 0 0 0 16 0c0-5-8-13-8-13Z" />
+      <circle cx="10" cy="14" r="2" />
+    </>
+  ),
+  lungs: (
+    <>
+      <path d="M10 5v9M14 5v9M10 8C6 5 3 10 3 18c3 0 6-2 7-4M14 8c4-3 7 2 7 10-3 0-6-2-7-4M12 2v8m0 0-2 3m2-3 2 3" />
+    </>
+  ),
+  check: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m7 12 3 3 7-7" />
+    </>
+  ),
   users: (
     <>
       <circle cx="12" cy="8" r="3.5" />

@@ -1,6 +1,6 @@
 export const fieldNames=["ecg","bpm_ecg","estado_ecg_x50","resp_mg","rpm","estado_resp_x50","spo2","bpm_oxi","estado_oxi_x50","ir","rojo"] as const;
 export type TelemetryFields=Record<typeof fieldNames[number],number>;
-export type CapturePacket={telemetry?:{readingId:string;capturedAt:string;fields:TelemetryFields};measurement?:{readingId:string;indicator:"heart_rate";value:number;unit:"bpm";capturedAt:string;activity:"rest"|"exercise"|"eva";note:string};signal?:{status:string;observedAt:string}};
+export type CapturePacket={telemetry?:{readingId:string;capturedAt:string;fields:TelemetryFields};measurement?:{readingId:string;indicator:"heart_rate";value:number;unit:"bpm";capturedAt:string;activity:"rest"|"exercise"|"eva"|"unknown";note:string};signal?:{status:string;observedAt:string}};
 export class BleFrames {
   private buffer=new Uint8Array(0);private pending:Uint8Array|null=null;
   constructor(private copies:1|2=1){}
@@ -17,7 +17,7 @@ export class BleFrames {
     this.buffer=next.slice(start);return lines.filter(Boolean);
   }
 }
-export function decodeCsv(line:string,readingId:string,capturedAt:string,activity:"rest"|"exercise"|"eva"):CapturePacket {
+export function decodeCsv(line:string,readingId:string,capturedAt:string,activity:"rest"|"exercise"|"eva"|"unknown"):CapturePacket {
   const columns=line.split(",");
   if(columns.length!==11||columns.some(v=>!v.trim()||!/^[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?$/i.test(v.trim())))throw new Error("Se esperan once columnas CSV numéricas.");
   const values=columns.map(Number);

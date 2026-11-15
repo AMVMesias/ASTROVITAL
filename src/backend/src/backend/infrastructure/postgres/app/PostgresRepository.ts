@@ -104,8 +104,8 @@ export class PostgresRepository implements Repository {
     (await this.run("INSERT INTO assessment_jobs(id) VALUES(?)",value.id));
   }
   async measurements(id: string, query: MeasurementQuery) {
-    return (await this.all(`SELECT payload FROM measurements WHERE astronaut_id=? AND (? IS NULL OR indicator=?)
-      AND (? IS NULL OR captured_at>=?) AND (? IS NULL OR captured_at<=?) ORDER BY captured_at DESC,id DESC LIMIT ? OFFSET ?`,
+    return (await this.all(`SELECT payload FROM measurements WHERE astronaut_id=? AND (CAST(? AS TEXT) IS NULL OR indicator=?)
+      AND (CAST(? AS TEXT) IS NULL OR captured_at>=?) AND (CAST(? AS TEXT) IS NULL OR captured_at<=?) ORDER BY captured_at DESC,id DESC LIMIT ? OFFSET ?`,
     id, query.indicator ?? null, query.indicator ?? null, query.from ?? null, query.from ?? null, query.to ?? null, query.to ?? null, query.limit, query.offset)).map(row => JSON.parse(String(row.payload)) as Measurement);
   }
   async latest(id: string) {

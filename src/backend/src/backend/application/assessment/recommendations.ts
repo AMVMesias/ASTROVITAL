@@ -45,6 +45,10 @@ const recommendations = {
 };
 
 export function selectRecommendation(assessment: Assessment, reading: PersonalMeasurement): Recommendation | undefined {
+  if (reading.indicator === "heart_rate" && assessment.status === "insufficient" && reading.activity !== "rest") {
+    return reading.activity === "exercise" ? recommendations.pulseExercise
+      : reading.activity === "eva" ? recommendations.pulseEva : recommendations.pulseUnknown;
+  }
   switch (assessment.status) {
     case "invalid":
     case "stale":

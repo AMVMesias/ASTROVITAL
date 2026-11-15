@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import {test} from "node:test";
 import {BleFrames,decodeCsv} from "../src/frontend/src/frontend/features/capture/protocol";
 const line="100,72,100,20,14,100,98,73,200,55000,24000",stamp="2026-11-14T12:00:00.000Z";
+test("BLE preserves unconfirmed activity instead of assuming rest",()=>{
+ assert.equal(decodeCsv(line,"unknown-activity",stamp,"unknown").measurement?.activity,"unknown");
+});
 test("BLE reconstructs arbitrary notification fragments and multiple lines",()=>{
  const b=new BleFrames(),data=new TextEncoder().encode(line+"\r\n"+line+"\n");let lines:string[]=[];
  for(let i=0;i<data.length;i+=7)lines=lines.concat(b.feed(data.slice(i,i+7)));

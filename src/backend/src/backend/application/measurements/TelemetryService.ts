@@ -39,7 +39,7 @@ export class TelemetryService {
     if(!Number.isSafeInteger(limit)||limit<1||limit>500||!Number.isSafeInteger(offset)||offset<0) throw new AppError(400,"VALIDATION","Paginación inválida.");
     const from=params.has("from")?date(params.get("from"),"from"):null, to=params.has("to")?date(params.get("to"),"to"):null;
     if(from&&to&&from>to) throw new AppError(400,"VALIDATION","Período inválido.");
-    const samples=(await (await this.repo.all("SELECT * FROM sensor_telemetry WHERE astronaut_id=? AND (? IS NULL OR captured_at>=?) AND (? IS NULL OR captured_at<=?) ORDER BY captured_at DESC,device_id,reading_id DESC LIMIT ? OFFSET ?",user.astronautId!,from,from,to,to,limit,offset)).map(row=>{
+    const samples=(await (await this.repo.all("SELECT * FROM sensor_telemetry WHERE astronaut_id=? AND (CAST(? AS TEXT) IS NULL OR captured_at>=?) AND (CAST(? AS TEXT) IS NULL OR captured_at<=?) ORDER BY captured_at DESC,device_id,reading_id DESC LIMIT ? OFFSET ?",user.astronautId!,from,from,to,to,limit,offset)).map(row=>{
       const payload=JSON.parse(String(row.payload)) as {readingId:string;capturedAt:string;fields:Fields};
       const f=payload.fields;
       return {...payload,deviceId:row.device_id,receivedAt:row.received_at,clock:"host_received_csv_snapshot",ageSeconds:Math.max(0,Math.floor((Date.now()-Date.parse(payload.capturedAt))/1000)),

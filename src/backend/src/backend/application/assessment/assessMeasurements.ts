@@ -1,3 +1,4 @@
+import type { Activity } from "../../domain/model";
 import { selectRecommendation, type Recommendation } from "./recommendations";
 
 export type PersonalMeasurement = {
@@ -10,7 +11,7 @@ export type PersonalMeasurement = {
   capturedAt: string;
   quality: "valid" | "invalid";
   origin: "manual" | "sensor" | "simulado";
-  activity?: string;
+  activity?: Activity;
   environment: { scenarioId: string; revision: string };
 };
 
@@ -67,7 +68,8 @@ function evaluateTrend(
     const time = Date.parse(entry.capturedAt);
     if (entry.id !== latest.id && entry.astronautId === latest.astronautId &&
         entry.missionId === latest.missionId && entry.indicator === latest.indicator &&
-        entry.unit === latest.unit && entry.activity === latest.activity &&
+        entry.unit === latest.unit &&
+        (latest.indicator === "heart_rate" ? entry.activity === "rest" : entry.activity === latest.activity) &&
         entry.environment.scenarioId === latest.environment.scenarioId &&
         entry.environment.revision === latest.environment.revision &&
         (entry.origin === "simulado") === (latest.origin === "simulado") &&
@@ -79,13 +81,21 @@ function evaluateTrend(
   const ordered = [...unique.values()].sort(
     (a, b) => Date.parse(a.capturedAt) - Date.parse(b.capturedAt) || a.id.localeCompare(b.id),
   );
+  // A non-resting pulse stays a current reading; it is never evaluated as resting pulse.
+  // Its reference may still describe earlier confirmed resting readings in this context.
+  const validRest = ordered.filter(entry => entry.quality === "valid" && Number.isFinite(entry.value));
+  const restingReference = latest.indicator === "heart_rate" && validRest.length >= minimumSamples
+    ? { mean: validRest.reduce((sum, entry) => sum + entry.value / validRest.length, 0), count: validRest.length,
+        from: validRest[0].capturedAt, to: validRest[validRest.length - 1].capturedAt } : undefined;
+  const insufficient = restingReference ? { ...result, reference: restingReference } : result;
+  if (latest.indicator === "heart_rate" && latest.activity !== "rest") return insufficient;
   const baselineEnd = ordered.length - consecutiveSamples + 1;
-  if (baselineEnd < minimumSamples) return result;
+  if (baselineEnd < minimumSamples) return insufficient;
   const recent = [...ordered.slice(baselineEnd), latest];
   const baseline = ordered.slice(0, baselineEnd).filter(
     (entry) => entry.quality === "valid" && Number.isFinite(entry.value),
   );
-  if (recent.length !== consecutiveSamples || baseline.length < minimumSamples) return result;
+  if (recent.length !== consecutiveSamples || baseline.length < minimumSamples) return insufficient;
 
   const mean = baseline.reduce((sum, entry) => sum + entry.value / baseline.length, 0);
   const reference = {

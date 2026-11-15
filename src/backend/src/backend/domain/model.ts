@@ -1,5 +1,5 @@
 export type Role = "admin" | "astronauta";
-export type Activity = "rest" | "exercise" | "eva";
+export type Activity = "rest" | "exercise" | "eva" | "unknown";
 export type Origin = "manual" | "device" | "simulated";
 export type Indicator = "sleep" | "wellbeing" | "heart_rate";
 
@@ -45,6 +45,8 @@ export interface Measurement {
   deviceId: string | null;
   readingId: string | null;
   activity: Activity;
+  /** Explicit context supplied by the authenticated producer; absent on legacy records. */
+  activityConfirmed?: boolean;
   note: string;
   scenario: string | null;
   environment: EnvironmentContext;

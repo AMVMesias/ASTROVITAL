@@ -1,11 +1,9 @@
 "use client";
-import Link from "next/link";
 import { BleCaptureProvider } from "../../features/capture/BleCapture";
 import { AdminShell } from "./AdminShell";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { api, ApiError, writeRequest, type User } from "../../lib/api";
-import { ThemeToggle } from "../ui/ThemeToggle";
+import { api, ApiError, type User } from "../../lib/api";
 export function SessionPanel({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User>();
   const [error, setError] = useState("");
@@ -52,34 +50,7 @@ export function SessionPanel({ children }: { children: ReactNode }) {
         <p role="status">Comprobando sesión…</p>
       </main>
     );
-  if (user.role === "admin")
-    return <AdminShell user={user}>{children}</AdminShell>;
-  return (
-    <>
-      <nav className="panel-nav" aria-label="Panel">
-        <Link href="/">AstroVital</Link>
-        <ThemeToggle />
-        <Link href="/dashboard">Dashboard</Link>
-        <Link href="/reportes">Historial</Link>
-        <Link href="/configuracion">Mi cuenta</Link>
-        <span>{user.name}</span>
-        <button
-          onClick={async () => {
-            try {
-              await api("/v1/auth/logout", writeRequest("POST"));
-              router.replace("/login");
-              router.refresh();
-            } catch (e) {
-              setError(
-                e instanceof Error ? e.message : "No se pudo cerrar la sesión.",
-              );
-            }
-          }}
-        >
-          Cerrar sesión
-        </button>
-      </nav>
-      <BleCaptureProvider key={user.id}>{children}</BleCaptureProvider>
-    </>
-  );
+  return <AdminShell user={user}>{user.role === "astronauta"
+    ? <BleCaptureProvider key={user.id}>{children}</BleCaptureProvider>
+    : children}</AdminShell>;
 }

@@ -1115,3 +1115,122 @@ html[data-theme="dark"] .admin-message.error {
     font-size: 13px;
   }
 }
+.astronaut-shell {
+  --admin-sidebar: 258px;
+}
+.astronaut-shell .admin-header {
+  margin-left: var(--admin-sidebar);
+  height: 66px;
+  padding: 0 30px;
+  gap: 20px;
+}
+.astronaut-shell .admin-header > .brand {
+  display: none;
+}
+.astronaut-shell .admin-header-title {
+  border: 0;
+  padding-left: 0;
+  font-size: 19px;
+}
+.astronaut-shell .admin-profile small {
+  display: none;
+}
+.astronaut-shell .admin-profile strong {
+  font-size: 17px;
+}
+.astronaut-shell .admin-profile-avatar {
+  background: transparent;
+  width: 30px;
+  height: 32px;
+}
+.astronaut-shell .admin-sidebar {
+  top: 0;
+  padding: 24px 16px;
+  min-height: 100svh;
+  background:
+    linear-gradient(180deg, #00152d 0%, #00152dfa 45%, #00152d22 100%),
+    url("/images/astrovital-earth.webp") center bottom/cover no-repeat;
+}
+.astronaut-sidebar-brand {
+  padding: 0 14px 36px;
+}
+.astronaut-sidebar-brand .brand {
+  display: block;
+}
+.astronaut-sidebar-brand .brand-mark img {
+  width: 230px;
+  height: auto;
+}
+.astronaut-sidebar-brand .brand-logo-standard {
+  display: none !important;
+}
+.astronaut-sidebar-brand .brand-logo-inverse {
+  display: block !important;
+}
+.astronaut-shell .admin-sidebar nav {
+  gap: 6px;
+}
+.astronaut-shell .admin-sidebar nav > a,
+.astronaut-shell .admin-sidebar nav > button {
+  border-radius: 12px;
+  font-size: 16px;
+  padding: 15px 18px;
+}
+.astronaut-shell .admin-sidebar nav > a.is-active {
+  background: linear-gradient(120deg, #0055f3, #0075ff);
+  box-shadow: inset 0 0 0 1px #6aa5ff55;
+}
+.astronaut-shell .admin-content {
+  padding: 24px 24px 30px;
+}
+.astronaut-shell .interior {
+  margin: 0;
+  max-width: 1250px;
+  padding: 20px 10px;
+}
+@media (max-width: 1100px) {
+  .astronaut-shell {
+    --admin-sidebar: 220px;
+  }
+  .astronaut-shell .admin-header-title span {
+    display: inline;
+  }
+  .astronaut-shell .admin-header-title {
+    font-size: 15px;
+  }
+  .astronaut-shell .admin-profile strong {
+    font-size: 14px;
+  }
+  .astronaut-shell .admin-header {
+    padding: 0 20px;
+    gap: 14px;
+  }
+  .astronaut-sidebar-brand .brand-mark img {
+    width: 210px;
+  }
+}
+@media (max-width: 850px) and (min-width: 701px) {
+  .astronaut-shell .admin-header-title span {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .astronaut-shell .admin-header {
+    margin-left: 0;
+    height: auto;
+    padding: 14px 5%;
+    gap: 12px;
+  }
+  .astronaut-shell .admin-header > .brand {
+    display: block;
+  }
+  .astronaut-shell .admin-header-title {
+    font-size: 12px;
+  }
+  .astronaut-shell .admin-content {
+    padding: 22px 5% 30px;
+  }
+  .astronaut-shell .admin-sidebar {
+    padding-top: 28px;
+  }
+}

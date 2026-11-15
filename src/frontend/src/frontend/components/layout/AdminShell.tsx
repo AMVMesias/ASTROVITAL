@@ -23,6 +23,7 @@ export function AdminShell({
     [error, setError] = useState("");
   const { locale } = useLanguage();
   const en = locale === "en";
+  const astronaut = user.role === "astronauta";
   async function logout() {
     try {
       await api("/v1/auth/logout", writeRequest("POST"));
@@ -33,7 +34,7 @@ export function AdminShell({
     }
   }
   return (
-    <div className="admin-shell">
+    <div className={`admin-shell ${astronaut ? "astronaut-shell" : ""}`}>
       <header className="admin-header">
         <button
           className="admin-menu"
@@ -46,8 +47,16 @@ export function AdminShell({
         </button>
         <Brand />
         <div className="admin-header-title">
-          <AdminIcon name="shield" />
-          <span>{en ? "Administration panel" : "Panel de administración"}</span>
+          <AdminIcon name={astronaut ? "user" : "shield"} />
+          <span>
+            {astronaut
+              ? en
+                ? "Astronaut panel"
+                : "Panel del astronauta"
+              : en
+                ? "Administration panel"
+                : "Panel de administración"}
+          </span>
         </div>
         <div className="admin-header-controls">
           <LanguageSelect />
@@ -59,8 +68,16 @@ export function AdminShell({
               <AdminIcon name="user" />
             </span>
             <span>
-              <strong>{user.username}</strong>
-              <small>{en ? "Administrator" : "Administrador"}</small>
+              <strong>{astronaut ? user.name : user.username}</strong>
+              <small>
+                {astronaut
+                  ? en
+                    ? "Astronaut"
+                    : "Astronauta"
+                  : en
+                    ? "Administrator"
+                    : "Administrador"}
+              </small>
             </span>
             <AdminIcon name="chevron" />
           </summary>
@@ -83,12 +100,45 @@ export function AdminShell({
         id="admin-sidebar"
         className={`admin-sidebar ${open ? "is-open" : ""}`}
       >
-        <nav aria-label={en ? "Administration" : "Administración"}>
-          {[
-            ["/usuarios", "users", en ? "Users" : "Usuarios"],
-            ["/usuarios/nuevo", "addUser", en ? "New user" : "Nuevo usuario"],
-            ["/configuracion", "user", en ? "My account" : "Mi cuenta"],
-          ].map(([url, icon, label]) => (
+        {astronaut && (
+          <div className="astronaut-sidebar-brand">
+            <Brand />
+          </div>
+        )}
+        <nav
+          aria-label={
+            astronaut
+              ? en
+                ? "Astronaut"
+                : "Astronauta"
+              : en
+                ? "Administration"
+                : "Administración"
+          }
+        >
+          {(astronaut
+            ? [
+                ["/dashboard", "grid", en ? "Overview" : "Resumen"],
+                ["/reportes", "chart", en ? "History" : "Historial"],
+                ["/registros", "edit", en ? "Manual entry" : "Registro manual"],
+                ["/avisos", "bell", en ? "Alerts" : "Avisos"],
+                [
+                  "/entorno",
+                  "layers",
+                  en ? "Capture environment" : "Entorno de captura",
+                ],
+                ["/configuracion", "user", en ? "My account" : "Mi cuenta"],
+              ]
+            : [
+                ["/usuarios", "users", en ? "Users" : "Usuarios"],
+                [
+                  "/usuarios/nuevo",
+                  "addUser",
+                  en ? "New user" : "Nuevo usuario",
+                ],
+                ["/configuracion", "user", en ? "My account" : "Mi cuenta"],
+              ]
+          ).map(([url, icon, label]) => (
             <Link
               key={url}
               href={url}
